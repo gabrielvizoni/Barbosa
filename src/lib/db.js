@@ -102,6 +102,7 @@ function migrate(conn) {
     antecedencia_min: '60',
     dias_futuros: '30',
     confirmacao_automatica: '1',
+    sessao_versao: '1',
   };
   const insereConfig = conn.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)');
   for (const [chave, valor] of Object.entries(padroes)) insereConfig.run(chave, valor);

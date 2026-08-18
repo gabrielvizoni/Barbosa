@@ -29,7 +29,7 @@ Abra o `.env` e defina:
 
 | Variável | Para que serve |
 |---|---|
-| `ADMIN_PASSWORD` | A senha de entrada do painel. **Troque.** |
+| `ADMIN_PASSWORD` | Senha **só do primeiro acesso**. Depois que a senha for trocada dentro do painel, esta deixa de valer (veja "Senha do painel" abaixo). |
 | `SESSION_SECRET` | Assina o cookie de sessão. Gere um valor aleatório (comando abaixo). |
 | `DATABASE_PATH` | Onde o banco fica salvo. Em produção, aponte para um disco que não se apaga. |
 | `TZ` | `America/Sao_Paulo` — é o fuso usado para calcular os horários livres. |
@@ -40,6 +40,27 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Depois, no painel, vá em **Configurações** e preencha o WhatsApp da barbearia. Sem ele, o
 botão de confirmação não aparece para o cliente no fim do agendamento.
+
+---
+
+## Senha do painel
+
+Entre a primeira vez com a senha do `ADMIN_PASSWORD`. Em **Configurações → Senha do painel**,
+defina uma senha própria — o painel avisa enquanto isso não for feito.
+
+A partir daí a senha vive no banco, guardada como hash `scrypt`: nem o painel nem um backup
+do arquivo mostram a senha em texto. **A do `.env` deixa de funcionar.** Trocar a senha
+desconecta qualquer outro aparelho com o painel aberto; quem trocou continua logado.
+
+### Se a senha for esquecida
+
+Apague o hash do banco e a senha do `.env` volta a valer, dando um novo primeiro acesso:
+
+```bash
+sqlite3 data/barbosa.db "DELETE FROM config WHERE chave = 'senha_hash';"
+```
+
+Nenhum outro dado é afetado — agendamentos, serviços e histórico continuam intactos.
 
 ---
 

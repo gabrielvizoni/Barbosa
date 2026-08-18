@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { cookies } from 'next/headers';
+import { lerConfig, salvarConfig } from './db';
 
 const NOME_COOKIE = 'barbosa_admin';
 const DURACAO_SEGUNDOS = 60 * 60 * 12; // 12 horas
@@ -8,15 +9,11 @@ function segredo() {
   return process.env.SESSION_SECRET || 'segredo-de-desenvolvimento-troque-em-producao';
 }
 
-function senhaCorreta() {
-  return process.env.ADMIN_PASSWORD || 'barbosa';
-}
-
 function assinar(valor) {
   return crypto.createHmac('sha256', segredo()).update(valor).digest('hex');
 }
 
-/** Compara duas strings em tempo constante. */
+/** Compara duas strings sem vazar, pelo tempo de resposta, onde elas diferem. */
 function iguais(a, b) {
   const bufA = Buffer.from(String(a));
   const bufB = Buffer.from(String(b));
@@ -24,15 +21,66 @@ function iguais(a, b) {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-export function senhaConfere(tentativa) {
-  return iguais(String(tentativa || ''), senhaCorreta());
+/* -------------------------------------------------------------------------
+   Senha
+
+   A senha fica no banco, guardada como hash scrypt — nem o painel nem um
+   backup do arquivo revelam a senha em texto.
+
+   Enquanto o barbeiro não tiver definido a dele, vale a do .env
+   (ADMIN_PASSWORD). Isso serve para o primeiro acesso e para destravar o
+   painel caso a senha se perca: apague o hash do banco e o .env volta a valer.
+   ------------------------------------------------------------------------- */
+
+export function gerarHash(senha) {
+  const sal = crypto.randomBytes(16);
+  const derivada = crypto.scryptSync(String(senha), sal, 64);
+  return `scrypt$${sal.toString('hex')}$${derivada.toString('hex')}`;
 }
 
+function conferirHash(senha, guardado) {
+  const [algoritmo, salHex, hashHex] = String(guardado).split('$');
+  if (algoritmo !== 'scrypt' || !salHex || !hashHex) return false;
+  const derivada = crypto.scryptSync(String(senha), Buffer.from(salHex, 'hex'), 64);
+  const esperado = Buffer.from(hashHex, 'hex');
+  if (derivada.length !== esperado.length) return false;
+  return crypto.timingSafeEqual(derivada, esperado);
+}
+
+export function senhaConfere(tentativa) {
+  const texto = String(tentativa ?? '');
+  if (!texto) return false;
+
+  const { senha_hash: guardado } = lerConfig();
+  if (guardado) return conferirHash(texto, guardado);
+
+  return iguais(texto, process.env.ADMIN_PASSWORD || 'barbosa');
+}
+
+/** True quando a senha ainda é a do .env — o painel avisa para trocar. */
+export function usandoSenhaInicial() {
+  return !lerConfig().senha_hash;
+}
+
+/**
+ * Grava a senha nova e derruba todas as outras sessões abertas, bumpando a
+ * versão que vai assinada no cookie. Quem trocou continua logado.
+ */
+export function trocarSenha(nova) {
+  const versao = Number(lerConfig().sessao_versao || 1) + 1;
+  salvarConfig({ senha_hash: gerarHash(nova), sessao_versao: String(versao) });
+  criarSessao();
+}
+
+/* -------------------------------------------------------------------------
+   Sessão
+   ------------------------------------------------------------------------- */
+
 export function criarSessao() {
+  const versao = lerConfig().sessao_versao || '1';
   const expiraEm = Date.now() + DURACAO_SEGUNDOS * 1000;
-  const payload = `admin.${expiraEm}`;
-  const token = `${payload}.${assinar(payload)}`;
-  cookies().set(NOME_COOKIE, token, {
+  const carga = `admin.${versao}.${expiraEm}`;
+  cookies().set(NOME_COOKIE, `${carga}.${assinar(carga)}`, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -48,12 +96,18 @@ export function encerrarSessao() {
 export function sessaoValida() {
   const token = cookies().get(NOME_COOKIE)?.value;
   if (!token) return false;
+
   const partes = token.split('.');
-  if (partes.length !== 3) return false;
-  const [dono, expiraEm, assinatura] = partes;
-  const payload = `${dono}.${expiraEm}`;
-  if (!iguais(assinatura, assinar(payload))) return false;
-  return Number(expiraEm) > Date.now();
+  if (partes.length !== 4) return false;
+
+  const [dono, versao, expiraEm, assinatura] = partes;
+  const carga = `${dono}.${versao}.${expiraEm}`;
+
+  if (!iguais(assinatura, assinar(carga))) return false;
+  if (Number(expiraEm) <= Date.now()) return false;
+
+  // Uma troca de senha invalida os cookies emitidos antes dela.
+  return versao === (lerConfig().sessao_versao || '1');
 }
 
 /** Devolve null quando autorizado, ou uma Response 401 quando não. */

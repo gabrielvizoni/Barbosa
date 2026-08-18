@@ -1,4 +1,4 @@
-import { exigirSessao } from '@/lib/auth';
+import { exigirSessao, usandoSenhaInicial } from '@/lib/auth';
 import { lerConfig, lerExpediente, salvarConfig, salvarExpediente } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -15,10 +15,23 @@ const CHAVES = [
   'confirmacao_automatica',
 ];
 
+/** Nunca saem para o navegador: o hash da senha e o controle de sessões. */
+const INTERNAS = ['senha_hash', 'sessao_versao'];
+
+function configPublica() {
+  const config = lerConfig();
+  for (const chave of INTERNAS) delete config[chave];
+  return config;
+}
+
 export async function GET() {
   const negado = exigirSessao();
   if (negado) return negado;
-  return Response.json({ config: lerConfig(), expediente: lerExpediente() });
+  return Response.json({
+    config: configPublica(),
+    expediente: lerExpediente(),
+    senhaInicial: usandoSenhaInicial(),
+  });
 }
 
 export async function PUT(request) {
@@ -47,5 +60,5 @@ export async function PUT(request) {
     if (dias.length) salvarExpediente(dias);
   }
 
-  return Response.json({ config: lerConfig(), expediente: lerExpediente() });
+  return Response.json({ config: configPublica(), expediente: lerExpediente() });
 }

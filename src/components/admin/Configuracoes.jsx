@@ -4,15 +4,55 @@ import { useEffect, useState } from 'react';
 import { api } from './base';
 import { mascararTelefone, somenteDigitos } from '@/lib/format';
 
+const SENHAS_VAZIAS = { atual: '', nova: '', confirmacao: '' };
+
 export default function Configuracoes({ avisar, tratarErro }) {
   const [config, setConfig] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
+  const [senhas, setSenhas] = useState(SENHAS_VAZIAS);
+  const [senhaInicial, setSenhaInicial] = useState(false);
+  const [erroSenha, setErroSenha] = useState('');
+  const [trocando, setTrocando] = useState(false);
+
   useEffect(() => {
     api('config')
-      .then((r) => setConfig(r.config))
+      .then((r) => {
+        setConfig(r.config);
+        setSenhaInicial(!!r.senhaInicial);
+      })
       .catch(tratarErro);
   }, [tratarErro]);
+
+  async function trocarSenha() {
+    setErroSenha('');
+    if (!senhas.atual || !senhas.nova) {
+      return setErroSenha('Preencha a senha atual e a nova.');
+    }
+    if (senhas.nova !== senhas.confirmacao) {
+      return setErroSenha('A confirmação não bate com a senha nova.');
+    }
+
+    setTrocando(true);
+    try {
+      await api('senha', {
+        method: 'POST',
+        body: {
+          senhaAtual: senhas.atual,
+          novaSenha: senhas.nova,
+          confirmacao: senhas.confirmacao,
+        },
+      });
+      setSenhas(SENHAS_VAZIAS);
+      setSenhaInicial(false);
+      avisar('Senha trocada. Use a nova no próximo acesso.');
+    } catch (erro) {
+      if (erro.status === 401) return tratarErro(erro);
+      setErroSenha(erro.message);
+    } finally {
+      setTrocando(false);
+    }
+  }
 
   if (!config) return <p>Carregando…</p>;
 
@@ -160,10 +200,56 @@ export default function Configuracoes({ avisar, tratarErro }) {
 
       <section className="bloco" style={{ marginTop: 24 }}>
         <h2>Senha do painel</h2>
-        <p style={{ margin: 0, color: 'var(--tinta-suave)', fontSize: 14.5 }}>
-          A senha fica no arquivo <code className="mono">.env</code> do servidor, na variável{' '}
-          <code className="mono">ADMIN_PASSWORD</code>. Para trocar, edite o arquivo e reinicie a
-          aplicação.
+
+        {senhaInicial ? (
+          <div className="aviso">
+            Você ainda está usando a senha inicial, a mesma que veio na instalação. Defina uma
+            senha sua agora.
+          </div>
+        ) : null}
+
+        {erroSenha ? <div className="aviso aviso-erro">{erroSenha}</div> : null}
+
+        <div className="linha-campos">
+          <label className="campo">
+            <span>Senha atual</span>
+            <input
+              className="entrada"
+              type="password"
+              value={senhas.atual}
+              onChange={(e) => setSenhas({ ...senhas, atual: e.target.value })}
+              autoComplete="current-password"
+            />
+          </label>
+          <label className="campo">
+            <span>Senha nova</span>
+            <input
+              className="entrada"
+              type="password"
+              value={senhas.nova}
+              onChange={(e) => setSenhas({ ...senhas, nova: e.target.value })}
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="campo">
+            <span>Repita a senha nova</span>
+            <input
+              className="entrada"
+              type="password"
+              value={senhas.confirmacao}
+              onChange={(e) => setSenhas({ ...senhas, confirmacao: e.target.value })}
+              autoComplete="new-password"
+            />
+          </label>
+        </div>
+
+        <button className="btn btn-verde" onClick={trocarSenha} disabled={trocando}>
+          {trocando ? 'Trocando…' : 'Trocar senha'}
+        </button>
+
+        <p style={{ fontSize: 13.5, color: 'var(--tinta-suave)', marginTop: 12, marginBottom: 0 }}>
+          Mínimo de 6 caracteres. Ao trocar, qualquer outro aparelho que esteja com o painel
+          aberto é desconectado — só este continua logado.
         </p>
       </section>
     </>
