@@ -5,8 +5,24 @@ import { lerConfig, salvarConfig } from './db';
 const NOME_COOKIE = 'barbosa_admin';
 const DURACAO_SEGUNDOS = 60 * 60 * 12; // 12 horas
 
+/**
+ * Em produção, exige SESSION_SECRET de verdade — sem ele, qualquer pessoa que
+ * conheça o valor de desenvolvimento (documentado no próprio código-fonte)
+ * conseguiria forjar um cookie de admin válido. Em desenvolvimento, o valor
+ * fixo continua valendo, por conveniência.
+ */
+export function sessaoConfiguradaComSeguranca() {
+  return Boolean(process.env.SESSION_SECRET) || process.env.NODE_ENV !== 'production';
+}
+
 function segredo() {
-  return process.env.SESSION_SECRET || 'segredo-de-desenvolvimento-troque-em-producao';
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (process.env.NODE_ENV === 'production') {
+    // Não deveria chegar aqui: sessaoConfiguradaComSeguranca() barra antes,
+    // em exigirSessao() e no login. Mantido como rede de segurança.
+    throw new Error('SESSION_SECRET não configurado em produção.');
+  }
+  return 'segredo-de-desenvolvimento-troque-em-producao';
 }
 
 function assinar(valor) {
@@ -110,8 +126,17 @@ export function sessaoValida() {
   return versao === (lerConfig().sessao_versao || '1');
 }
 
-/** Devolve null quando autorizado, ou uma Response 401 quando não. */
+/** Devolve null quando autorizado, ou uma Response de erro quando não. */
 export function exigirSessao() {
+  if (!sessaoConfiguradaComSeguranca()) {
+    return Response.json(
+      {
+        erro:
+          'O painel está indisponível: falta configurar SESSION_SECRET no servidor. Avise quem cuida da hospedagem.',
+      },
+      { status: 503 }
+    );
+  }
   if (sessaoValida()) return null;
   return Response.json({ erro: 'Sessão expirada. Entre novamente.' }, { status: 401 });
 }

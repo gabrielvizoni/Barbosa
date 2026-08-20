@@ -1,6 +1,6 @@
 import { exigirSessao } from '@/lib/auth';
 import { getDb, definirBarbeirosDoServico } from '@/lib/db';
-import { RECURSOS, filtrarCampos } from '../route';
+import { filtrarCampos, obterRecurso } from '../route';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +8,7 @@ export async function PATCH(request, { params }) {
   const negado = exigirSessao();
   if (negado) return negado;
 
-  const recurso = RECURSOS[params.recurso];
+  const recurso = obterRecurso(params.recurso);
   const id = Number(params.id);
   if (!recurso || !id) {
     return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });
@@ -18,12 +18,18 @@ export async function PATCH(request, { params }) {
   const campos = filtrarCampos(recurso, corpo);
   const colunas = Object.keys(campos);
 
-  if (colunas.length > 0) {
-    getDb()
-      .prepare(
-        `UPDATE ${recurso.tabela} SET ${colunas.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`
-      )
-      .run(...colunas.map((c) => campos[c]), id);
+  if (colunas.length === 0) {
+    return Response.json({ erro: 'Nada para salvar.' }, { status: 400 });
+  }
+
+  const resultado = getDb()
+    .prepare(
+      `UPDATE ${recurso.tabela} SET ${colunas.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`
+    )
+    .run(...colunas.map((c) => campos[c]), id);
+
+  if (resultado.changes === 0) {
+    return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });
   }
 
   if (params.recurso === 'servicos' && Array.isArray(corpo.barbeiros)) {
@@ -37,7 +43,7 @@ export async function DELETE(_request, { params }) {
   const negado = exigirSessao();
   if (negado) return negado;
 
-  const recurso = RECURSOS[params.recurso];
+  const recurso = obterRecurso(params.recurso);
   const id = Number(params.id);
   if (!recurso || !id) {
     return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });
@@ -52,7 +58,10 @@ export async function DELETE(_request, { params }) {
       .get(id).n;
 
     if (usos > 0) {
-      getDb().prepare(`UPDATE ${recurso.tabela} SET ativo = 0 WHERE id = ?`).run(id);
+      const resultado = getDb().prepare(`UPDATE ${recurso.tabela} SET ativo = 0 WHERE id = ?`).run(id);
+      if (resultado.changes === 0) {
+        return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });
+      }
       return Response.json({
         ok: true,
         desativado: true,
@@ -62,6 +71,10 @@ export async function DELETE(_request, { params }) {
     }
   }
 
-  getDb().prepare(`DELETE FROM ${recurso.tabela} WHERE id = ?`).run(id);
+  const resultado = getDb().prepare(`DELETE FROM ${recurso.tabela} WHERE id = ?`).run(id);
+  if (resultado.changes === 0) {
+    return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });
+  }
+
   return Response.json({ ok: true });
 }

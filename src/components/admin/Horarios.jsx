@@ -37,6 +37,7 @@ export default function Horarios({ avisar, tratarErro }) {
   const [barbeiros, setBarbeiros] = useState([]);
   const [editando, setEditando] = useState(null);
   const [salvando, setSalvando] = useState(false);
+  const [bloqueando, setBloqueando] = useState(false);
 
   const carregar = useCallback(() => {
     api('config').then((r) => setExpediente(r.expediente)).catch(tratarErro);
@@ -65,6 +66,8 @@ export default function Horarios({ avisar, tratarErro }) {
   }
 
   async function criarBloqueio(dados) {
+    if (bloqueando) return;
+    setBloqueando(true);
     try {
       await api('bloqueios', {
         method: 'POST',
@@ -75,6 +78,8 @@ export default function Horarios({ avisar, tratarErro }) {
       avisar('Horário bloqueado. Ele some do agendamento na hora.');
     } catch (erro) {
       tratarErro(erro);
+    } finally {
+      setBloqueando(false);
     }
   }
 
@@ -134,13 +139,13 @@ export default function Horarios({ avisar, tratarErro }) {
           </div>
         </div>
         <div className="agenda-filtros" style={{ marginBottom: 0 }}>
-          <button className="btn btn-contorno" onClick={() => sairAgora(1)}>
+          <button className="btn btn-contorno" onClick={() => sairAgora(1)} disabled={bloqueando}>
             <Pausa width={16} height={16} /> Saí por 1 hora
           </button>
-          <button className="btn btn-contorno" onClick={() => sairAgora(2)}>
+          <button className="btn btn-contorno" onClick={() => sairAgora(2)} disabled={bloqueando}>
             <Pausa width={16} height={16} /> Saí por 2 horas
           </button>
-          <button className="btn btn-contorno" onClick={fecharRestoDoDia}>
+          <button className="btn btn-contorno" onClick={fecharRestoDoDia} disabled={bloqueando}>
             <Pausa width={16} height={16} /> Fechar o resto do dia
           </button>
         </div>
@@ -246,8 +251,12 @@ export default function Horarios({ avisar, tratarErro }) {
               <button className="btn btn-contorno" onClick={() => setEditando(null)}>
                 Cancelar
               </button>
-              <button className="btn btn-ouro" onClick={() => criarBloqueio(editando)}>
-                Bloquear
+              <button
+                className="btn btn-ouro"
+                onClick={() => criarBloqueio(editando)}
+                disabled={bloqueando}
+              >
+                {bloqueando ? 'Bloqueando…' : 'Bloquear'}
               </button>
             </>
           }

@@ -121,6 +121,25 @@ textarea {
   }
 }
 
+/* Ponto de partida das animações de entrada (ver src/components/Animacoes.jsx).
+   Começam invisíveis para o JavaScript revelar aos poucos, sem "pular".
+   Quem prefere menos movimento já vê tudo visível, sem esperar pela animação. */
+.anim-entrada,
+.secao-cabeca,
+.grade > *,
+.grade-equipe > * {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-entrada,
+  .secao-cabeca,
+  .grade > *,
+  .grade-equipe > * {
+    opacity: 1;
+  }
+}
+
 /* ---------- Utilitários ---------- */
 
 .container {
@@ -302,6 +321,45 @@ textarea.entrada {
   min-height: 88px;
 }
 
+.campo-imagem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.campo-imagem-previa {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--raio);
+  object-fit: cover;
+  border: 1px solid var(--linha);
+  flex-shrink: 0;
+}
+
+.campo-imagem-vazia {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--raio);
+  border: 1px dashed var(--linha);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--tinta-suave);
+  flex-shrink: 0;
+}
+
+.campo-imagem-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.campo-imagem-acoes label {
+  cursor: pointer;
+}
+
 .linha-campos {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -384,6 +442,14 @@ textarea.entrada {
   border-radius: 5px;
   background: var(--poste);
   border: 1px solid rgba(231, 203, 116, 0.5);
+  flex-shrink: 0;
+}
+
+.marca-logo {
+  height: 40px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
   flex-shrink: 0;
 }
 
@@ -621,6 +687,7 @@ textarea.entrada {
   background: var(--creme-alto);
   border: 1px solid var(--linha);
   border-radius: var(--raio-g);
+  overflow: hidden;
   transition: border-color 0.18s ease, transform 0.18s ease;
 }
 
@@ -631,6 +698,14 @@ textarea.entrada {
 .cartao-servico:hover {
   border-color: var(--marrom-300);
   transform: translateY(-2px);
+}
+
+.cartao-servico-imagem {
+  width: calc(100% + 52px);
+  margin: -26px -26px 4px;
+  height: 160px;
+  object-fit: cover;
+  border-radius: var(--raio-g) var(--raio-g) 0 0;
 }
 
 .cartao-servico h3 {
@@ -1261,6 +1336,22 @@ textarea.entrada {
   overflow-y: auto;
 }
 
+/* Aviso sobre fundo escuro (barra lateral do painel) — .aviso/.aviso-erro
+   são pensados para ficar sobre superfícies claras, então usam dourado
+   sobre o verde escuro em vez disso, senão o texto fica ilegível. */
+.aviso-lateral {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--raio);
+  background: rgba(198, 160, 44, 0.14);
+  border: 1px solid rgba(198, 160, 44, 0.35);
+  color: var(--dourado-claro);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
 .item-menu {
   display: flex;
   align-items: center;
@@ -1281,6 +1372,16 @@ textarea.entrada {
 .item-menu:hover {
   background: rgba(244, 236, 220, 0.08);
   color: var(--creme-alto);
+}
+
+.item-menu:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.item-menu:disabled:hover {
+  background: transparent;
+  color: rgba(244, 236, 220, 0.78);
 }
 
 .item-menu.ativo {

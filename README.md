@@ -30,7 +30,7 @@ Abra o `.env` e defina:
 | Variável | Para que serve |
 |---|---|
 | `ADMIN_PASSWORD` | Senha **só do primeiro acesso**. Depois que a senha for trocada dentro do painel, esta deixa de valer (veja "Senha do painel" abaixo). |
-| `SESSION_SECRET` | Assina o cookie de sessão. Gere um valor aleatório (comando abaixo). |
+| `SESSION_SECRET` | Assina o cookie de sessão. Gere um valor aleatório (comando abaixo). **Obrigatório em produção** — com `NODE_ENV=production` e sem essa variável, o painel fica indisponível de propósito (em vez de assinar sessões com um valor fraco e previsível). |
 | `DATABASE_PATH` | Onde o banco fica salvo. Em produção, aponte para um disco que não se apaga. |
 | `TZ` | `America/Sao_Paulo` — é o fuso usado para calcular os horários livres. |
 
@@ -40,6 +40,10 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Depois, no painel, vá em **Configurações** e preencha o WhatsApp da barbearia. Sem ele, o
 botão de confirmação não aparece para o cliente no fim do agendamento.
+
+Na primeira vez que entrar com a senha do `ADMIN_PASSWORD`, o painel fica travado — só
+Configurações abre — até você definir uma senha própria em **Configurações → Senha do
+painel**. É de propósito: evita que o site fique no ar com a senha padrão de instalação.
 
 ---
 
@@ -67,10 +71,12 @@ Nenhum outro dado é afetado — agendamentos, serviços e histórico continuam 
 ## Onde hospedar
 
 O sistema guarda os dados em um arquivo SQLite, então precisa de um servidor com **disco
-persistente**. Funcionam bem:
+persistente** — e o mesmo disco precisa cobrir tanto `data/` (o banco) quanto
+`public/uploads/` (as imagens enviadas pelo painel). Funcionam bem:
 
 - **Railway**, **Render** ou **Fly.io** — adicione um volume e aponte `DATABASE_PATH` para
-  dentro dele, por exemplo `/data/barbosa.db`.
+  dentro dele (ex.: `/data/barbosa.db`), garantindo que `public/uploads/` também esteja
+  nesse volume (ou em outro volume igualmente persistente).
 - **VPS** (Hostinger, DigitalOcean, Contabo) com `npm run build && npm start` atrás de um
   Nginx, ou rodando com PM2.
 
@@ -88,8 +94,10 @@ npm start
 
 ### Backup
 
-Todo o sistema cabe em um arquivo. Copie `data/barbosa.db` periodicamente e você tem
-o backup completo: agendamentos, serviços, produtos, equipe e configurações.
+Copie `data/barbosa.db` periodicamente e você tem o backup dos dados: agendamentos,
+serviços, produtos, equipe e configurações. As imagens enviadas pelo painel (logo, fotos
+de profissionais/serviços/produtos) ficam em `public/uploads/` — copie essa pasta junto
+para o backup incluir também as fotos.
 
 ---
 
@@ -155,9 +163,12 @@ já entra confirmado ou fica pendente.
 - **Serviço ou profissional com histórico não é apagado:** é desativado. Some do site e do
   agendamento, mas os atendimentos antigos continuam no financeiro.
 - **Encaixe manual pode ser fora do expediente** (o cliente que aparece às 21h), mas nunca
-  em cima de outro atendimento do mesmo barbeiro.
-- **Fotos da equipe:** coloque os arquivos na pasta `public/` e use o caminho `/foto.jpg` no
-  campo de foto, ou cole um endereço de imagem da internet.
+  em cima de outro atendimento ou de um bloqueio (folga/ausência) do mesmo barbeiro.
+- **Fotos e logo:** cada cadastro (Profissionais, Serviços, Produtos, Configurações → Logo)
+  tem um campo de upload próprio — clique em "Enviar imagem", escolha o arquivo do seu
+  computador e pronto. As imagens ficam salvas em `public/uploads/`, dentro do mesmo disco
+  onde está o banco (por isso, em produção, precisam do mesmo disco persistente do
+  `data/barbosa.db`).
 
 ---
 

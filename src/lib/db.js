@@ -6,6 +6,15 @@ const DB_PATH = process.env.DATABASE_PATH || './data/barbosa.db';
 
 let db;
 
+/** Adiciona a coluna se ela ainda não existir — evita apagar bancos antigos. */
+function garantirColuna(conn, tabela, coluna, definicao) {
+  const existe = conn
+    .prepare(`PRAGMA table_info(${tabela})`)
+    .all()
+    .some((c) => c.name === coluna);
+  if (!existe) conn.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
+}
+
 function migrate(conn) {
   conn.pragma('journal_mode = WAL');
   conn.pragma('foreign_keys = ON');
@@ -89,7 +98,20 @@ function migrate(conn) {
     CREATE INDEX IF NOT EXISTS idx_ag_data ON agendamentos(data);
     CREATE INDEX IF NOT EXISTS idx_ag_barbeiro ON agendamentos(barbeiro_id, data);
     CREATE INDEX IF NOT EXISTS idx_bloq_data ON bloqueios(data);
+
+    -- Controle de taxa (login e agendamento público): cada linha é uma tentativa.
+    CREATE TABLE IF NOT EXISTS limitador (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chave TEXT NOT NULL,
+      criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_limitador_chave ON limitador(chave, criado_em);
   `);
+
+  // Colunas adicionadas depois da versão inicial entram aqui, sem apagar
+  // banco de quem já está em produção.
+  garantirColuna(conn, 'servicos', 'imagem', "TEXT NOT NULL DEFAULT ''");
+  garantirColuna(conn, 'produtos', 'imagem', "TEXT NOT NULL DEFAULT ''");
 
   // Configurações padrão (só entram se ainda não existirem)
   const padroes = {
@@ -98,6 +120,7 @@ function migrate(conn) {
     whatsapp: '',
     endereco: 'Maringá, Paraná — Brasil',
     instagram: '',
+    logo_url: '',
     intervalo_min: '30',
     antecedencia_min: '60',
     dias_futuros: '30',

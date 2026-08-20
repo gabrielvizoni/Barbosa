@@ -131,14 +131,19 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   return livres;
 }
 
-/** Datas dos próximos N dias em que a barbearia abre. */
+/**
+ * Datas dos próximos dias em que a barbearia abre — sempre tenta entregar
+ * `quantidade` datas de verdade (pulando os dias fechados), até um teto de
+ * segurança para não rodar para sempre se a semana inteira estiver fechada.
+ */
 export function diasDisponiveis(quantidade = 30) {
   const conn = getDb();
   const expediente = conn.prepare('SELECT * FROM expediente').all();
   const abertoNoDia = new Map(expediente.map((e) => [e.dia, e.aberto]));
   const hoje = agora().data;
   const datas = [];
-  for (let i = 0; i < quantidade && datas.length < quantidade; i += 1) {
+  const tetoDeDiasVarridos = Math.max(quantidade * 3, 180);
+  for (let i = 0; datas.length < quantidade && i < tetoDeDiasVarridos; i += 1) {
     const data = somarDias(hoje, i);
     if (abertoNoDia.get(diaDaSemana(data))) datas.push(data);
   }

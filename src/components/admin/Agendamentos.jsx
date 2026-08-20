@@ -34,8 +34,10 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
   const [aberto, setAberto] = useState(false);
   const [novo, setNovo] = useState(VAZIO);
+  const [erroEncaixe, setErroEncaixe] = useState('');
   const [horarios, setHorarios] = useState([]);
   const [salvando, setSalvando] = useState(false);
+  const [processando, setProcessando] = useState(null); // id do agendamento em ação (status/exclusão)
 
   const carregar = useCallback(() => {
     const query = new URLSearchParams({ busca, status, barbeiro, data }).toString();
@@ -70,6 +72,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   }, [novo.barbeiro_id, novo.servico_id, novo.data]);
 
   async function mudarStatus(id, novoStatus) {
+    if (processando) return;
+    setProcessando(id);
     try {
       await api(`agendamentos/${id}`, { method: 'PATCH', body: { status: novoStatus } });
       carregar();
@@ -77,11 +81,15 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       avisar('Status atualizado.');
     } catch (erro) {
       tratarErro(erro);
+    } finally {
+      setProcessando(null);
     }
   }
 
   async function excluir(id, nome) {
     if (!confirm(`Excluir o agendamento de ${nome}? Não dá para desfazer.`)) return;
+    if (processando) return;
+    setProcessando(id);
     try {
       await api(`agendamentos/${id}`, { method: 'DELETE' });
       carregar();
@@ -89,10 +97,35 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       avisar('Agendamento excluído.');
     } catch (erro) {
       tratarErro(erro);
+    } finally {
+      setProcessando(null);
     }
   }
 
+  function abrirEncaixe() {
+    setNovo(VAZIO);
+    setErroEncaixe('');
+    setAberto(true);
+  }
+
   async function salvarEncaixe() {
+    setErroEncaixe('');
+    if (novo.cliente_nome.trim().length < 2) {
+      return setErroEncaixe('Escreva o nome do cliente.');
+    }
+    if (!novo.servico_id) {
+      return setErroEncaixe('Escolha o serviço.');
+    }
+    if (!novo.barbeiro_id) {
+      return setErroEncaixe('Escolha o profissional.');
+    }
+    if (!novo.data) {
+      return setErroEncaixe('Escolha a data.');
+    }
+    if (!novo.inicio) {
+      return setErroEncaixe('Escolha o horário.');
+    }
+
     setSalvando(true);
     try {
       await api('agendamentos', { method: 'POST', body: novo });
@@ -102,7 +135,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       aoMudar?.();
       avisar('Encaixe registrado.');
     } catch (erro) {
-      tratarErro(erro);
+      if (erro.status === 401) return tratarErro(erro);
+      setErroEncaixe(erro.message);
     } finally {
       setSalvando(false);
     }
@@ -122,7 +156,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           <h1>Agendamentos</h1>
           <p>Confirme, conclua ou cancele. Também dá para registrar quem chegou sem marcar.</p>
         </div>
-        <button className="btn btn-ouro" onClick={() => setAberto(true)}>
+        <button className="btn btn-ouro" onClick={abrirEncaixe}>
           <Mais /> Encaixar cliente
         </button>
       </div>
@@ -232,6 +266,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                             className="icone-btn positivo"
                             onClick={() => mudarStatus(a.id, 'confirmado')}
                             title="Confirmar"
+                            disabled={processando === a.id}
                           >
                             <Check width={15} height={15} />
                           </button>
@@ -241,6 +276,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                             className="icone-btn positivo"
                             onClick={() => mudarStatus(a.id, 'concluido')}
                             title="Marcar como concluído"
+                            disabled={processando === a.id}
                           >
                             <Check width={15} height={15} />
                           </button>
@@ -250,6 +286,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                             className="icone-btn perigo"
                             onClick={() => mudarStatus(a.id, 'cancelado')}
                             title="Cancelar"
+                            disabled={processando === a.id}
                           >
                             <Xis width={15} height={15} />
                           </button>
@@ -258,6 +295,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                           className="icone-btn perigo"
                           onClick={() => excluir(a.id, a.cliente_nome)}
                           title="Excluir"
+                          disabled={processando === a.id}
                         >
                           <Lixeira width={15} height={15} />
                         </button>
@@ -286,6 +324,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
             </>
           }
         >
+          {erroEncaixe ? <div className="aviso aviso-erro">{erroEncaixe}</div> : null}
+
           <div className="linha-campos">
             <label className="campo">
               <span>Nome do cliente</span>

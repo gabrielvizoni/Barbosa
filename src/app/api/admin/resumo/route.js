@@ -22,29 +22,57 @@ function ultimosDozeMeses(mes) {
   return lista;
 }
 
+/**
+ * Início (inclusive) e fim (exclusivo) de um mês 'AAAA-MM', como datas
+ * 'AAAA-MM-DD' — permite filtrar com `data >= ? AND data < ?`, que usa o
+ * índice da coluna `data` normalmente (diferente de `substr(data,1,7) = ?`,
+ * que obriga uma varredura completa da tabela a cada consulta).
+ */
+function limitesDoMes(mes) {
+  const [ano, m] = mes.split('-').map(Number);
+  const fim = new Date(Date.UTC(ano, m, 1));
+  const fimStr = `${fim.getUTCFullYear()}-${String(fim.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  return [`${mes}-01`, fimStr];
+}
+
+/**
+ * Separa "realizado" (atendimentos com status concluído — dinheiro que já
+ * entrou) de "previsto" (pendente + confirmado — ainda vai acontecer).
+ * Cancelado não entra em nenhum dos dois.
+ */
 function totaisDoMes(conn, mes) {
-  const linha = conn
+  const [inicio, fim] = limitesDoMes(mes);
+
+  const realizado = conn
     .prepare(
-      `SELECT
-         COUNT(*) AS atendimentos,
-         COALESCE(SUM(preco_centavos), 0) AS faturamento
-       FROM agendamentos
-       WHERE substr(data, 1, 7) = ? AND status <> 'cancelado'`
+      `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
+       FROM agendamentos WHERE data >= ? AND data < ? AND status = 'concluido'`
     )
-    .get(mes);
+    .get(inicio, fim);
+
+  const previsto = conn
+    .prepare(
+      `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
+       FROM agendamentos WHERE data >= ? AND data < ? AND status IN ('pendente', 'confirmado')`
+    )
+    .get(inicio, fim);
 
   const cancelados = conn
-    .prepare(
-      `SELECT COUNT(*) AS n FROM agendamentos
-       WHERE substr(data, 1, 7) = ? AND status = 'cancelado'`
-    )
-    .get(mes).n;
+    .prepare(`SELECT COUNT(*) AS n FROM agendamentos WHERE data >= ? AND data < ? AND status = 'cancelado'`)
+    .get(inicio, fim).n;
 
   return {
     mes,
-    atendimentos: linha.atendimentos,
-    faturamento: linha.faturamento,
-    ticket: linha.atendimentos ? Math.round(linha.faturamento / linha.atendimentos) : 0,
+    realizado: {
+      atendimentos: realizado.atendimentos,
+      faturamento: realizado.faturamento,
+      ticket: realizado.atendimentos ? Math.round(realizado.faturamento / realizado.atendimentos) : 0,
+    },
+    previsto: {
+      atendimentos: previsto.atendimentos,
+      faturamento: previsto.faturamento,
+      ticket: previsto.atendimentos ? Math.round(previsto.faturamento / previsto.atendimentos) : 0,
+    },
     cancelados,
   };
 }
@@ -66,7 +94,8 @@ export async function GET(request) {
     .prepare(
       `SELECT
          COUNT(*) AS total,
-         COALESCE(SUM(CASE WHEN status <> 'cancelado' THEN preco_centavos ELSE 0 END), 0) AS faturamento,
+         COALESCE(SUM(CASE WHEN status = 'concluido' THEN preco_centavos ELSE 0 END), 0) AS realizado,
+         COALESCE(SUM(CASE WHEN status IN ('pendente','confirmado') THEN preco_centavos ELSE 0 END), 0) AS previsto,
          SUM(CASE WHEN status = 'confirmado' THEN 1 ELSE 0 END) AS confirmados,
          SUM(CASE WHEN status = 'pendente' THEN 1 ELSE 0 END) AS pendentes
        FROM agendamentos WHERE data = ?`
@@ -97,39 +126,49 @@ export async function GET(request) {
 
   // --- Financeiro ---
   const serie = ultimosDozeMeses(mes).map((m) => {
+    const [inicio, fim] = limitesDoMes(m);
     const linha = conn
       .prepare(
         `SELECT COALESCE(SUM(preco_centavos), 0) AS total FROM agendamentos
-         WHERE substr(data, 1, 7) = ? AND status <> 'cancelado'`
+         WHERE data >= ? AND data < ? AND status <> 'cancelado'`
       )
-      .get(m);
+      .get(inicio, fim);
     return { mes: m, total: linha.total };
   });
+
+  const [inicioMes, fimMes] = limitesDoMes(mes);
 
   const porServico = conn
     .prepare(
       `SELECT servico_nome AS nome, COUNT(*) AS quantidade,
               COALESCE(SUM(preco_centavos), 0) AS total
        FROM agendamentos
-       WHERE status <> 'cancelado' AND substr(data, 1, 7) = ?
+       WHERE status <> 'cancelado' AND data >= ? AND data < ?
        GROUP BY servico_nome ORDER BY quantidade DESC LIMIT 8`
     )
-    .all(mes);
+    .all(inicioMes, fimMes);
 
   const porBarbeiro = conn
     .prepare(
       `SELECT barbeiro_nome AS nome, COUNT(*) AS quantidade,
               COALESCE(SUM(preco_centavos), 0) AS total
        FROM agendamentos
-       WHERE status <> 'cancelado' AND substr(data, 1, 7) = ?
+       WHERE status <> 'cancelado' AND data >= ? AND data < ?
        GROUP BY barbeiro_nome ORDER BY total DESC`
     )
-    .all(mes);
+    .all(inicioMes, fimMes);
 
-  const geral = conn
+  const geralRealizado = conn
     .prepare(
       `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
-       FROM agendamentos WHERE status <> 'cancelado'`
+       FROM agendamentos WHERE status = 'concluido'`
+    )
+    .get();
+
+  const geralPrevisto = conn
+    .prepare(
+      `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
+       FROM agendamentos WHERE status IN ('pendente', 'confirmado')`
     )
     .get();
 
@@ -137,7 +176,8 @@ export async function GET(request) {
     hoje: {
       data: hoje,
       total: doDia.total || 0,
-      faturamento: doDia.faturamento || 0,
+      realizado: doDia.realizado || 0,
+      previsto: doDia.previsto || 0,
       confirmados: doDia.confirmados || 0,
       pendentes: doDia.pendentes || 0,
       agenda: agendaHoje,
@@ -151,8 +191,20 @@ export async function GET(request) {
       porServico,
       porBarbeiro,
       geral: {
-        ...geral,
-        ticket: geral.atendimentos ? Math.round(geral.faturamento / geral.atendimentos) : 0,
+        realizado: {
+          atendimentos: geralRealizado.atendimentos,
+          faturamento: geralRealizado.faturamento,
+          ticket: geralRealizado.atendimentos
+            ? Math.round(geralRealizado.faturamento / geralRealizado.atendimentos)
+            : 0,
+        },
+        previsto: {
+          atendimentos: geralPrevisto.atendimentos,
+          faturamento: geralPrevisto.faturamento,
+          ticket: geralPrevisto.atendimentos
+            ? Math.round(geralPrevisto.faturamento / geralPrevisto.atendimentos)
+            : 0,
+        },
       },
     },
   });

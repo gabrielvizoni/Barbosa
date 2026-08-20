@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Modal, Vazio } from './base';
+import { api, CampoImagem, Modal, Vazio } from './base';
 import { iniciais } from '@/lib/format';
 import { Lapis, Lixeira, Mais } from '@/components/Icones';
 
@@ -164,15 +164,13 @@ export default function Profissionais({ avisar, tratarErro }) {
             />
           </label>
 
-          <label className="campo">
-            <span>Endereço da foto (opcional)</span>
-            <input
-              className="entrada"
-              value={editando.foto}
-              onChange={(e) => setEditando({ ...editando, foto: e.target.value })}
-              placeholder="https://… ou /fotos/heitor.jpg"
-            />
-          </label>
+          <CampoImagem
+            label="Foto (opcional)"
+            valor={editando.foto}
+            aoMudar={(url) => setEditando({ ...editando, foto: url })}
+            pasta="barbeiros"
+            avisar={avisar}
+          />
 
           <label className="caixa">
             <input

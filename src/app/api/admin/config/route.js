@@ -9,6 +9,7 @@ const CHAVES = [
   'whatsapp',
   'endereco',
   'instagram',
+  'logo_url',
   'intervalo_min',
   'antecedencia_min',
   'dias_futuros',
