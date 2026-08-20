@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { animate, utils } from 'animejs';
 import {
   moeda,
   dataBr,
@@ -43,6 +44,7 @@ function dataLonga(data) {
 export default function FluxoAgendamento() {
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
+  const [falhaCarregamento, setFalhaCarregamento] = useState(false);
   const [passo, setPasso] = useState(0);
 
   const [servico, setServico] = useState(null);
@@ -60,13 +62,35 @@ export default function FluxoAgendamento() {
   const [erro, setErro] = useState('');
   const [confirmado, setConfirmado] = useState(null);
 
+  const painelRef = useRef(null);
+
+  // Uma leve entrada a cada passo do agendamento, pra marcar a troca de tela.
   useEffect(() => {
+    if (!painelRef.current) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    animate(painelRef.current, {
+      opacity: [0, 1],
+      translateY: [10, 0],
+      duration: 380,
+      ease: 'outQuart',
+      onComplete: (self) => utils.cleanInlineStyles(self),
+    });
+  }, [passo]);
+
+  function carregarDados() {
+    setCarregando(true);
+    setFalhaCarregamento(false);
     fetch('/api/public')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error('resposta não ok');
+        return r.json();
+      })
       .then(setDados)
-      .catch(() => setErro('Não consegui carregar os serviços. Atualize a página.'))
+      .catch(() => setFalhaCarregamento(true))
       .finally(() => setCarregando(false));
-  }, []);
+  }
+
+  useEffect(carregarDados, []);
 
   // Ao entrar no passo de horário, busca o que está livre.
   useEffect(() => {
@@ -171,6 +195,21 @@ export default function FluxoAgendamento() {
     );
   }
 
+  if (falhaCarregamento) {
+    return (
+      <div className="painel">
+        <div className="painel-corpo">
+          <div className="aviso aviso-erro" style={{ marginBottom: 16 }}>
+            Não consegui carregar os dados agora. Confira sua internet e tente de novo.
+          </div>
+          <button className="btn btn-ouro" onClick={carregarDados}>
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (confirmado) {
     const link = linkWhatsapp(dados?.barbearia?.whatsapp, confirmado);
     return (
@@ -182,6 +221,11 @@ export default function FluxoAgendamento() {
           <h2>Horário reservado</h2>
           <p>
             Até logo, <strong>{confirmado.cliente.split(' ')[0]}</strong>.
+          </p>
+          <p className="painel-ajuda" style={{ marginTop: 4 }}>
+            {confirmado.status === 'confirmado'
+              ? 'Seu horário já está confirmado pela barbearia.'
+              : 'Seu horário está guardado — a barbearia ainda vai confirmar.'}
           </p>
         </div>
         <div className="painel-corpo">
@@ -268,7 +312,7 @@ export default function FluxoAgendamento() {
         ))}
       </ol>
 
-      <div className="painel">
+      <div className="painel" ref={painelRef}>
         <div className="painel-topo">
           <span className="sobrenome">Passo {passo + 1} de 5</span>
           <h2>{PASSOS[passo]}</h2>

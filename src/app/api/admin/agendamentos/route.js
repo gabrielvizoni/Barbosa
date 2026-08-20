@@ -60,6 +60,21 @@ export async function POST(request) {
   if (!servico || !barbeiro) {
     return Response.json({ erro: 'Escolha o serviço e o profissional.' }, { status: 400 });
   }
+  if (!servico.ativo) {
+    return Response.json({ erro: 'Esse serviço está desativado.' }, { status: 400 });
+  }
+  if (!barbeiro.ativo) {
+    return Response.json({ erro: 'Esse profissional está desativado.' }, { status: 400 });
+  }
+  const atende = conn
+    .prepare('SELECT 1 FROM servico_barbeiro WHERE servico_id = ? AND barbeiro_id = ?')
+    .get(servico.id, barbeiro.id);
+  if (!atende) {
+    return Response.json(
+      { erro: `${barbeiro.nome} não está cadastrado para atender ${servico.nome}.` },
+      { status: 400 }
+    );
+  }
   if (nome.length < 2) {
     return Response.json({ erro: 'Escreva o nome do cliente.' }, { status: 400 });
   }
@@ -67,9 +82,10 @@ export async function POST(request) {
     return Response.json({ erro: 'Informe a data e o horário.' }, { status: 400 });
   }
 
-  // No painel o encaixe fora do expediente é permitido, mas nunca em cima de outro atendimento.
+  // No painel o encaixe fora do expediente é permitido, mas nunca em cima de
+  // outro atendimento ou de um bloqueio (folga/ausência) do mesmo profissional.
   const fim = paraHora(paraMinutos(inicio) + servico.duracao_min);
-  const conflito = conn
+  const conflitoAgendamento = conn
     .prepare(
       `SELECT cliente_nome, inicio, fim FROM agendamentos
        WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado'
@@ -77,10 +93,27 @@ export async function POST(request) {
     )
     .get(data, barbeiro.id, fim, inicio);
 
-  if (conflito) {
+  if (conflitoAgendamento) {
     return Response.json(
       {
-        erro: `${barbeiro.nome} já atende ${conflito.cliente_nome} das ${conflito.inicio} às ${conflito.fim}.`,
+        erro: `${barbeiro.nome} já atende ${conflitoAgendamento.cliente_nome} das ${conflitoAgendamento.inicio} às ${conflitoAgendamento.fim}.`,
+      },
+      { status: 409 }
+    );
+  }
+
+  const conflitoBloqueio = conn
+    .prepare(
+      `SELECT motivo, inicio, fim FROM bloqueios
+       WHERE data = ? AND (barbeiro_id IS NULL OR barbeiro_id = ?)
+         AND inicio < ? AND fim > ?`
+    )
+    .get(data, barbeiro.id, fim, inicio);
+
+  if (conflitoBloqueio) {
+    return Response.json(
+      {
+        erro: `${barbeiro.nome} está bloqueado (${conflitoBloqueio.motivo || 'ausência'}) das ${conflitoBloqueio.inicio} às ${conflitoBloqueio.fim}.`,
       },
       { status: 409 }
     );

@@ -1,5 +1,6 @@
 'use client';
 
+import { useId, useState } from 'react';
 import { Xis } from '@/components/Icones';
 
 /** Chama a API do painel e transforma erro de resposta em exceção com mensagem legível. */
@@ -50,6 +51,70 @@ export function Etiqueta({ status }) {
     cancelado: 'Cancelado',
   };
   return <span className={`etiqueta etiqueta-${status}`}>{rotulos[status] || status}</span>;
+}
+
+/** Campo de upload de imagem: mostra a prévia e envia pro servidor assim que o arquivo é escolhido. */
+export function CampoImagem({ label, valor, aoMudar, pasta, avisar }) {
+  const [enviando, setEnviando] = useState(false);
+  const idEntrada = useId();
+
+  async function selecionar(evento) {
+    const arquivo = evento.target.files?.[0];
+    evento.target.value = '';
+    if (!arquivo) return;
+
+    setEnviando(true);
+    try {
+      const corpo = new FormData();
+      corpo.append('arquivo', arquivo);
+      corpo.append('pasta', pasta);
+      const resposta = await fetch('/api/admin/upload', { method: 'POST', body: corpo });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(dados.erro || 'Não consegui enviar a imagem.');
+      aoMudar(dados.url);
+    } catch (erro) {
+      avisar?.(erro.message, 'erro');
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="campo">
+      <span>{label}</span>
+      <div className="campo-imagem">
+        {valor ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img className="campo-imagem-previa" src={valor} alt="" />
+        ) : (
+          <div className="campo-imagem-vazia">Sem imagem</div>
+        )}
+        <div className="campo-imagem-acoes">
+          <label className="btn btn-contorno btn-mini" htmlFor={idEntrada}>
+            {enviando ? 'Enviando…' : valor ? 'Trocar imagem' : 'Enviar imagem'}
+          </label>
+          <input
+            id={idEntrada}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            style={{ display: 'none' }}
+            onChange={selecionar}
+            disabled={enviando}
+          />
+          {valor ? (
+            <button
+              type="button"
+              className="icone-btn perigo"
+              onClick={() => aoMudar('')}
+              title="Remover imagem"
+            >
+              <Xis width={14} height={14} />
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function Vazio({ titulo, children }) {

@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api } from './base';
+import { api, CampoImagem } from './base';
 import { mascararTelefone, somenteDigitos } from '@/lib/format';
 
 const SENHAS_VAZIAS = { atual: '', nova: '', confirmacao: '' };
+const SENHA_MINIMA = 6;
 
-export default function Configuracoes({ avisar, tratarErro }) {
+export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
   const [config, setConfig] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -29,8 +30,14 @@ export default function Configuracoes({ avisar, tratarErro }) {
     if (!senhas.atual || !senhas.nova) {
       return setErroSenha('Preencha a senha atual e a nova.');
     }
+    if (senhas.nova.length < SENHA_MINIMA) {
+      return setErroSenha(`A senha nova precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
+    }
     if (senhas.nova !== senhas.confirmacao) {
       return setErroSenha('A confirmação não bate com a senha nova.');
+    }
+    if (senhas.nova === senhas.atual) {
+      return setErroSenha('A senha nova é igual à atual.');
     }
 
     setTrocando(true);
@@ -45,6 +52,7 @@ export default function Configuracoes({ avisar, tratarErro }) {
       });
       setSenhas(SENHAS_VAZIAS);
       setSenhaInicial(false);
+      aoTrocarSenha?.();
       avisar('Senha trocada. Use a nova no próximo acesso.');
     } catch (erro) {
       if (erro.status === 401) return tratarErro(erro);
@@ -86,6 +94,14 @@ export default function Configuracoes({ avisar, tratarErro }) {
 
       <section className="bloco">
         <h2>Identificação</h2>
+
+        <CampoImagem
+          label="Logo da barbearia (opcional)"
+          valor={config.logo_url}
+          aoMudar={(url) => mudar('logo_url', url)}
+          pasta="logo"
+          avisar={avisar}
+        />
 
         <label className="campo">
           <span>Nome da barbearia</span>

@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Modal, Vazio } from './base';
+import { api, CampoImagem, Modal, Vazio } from './base';
 import { moeda, paraCentavos, paraReais } from '@/lib/format';
 import { Lapis, Lixeira, Mais } from '@/components/Icones';
 
-const VAZIO = { nome: '', marca: '', preco: '', estoque: 0, ativo: 1 };
+const VAZIO = { nome: '', marca: '', preco: '', estoque: 0, imagem: '', ativo: 1 };
 
 export default function Produtos({ avisar, tratarErro }) {
   const [itens, setItens] = useState([]);
@@ -26,6 +26,7 @@ export default function Produtos({ avisar, tratarErro }) {
       marca: editando.marca,
       preco_centavos: paraCentavos(editando.preco),
       estoque: Number(editando.estoque) || 0,
+      imagem: editando.imagem,
       ativo: editando.ativo ? 1 : 0,
     };
 
@@ -80,10 +81,16 @@ export default function Produtos({ avisar, tratarErro }) {
         <div className="cartoes" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
           {itens.map((p) => (
             <article className="cartao" key={p.id}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: 17 }}>{p.nome}</strong>
-                  <div style={{ fontSize: 13, color: 'var(--tinta-suave)' }}>{p.marca}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  {p.imagem ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img className="avatar-mini" src={p.imagem} alt="" />
+                  ) : null}
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ fontSize: 17 }}>{p.nome}</strong>
+                    <div style={{ fontSize: 13, color: 'var(--tinta-suave)' }}>{p.marca}</div>
+                  </div>
                 </div>
                 <span className={`etiqueta ${p.ativo ? 'etiqueta-confirmado' : 'etiqueta-neutra'}`}>
                   {p.ativo ? 'À venda' : 'Fora'}
@@ -189,6 +196,14 @@ export default function Produtos({ avisar, tratarErro }) {
               />
             </label>
           </div>
+
+          <CampoImagem
+            label="Foto do produto (opcional)"
+            valor={editando.imagem}
+            aoMudar={(url) => setEditando({ ...editando, imagem: url })}
+            pasta="produtos"
+            avisar={avisar}
+          />
 
           <label className="caixa">
             <input

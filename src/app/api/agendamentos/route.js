@@ -1,5 +1,6 @@
 import { getDb, lerConfig } from '@/lib/db';
 import { horariosLivres, paraHora, paraMinutos } from '@/lib/slots';
+import { limiteAtingido, obterIp, registrarTentativa } from '@/lib/limitador';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,7 +8,21 @@ function limpar(texto, limite) {
   return String(texto ?? '').trim().slice(0, limite);
 }
 
+// Generoso o bastante para um cliente normal (que no máximo tenta de novo
+// depois de um horário ocupado), mas barra um script tentando lotar a agenda.
+const JANELA_MINUTOS = 10;
+const MAXIMO_TENTATIVAS = 6;
+
 export async function POST(request) {
+  const chave = `agendar:${obterIp(request)}`;
+  if (limiteAtingido(chave, { janelaMinutos: JANELA_MINUTOS, maximo: MAXIMO_TENTATIVAS })) {
+    return Response.json(
+      { erro: 'Muitos agendamentos em pouco tempo. Aguarde alguns minutos e tente de novo.' },
+      { status: 429 }
+    );
+  }
+  registrarTentativa(chave);
+
   let corpo;
   try {
     corpo = await request.json();

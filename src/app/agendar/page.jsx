@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import FluxoAgendamento from './FluxoAgendamento';
+import Animacoes from '@/components/Animacoes';
 
 export const metadata = {
   title: 'Agendar horário — The Barbosa Barbearia',
@@ -23,14 +24,15 @@ export default function PaginaAgendar() {
       <main className="agendar-corpo">
         <div className="container">
           <div className="agendar-titulo">
-            <span className="sobrenome">Agendamento online</span>
-            <h1>Agendar horário</h1>
+            <span className="sobrenome anim-entrada">Agendamento online</span>
+            <h1 className="anim-entrada">Agendar horário</h1>
           </div>
           <FluxoAgendamento />
         </div>
       </main>
 
       <div className="poste" aria-hidden="true" />
+      <Animacoes />
     </div>
   );
 }

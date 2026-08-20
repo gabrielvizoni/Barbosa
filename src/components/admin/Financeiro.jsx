@@ -166,14 +166,21 @@ export default function Financeiro({ tratarErro }) {
   if (!dados) return <p>Carregando…</p>;
 
   const { principal, comparacao, serie, porServico, porBarbeiro, geral } = dados;
-  const semMovimento = principal.atendimentos === 0 && geral.atendimentos === 0;
+  const semMovimento =
+    principal.realizado.atendimentos === 0 &&
+    principal.previsto.atendimentos === 0 &&
+    geral.realizado.atendimentos === 0 &&
+    geral.previsto.atendimentos === 0;
 
   return (
     <>
       <div className="conteudo-topo">
         <div>
           <h1>Financeiro</h1>
-          <p>Só entram atendimentos não cancelados, pelo preço do serviço na hora da marcação.</p>
+          <p>
+            Realizado é o que já foi concluído; previsto é o que está pendente ou confirmado.
+            Cancelados não entram em nenhum dos dois.
+          </p>
         </div>
       </div>
 
@@ -205,33 +212,62 @@ export default function Financeiro({ tratarErro }) {
               </label>
             </div>
 
-            <div className="cartoes" style={{ marginBottom: 0 }}>
+            <span className="sobrenome">Realizado — atendimentos já concluídos</span>
+            <div className="cartoes" style={{ marginBottom: 20 }}>
               <div className="cartao">
-                <div className="rotulo">Faturamento</div>
+                <div className="rotulo">Faturamento realizado</div>
                 <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(principal.faturamento)}
+                  {moeda(principal.realizado.faturamento)}
                 </div>
                 <Variacao
-                  atual={principal.faturamento}
-                  anterior={comparacao.faturamento}
+                  atual={principal.realizado.faturamento}
+                  anterior={comparacao.realizado.faturamento}
                   formatar={moeda}
                 />
               </div>
               <div className="cartao">
-                <div className="rotulo">Atendimentos</div>
-                <div className="numero">{principal.atendimentos}</div>
+                <div className="rotulo">Atendimentos concluídos</div>
+                <div className="numero">{principal.realizado.atendimentos}</div>
                 <Variacao
-                  atual={principal.atendimentos}
-                  anterior={comparacao.atendimentos}
+                  atual={principal.realizado.atendimentos}
+                  anterior={comparacao.realizado.atendimentos}
                   formatar={(v) => String(v)}
                 />
               </div>
               <div className="cartao">
                 <div className="rotulo">Ticket médio</div>
                 <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(principal.ticket)}
+                  {moeda(principal.realizado.ticket)}
                 </div>
-                <Variacao atual={principal.ticket} anterior={comparacao.ticket} formatar={moeda} />
+                <Variacao
+                  atual={principal.realizado.ticket}
+                  anterior={comparacao.realizado.ticket}
+                  formatar={moeda}
+                />
+              </div>
+            </div>
+
+            <span className="sobrenome">Previsto — pendente + confirmado, ainda vai acontecer</span>
+            <div className="cartoes" style={{ marginBottom: 0 }}>
+              <div className="cartao">
+                <div className="rotulo">Faturamento previsto</div>
+                <div className="numero" style={{ fontSize: 30 }}>
+                  {moeda(principal.previsto.faturamento)}
+                </div>
+                <Variacao
+                  atual={principal.previsto.faturamento}
+                  anterior={comparacao.previsto.faturamento}
+                  formatar={moeda}
+                />
+              </div>
+              <div className="cartao">
+                <div className="rotulo">Atendimentos previstos</div>
+                <div className="numero">{principal.previsto.atendimentos}</div>
+                <Variacao
+                  atual={principal.previsto.atendimentos}
+                  anterior={comparacao.previsto.atendimentos}
+                  formatar={(v) => String(v)}
+                />
               </div>
               <div className="cartao">
                 <div className="rotulo">Cancelamentos</div>
@@ -242,7 +278,10 @@ export default function Financeiro({ tratarErro }) {
           </section>
 
           <section className="bloco">
-            <h2>Faturamento dos últimos 12 meses</h2>
+            <h2>Movimento dos últimos 12 meses</h2>
+            <p style={{ marginTop: -8, marginBottom: 16, fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+              Soma realizado + previsto (não cancelados) de cada mês.
+            </p>
             <GraficoLinha serie={serie} />
           </section>
 
@@ -272,22 +311,37 @@ export default function Financeiro({ tratarErro }) {
 
           <section className="bloco">
             <h2>Desde o começo</h2>
-            <div className="cartoes" style={{ marginBottom: 0 }}>
+            <span className="sobrenome">Realizado</span>
+            <div className="cartoes" style={{ marginBottom: 20 }}>
               <div className="cartao">
-                <div className="rotulo">Faturamento total</div>
+                <div className="rotulo">Faturamento realizado</div>
                 <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(geral.faturamento)}
+                  {moeda(geral.realizado.faturamento)}
                 </div>
               </div>
               <div className="cartao">
-                <div className="rotulo">Atendimentos</div>
-                <div className="numero">{geral.atendimentos}</div>
+                <div className="rotulo">Atendimentos concluídos</div>
+                <div className="numero">{geral.realizado.atendimentos}</div>
               </div>
               <div className="cartao">
                 <div className="rotulo">Ticket médio</div>
                 <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(geral.ticket)}
+                  {moeda(geral.realizado.ticket)}
                 </div>
+              </div>
+            </div>
+
+            <span className="sobrenome">Previsto</span>
+            <div className="cartoes" style={{ marginBottom: 0 }}>
+              <div className="cartao">
+                <div className="rotulo">Faturamento previsto</div>
+                <div className="numero" style={{ fontSize: 30 }}>
+                  {moeda(geral.previsto.faturamento)}
+                </div>
+              </div>
+              <div className="cartao">
+                <div className="rotulo">Atendimentos previstos</div>
+                <div className="numero">{geral.previsto.atendimentos}</div>
               </div>
             </div>
           </section>

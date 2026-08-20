@@ -16,13 +16,22 @@ export const RECURSOS = {
   },
   servicos: {
     tabela: 'servicos',
-    colunas: ['nome', 'descricao', 'categoria', 'preco_centavos', 'duracao_min', 'ativo', 'ordem'],
+    colunas: [
+      'nome',
+      'descricao',
+      'categoria',
+      'preco_centavos',
+      'duracao_min',
+      'imagem',
+      'ativo',
+      'ordem',
+    ],
     numericas: ['preco_centavos', 'duracao_min', 'ativo', 'ordem'],
     ordem: 'ordem, id',
   },
   produtos: {
     tabela: 'produtos',
-    colunas: ['nome', 'marca', 'preco_centavos', 'estoque', 'ativo'],
+    colunas: ['nome', 'marca', 'preco_centavos', 'estoque', 'imagem', 'ativo'],
     numericas: ['preco_centavos', 'estoque', 'ativo'],
     ordem: 'id DESC',
   },
@@ -33,6 +42,16 @@ export const RECURSOS = {
     ordem: 'data DESC, inicio',
   },
 };
+
+/**
+ * Só devolve um recurso se `nome` for uma chave própria de RECURSOS — usar
+ * `RECURSOS[nome]` direto aceitaria nomes herdados de Object.prototype
+ * (`constructor`, `toString`, `hasOwnProperty`...), que são sempre "truthy"
+ * e derrubariam a rota com 500 em vez de devolver 404.
+ */
+export function obterRecurso(nome) {
+  return Object.hasOwn(RECURSOS, nome) ? RECURSOS[nome] : null;
+}
 
 /** Mantém só as colunas conhecidas e converte números. */
 export function filtrarCampos(recurso, corpo) {
@@ -61,7 +80,7 @@ export async function GET(_request, { params }) {
   const negado = exigirSessao();
   if (negado) return negado;
 
-  const recurso = RECURSOS[params.recurso];
+  const recurso = obterRecurso(params.recurso);
   if (!recurso) return Response.json({ erro: 'Cadastro não encontrado.' }, { status: 404 });
 
   if (params.recurso === 'servicos') return Response.json({ itens: listarServicos() });
@@ -77,7 +96,7 @@ export async function POST(request, { params }) {
   const negado = exigirSessao();
   if (negado) return negado;
 
-  const recurso = RECURSOS[params.recurso];
+  const recurso = obterRecurso(params.recurso);
   if (!recurso) return Response.json({ erro: 'Cadastro não encontrado.' }, { status: 404 });
 
   const corpo = await request.json().catch(() => ({}));

@@ -1,7 +1,8 @@
 import Link from 'next/link';
-import { lerConfig, lerExpediente, listarBarbeiros, listarServicos } from '@/lib/db';
+import { lerConfig, lerExpediente, listarBarbeiros, listarProdutos, listarServicos } from '@/lib/db';
 import { moeda, iniciais } from '@/lib/format';
 import { Local, Relogio, Seta, Zap } from '@/components/Icones';
+import Animacoes from '@/components/Animacoes';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,7 @@ function resumirExpediente(expediente) {
 export default function PaginaInicial() {
   const config = lerConfig();
   const servicos = listarServicos({ somenteAtivos: true });
+  const produtos = listarProdutos({ somenteAtivos: true });
   const barbeiros = listarBarbeiros({ somenteAtivos: true });
   const expediente = resumirExpediente(lerExpediente());
   const nome = config.nome_barbearia || 'The Barbosa Barbearia';
@@ -44,7 +46,12 @@ export default function PaginaInicial() {
       <header className="cabecalho">
         <div className="container cabecalho-interno">
           <Link href="/" className="marca">
-            <span className="marca-poste" aria-hidden="true" />
+            {config.logo_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img className="marca-logo" src={config.logo_url} alt={nome} />
+            ) : (
+              <span className="marca-poste" aria-hidden="true" />
+            )}
             <span className="marca-nome">The Barbosa</span>
           </Link>
           <nav className="menu">
@@ -54,6 +61,11 @@ export default function PaginaInicial() {
             <span className="menu-secundario">
               <a href="#equipe">Equipe</a>
             </span>
+            {produtos.length > 0 ? (
+              <span className="menu-secundario">
+                <a href="#produtos">Produtos</a>
+              </span>
+            ) : null}
             <Link href="/agendar" className="btn btn-ouro btn-mini">
               Agendar
             </Link>
@@ -66,14 +78,14 @@ export default function PaginaInicial() {
         <section className="capa">
           <div className="container capa-interna">
             <div>
-              <span className="sobrenome">Barbearia clássica · Maringá, PR</span>
-              <h1>
+              <span className="sobrenome anim-entrada">Barbearia clássica · Maringá, PR</span>
+              <h1 className="anim-entrada">
                 Cadeira
                 <br />
                 <em>reservada.</em>
               </h1>
-              <p className="capa-texto">{config.slogan}</p>
-              <div className="capa-acoes">
+              <p className="capa-texto anim-entrada">{config.slogan}</p>
+              <div className="capa-acoes anim-entrada">
                 <Link href="/agendar" className="btn btn-ouro">
                   Agendar horário <Seta />
                 </Link>
@@ -81,7 +93,7 @@ export default function PaginaInicial() {
                   Ver serviços
                 </a>
               </div>
-              <dl className="capa-dados">
+              <dl className="capa-dados anim-entrada">
                 <div>
                   <dt>6</dt>
                   <dd>cliques até marcar</dd>
@@ -97,7 +109,7 @@ export default function PaginaInicial() {
               </dl>
             </div>
 
-            <div className="cartaz">
+            <div className="cartaz anim-entrada">
               <span className="cartaz-linha">Desde 2021</span>
               <span className="cartaz-poste" aria-hidden="true" />
               <span className="cartaz-titulo">The Barbosa</span>
@@ -127,6 +139,10 @@ export default function PaginaInicial() {
               <div className="grade">
                 {servicos.map((servico) => (
                   <article className="cartao-servico" key={servico.id}>
+                    {servico.imagem ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img className="cartao-servico-imagem" src={servico.imagem} alt="" />
+                    ) : null}
                     <span className="sobrenome" style={{ marginBottom: 0 }}>
                       {servico.categoria}
                     </span>
@@ -179,6 +195,39 @@ export default function PaginaInicial() {
           </div>
         </section>
 
+        {/* Produtos */}
+        {produtos.length > 0 ? (
+          <section className="secao secao-creme" id="produtos">
+            <div className="container">
+              <div className="secao-cabeca">
+                <span className="sobrenome">O que vendemos</span>
+                <h2>Nossos produtos</h2>
+                <p>Pomadas, óleos e cuidados que também levam a assinatura da casa.</p>
+              </div>
+
+              <div className="grade">
+                {produtos.map((produto) => (
+                  <article className="cartao-servico" key={produto.id}>
+                    {produto.imagem ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img className="cartao-servico-imagem" src={produto.imagem} alt="" />
+                    ) : null}
+                    {produto.marca ? (
+                      <span className="sobrenome" style={{ marginBottom: 0 }}>
+                        {produto.marca}
+                      </span>
+                    ) : null}
+                    <h3>{produto.nome}</h3>
+                    <div className="cartao-rodape">
+                      <span className="preco">{moeda(produto.preco_centavos)}</span>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {/* Chamada final */}
         <section className="chamada">
           <div className="container chamada-interna">
@@ -202,7 +251,12 @@ export default function PaginaInicial() {
           <div className="rodape-grade">
             <div>
               <div className="marca" style={{ marginBottom: 14 }}>
-                <span className="marca-poste" aria-hidden="true" />
+                {config.logo_url ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img className="marca-logo" src={config.logo_url} alt={nome} />
+                ) : (
+                  <span className="marca-poste" aria-hidden="true" />
+                )}
                 <span className="marca-nome">The Barbosa</span>
               </div>
               <p style={{ margin: 0, maxWidth: '34ch' }}>{config.slogan}</p>
@@ -248,6 +302,8 @@ export default function PaginaInicial() {
           </div>
         </div>
       </footer>
+
+      <Animacoes />
     </>
   );
 }

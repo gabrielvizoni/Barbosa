@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { api, Etiqueta, Vazio } from './base';
 import { moeda, dataBr, iniciais } from '@/lib/format';
-import { Calendario, CheckCirculo, Dinheiro, Sino } from '@/components/Icones';
+import { Calendario, CheckCirculo, Dinheiro, Grafico, Sino } from '@/components/Icones';
 
 const DIAS = [
   'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
@@ -52,12 +52,22 @@ export default function VisaoGeral({ tratarErro }) {
         </div>
         <div className="cartao">
           <div className="rotulo">
+            Realizado hoje{' '}
+            <Grafico width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
+          </div>
+          <div className="numero" style={{ fontSize: 30 }}>
+            {moeda(hoje.realizado)}
+          </div>
+          <div className="nota">atendimentos concluídos</div>
+        </div>
+        <div className="cartao">
+          <div className="rotulo">
             Previsto hoje <Dinheiro width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
           </div>
           <div className="numero" style={{ fontSize: 30 }}>
-            {moeda(hoje.faturamento)}
+            {moeda(hoje.previsto)}
           </div>
-          <div className="nota">exclui cancelados</div>
+          <div className="nota">pendente + confirmado</div>
         </div>
         <div className="cartao">
           <div className="rotulo">

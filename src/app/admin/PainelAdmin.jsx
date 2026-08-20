@@ -15,6 +15,7 @@ import {
   Caixa,
   Calendario,
   Casa,
+  Cadeado,
   Dinheiro,
   Engrenagem,
   Equipe,
@@ -42,6 +43,8 @@ export default function PainelAdmin() {
   const [senha, setSenha] = useState('');
   const [erroLogin, setErroLogin] = useState('');
   const [entrando, setEntrando] = useState(false);
+  const [configuracaoInsegura, setConfiguracaoInsegura] = useState(false);
+  const [senhaInicial, setSenhaInicial] = useState(false);
 
   const [secaoAtiva, setSecaoAtiva] = useState('visao');
   const [pendentes, setPendentes] = useState(0);
@@ -50,7 +53,11 @@ export default function PainelAdmin() {
   useEffect(() => {
     fetch('/api/admin/sessao')
       .then((r) => r.json())
-      .then((r) => setEstado(r.autenticado ? 'dentro' : 'fora'))
+      .then((r) => {
+        setConfiguracaoInsegura(!!r.configuracaoInsegura);
+        setSenhaInicial(!!r.senhaInicial);
+        setEstado(r.autenticado ? 'dentro' : 'fora');
+      })
       .catch(() => setEstado('fora'));
   }, []);
 
@@ -87,8 +94,9 @@ export default function PainelAdmin() {
     setErroLogin('');
     setEntrando(true);
     try {
-      await api('login', { method: 'POST', body: { senha } });
+      const r = await api('login', { method: 'POST', body: { senha } });
       setSenha('');
+      setSenhaInicial(!!r.senhaInicial);
       setEstado('dentro');
     } catch (erro) {
       setErroLogin(erro.message);
@@ -106,6 +114,26 @@ export default function PainelAdmin() {
     return (
       <div className="portao">
         <p style={{ color: 'var(--creme)' }}>Carregando…</p>
+      </div>
+    );
+  }
+
+  if (configuracaoInsegura) {
+    return (
+      <div className="portao">
+        <div className="portao-caixa">
+          <div className="portao-topo">
+            <span className="sobrenome">Painel administrativo</span>
+            <h1>The Barbosa</h1>
+          </div>
+          <div className="portao-corpo">
+            <div className="aviso aviso-erro">
+              O painel está indisponível: falta configurar a variável <code>SESSION_SECRET</code>{' '}
+              no servidor. Avise quem cuida da hospedagem — o site público continua funcionando
+              normalmente.
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -143,7 +171,10 @@ export default function PainelAdmin() {
     );
   }
 
-  const secao = SECOES.find((s) => s.id === secaoAtiva) || SECOES[0];
+  // Enquanto a senha ainda for a inicial, só Configurações fica acessível —
+  // é lá que está o formulário de troca de senha.
+  const secaoEfetiva = senhaInicial ? 'config' : secaoAtiva;
+  const secao = SECOES.find((s) => s.id === secaoEfetiva) || SECOES[0];
   const Tela = secao.Tela;
 
   return (
@@ -154,20 +185,36 @@ export default function PainelAdmin() {
           <strong>The Barbosa</strong>
         </div>
 
+        {senhaInicial ? (
+          <div className="aviso-lateral" style={{ margin: '0 16px 12px' }}>
+            <Cadeado width={14} height={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            Defina uma senha própria para liberar o resto do painel.
+          </div>
+        ) : null}
+
         <div className="lateral-menu">
-          {SECOES.map(({ id, rotulo, Icone }) => (
-            <button
-              key={id}
-              className={`item-menu ${id === secaoAtiva ? 'ativo' : ''}`}
-              onClick={() => setSecaoAtiva(id)}
-            >
-              <Icone width={17} height={17} />
-              {rotulo}
-              {id === 'agendamentos' && pendentes > 0 ? (
-                <span className="contador">{pendentes}</span>
-              ) : null}
-            </button>
-          ))}
+          {SECOES.map(({ id, rotulo, Icone }) => {
+            const bloqueado = senhaInicial && id !== 'config';
+            return (
+              <button
+                key={id}
+                className={`item-menu ${id === secaoEfetiva ? 'ativo' : ''}`}
+                onClick={() => (bloqueado ? null : setSecaoAtiva(id))}
+                disabled={bloqueado}
+                title={bloqueado ? 'Defina uma senha própria primeiro' : undefined}
+                aria-disabled={bloqueado}
+              >
+                <Icone width={17} height={17} />
+                {rotulo}
+                {id === 'agendamentos' && pendentes > 0 ? (
+                  <span className="contador">{pendentes}</span>
+                ) : null}
+                {bloqueado ? (
+                  <Cadeado width={13} height={13} style={{ marginLeft: 'auto', opacity: 0.6 }} />
+                ) : null}
+              </button>
+            );
+          })}
         </div>
 
         <div className="lateral-base">
@@ -179,7 +226,12 @@ export default function PainelAdmin() {
       </nav>
 
       <main className="conteudo">
-        <Tela avisar={avisar} tratarErro={tratarErro} aoMudar={atualizarPendentes} />
+        <Tela
+          avisar={avisar}
+          tratarErro={tratarErro}
+          aoMudar={atualizarPendentes}
+          aoTrocarSenha={() => setSenhaInicial(false)}
+        />
       </main>
 
       {recado ? (

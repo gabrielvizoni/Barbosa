@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Modal, Vazio } from './base';
+import { api, CampoImagem, Modal, Vazio } from './base';
 import { moeda, paraCentavos, paraReais } from '@/lib/format';
 import { Lapis, Lixeira, Mais } from '@/components/Icones';
 
@@ -11,6 +11,7 @@ const VAZIO = {
   categoria: 'Corte',
   preco: '',
   duracao_min: 30,
+  imagem: '',
   ativo: 1,
   barbeiros: [],
 };
@@ -49,6 +50,7 @@ export default function Servicos({ avisar, tratarErro }) {
       categoria: editando.categoria,
       preco_centavos: paraCentavos(editando.preco),
       duracao_min: Number(editando.duracao_min) || 30,
+      imagem: editando.imagem,
       ativo: editando.ativo ? 1 : 0,
       barbeiros: editando.barbeiros,
     };
@@ -109,6 +111,13 @@ export default function Servicos({ avisar, tratarErro }) {
         </button>
       </div>
 
+      {itens.length > 0 && itens.some((s) => !s.descricao.trim()) ? (
+        <div className="aviso" style={{ marginBottom: 16 }}>
+          {itens.filter((s) => !s.descricao.trim()).length} de {itens.length} serviços estão sem
+          descrição — é o texto que o cliente vê ao escolher, na tela de agendamento.
+        </div>
+      ) : null}
+
       <section className="bloco">
         {itens.length === 0 ? (
           <Vazio titulo="Nenhum serviço cadastrado">
@@ -120,6 +129,7 @@ export default function Servicos({ avisar, tratarErro }) {
             <table className="tabela">
               <thead>
                 <tr>
+                  <th></th>
                   <th>Serviço</th>
                   <th>Categoria</th>
                   <th>Quem faz</th>
@@ -133,12 +143,22 @@ export default function Servicos({ avisar, tratarErro }) {
                 {itens.map((s) => (
                   <tr key={s.id}>
                     <td>
+                      {s.imagem ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img className="avatar-mini" src={s.imagem} alt="" />
+                      ) : null}
+                    </td>
+                    <td>
                       <strong>{s.nome}</strong>
-                      {s.descricao ? (
+                      {s.descricao.trim() ? (
                         <div style={{ fontSize: 12.5, color: 'var(--tinta-suave)' }}>
                           {s.descricao}
                         </div>
-                      ) : null}
+                      ) : (
+                        <div style={{ marginTop: 3 }}>
+                          <span className="etiqueta etiqueta-pendente">Sem descrição</span>
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span className="etiqueta etiqueta-neutra">{s.categoria}</span>
@@ -258,6 +278,14 @@ export default function Servicos({ avisar, tratarErro }) {
               />
             </label>
           </div>
+
+          <CampoImagem
+            label="Foto do serviço (opcional)"
+            valor={editando.imagem}
+            aoMudar={(url) => setEditando({ ...editando, imagem: url })}
+            pasta="servicos"
+            avisar={avisar}
+          />
 
           <div className="campo">
             <span>Quem executa</span>
