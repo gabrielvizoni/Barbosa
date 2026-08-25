@@ -1,7 +1,88 @@
-# The Barbosa Barbearia
+# The Barbosa — Sistema de Agendamento para Barbearias
 
-Site de agendamento com painel administrativo. O cliente marca em **6 cliques**, informando
-só nome e WhatsApp. Você administra tudo por `/admin`.
+![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white)
+![CSS](https://img.shields.io/badge/CSS-hand--rolled%20design%20system-1572B6?logo=css3&logoColor=white)
+![License](https://img.shields.io/badge/uso-projeto%20de%20cliente%20real-8a2be2)
+
+> 🇬🇧 **In short:** a full booking platform for a real barbershop client, built solo end-to-end
+> with Next.js 14 (App Router), React 18 and SQLite — no ORM, no UI framework, no auth library.
+> Public booking flow (5-step wizard, real-time slot availability, double-booking-safe writes)
+> plus a full admin panel (schedule, staff, services, pricing, financial dashboard, image
+> uploads). Auth is hand-built: scrypt password hashing, HMAC-signed session cookies,
+> timing-safe comparisons, and a self-contained SQLite-backed rate limiter — no bcrypt, no
+> Redis, no NextAuth. Everything below is in Portuguese (the client and the commit history
+> are Brazilian), but the code and the engineering decisions speak for themselves.
+
+O cliente marca em **6 cliques**, informando só nome e WhatsApp. O dono da barbearia administra
+tudo — agenda, equipe, serviços, preços e faturamento — por um painel próprio em `/admin`.
+
+Este é um projeto real, em produção para uma cliente de verdade (não é um boilerplate nem um
+tutorial seguido à risca): as decisões abaixo vieram de problemas reais que apareceram durante
+o desenvolvimento e o uso — dois agendamentos disputando o mesmo horário, calendário nativo do
+navegador que não dava pra estilizar, gráfico que ficava enorme em tela larga, texto sumindo
+por causa de uma classe de CSS esquecida. O histórico de commits conta essa história em ordem.
+
+---
+
+## Destaques técnicos
+
+**Autenticação construída do zero, sem biblioteca pronta.** Senha guardada como hash `scrypt`
+(nunca em texto), cookie de sessão assinado com HMAC-SHA256 (não é só um ID que confia numa
+consulta ao banco — o próprio cookie carrega e prova sua validade), comparação em tempo
+constante (`timingSafeEqual`) para não vazar informação pelo tempo de resposta, e um número de
+versão de sessão que, ao trocar a senha, invalida todos os outros cookies emitidos antes —
+sem precisar de uma tabela de sessões ativas. Em produção, se `SESSION_SECRET` não estiver
+configurado, o painel recusa a funcionar de propósito, em vez de assinar sessões com um valor
+previsível.
+
+**Controle de tentativas sem Redis nem serviço externo.** O limitador de requisições (login e
+agendamento público) é uma tabela SQLite: cada tentativa vira uma linha, e a janela de tempo
+decide se a próxima passa. Simples, sem infraestrutura extra, e resolve o problema real (força
+bruta e spam de agendamento) sem trazer uma dependência pesada para um problema pequeno.
+
+**Escrita à prova de corrida.** Dois clientes podem estar olhando o mesmo horário livre ao
+mesmo tempo — a disponibilidade é conferida de novo contra o banco no instante de salvar,
+dentro de uma verificação atômica. Se alguém tiver marcado no meio do caminho, quem chegou
+depois recebe o aviso e escolhe outro horário, em vez de sobrescrever silenciosamente.
+
+**Upload de imagem validado pelo conteúdo, não pelo nome.** O endpoint de upload lê os
+primeiros bytes do arquivo (assinatura/"magic number") para confirmar que é mesmo um PNG,
+JPG, WEBP ou GIF — um arquivo malicioso renomeado com extensão de imagem não passa, mesmo que
+o `Content-Type` enviado pelo navegador diga o contrário.
+
+**Calendário próprio no lugar dos controles nativos.** `<input type="date">` e `<select>`
+resolvem no protótipo, mas o menu de opções que o navegador desenha por cima é praticamente
+impossível de estilizar — e, num modal com `overflow: hidden`, ele simplesmente fica cortado.
+A solução foi construir um seletor de data e uma lista suspensa próprios, desenhados num
+portal React fixado à janela (escapando de qualquer contêiner com `overflow` ou `z-index`
+concorrente), com posicionamento calculado a partir do elemento que os abre e ajuste automático
+de lado quando não cabe embaixo. O calendário do agendamento público vai além: mostra a grade
+real da semana (segunda a domingo), com os dias sem expediente visíveis e desabilitados em vez
+de simplesmente desaparecerem — porque um horário livre fora da grade fixa de 30 minutos (ex.:
+9h45, logo depois de um atendimento curto) não podia ficar escondido do cliente.
+
+**Cadastro nunca é apagado, só desativado.** Um serviço ou profissional que sai do quadro some
+do site e do fluxo de agendamento, mas os atendimentos antigos continuam intactos no
+financeiro — histórico não é sacrificado por uma exclusão.
+
+**Design system em CSS puro, sem framework.** Sem Tailwind, sem biblioteca de componentes:
+paleta, tipografia, espaçamento e raios de borda vivem como CSS custom properties no topo de
+um único arquivo. Mudou a variável, mudou o site inteiro e o painel administrativo junto —
+inclusive claro/escuro dos gráficos SVG desenhados à mão para o painel financeiro.
+
+---
+
+## Stack
+
+| Camada | Escolha | Por quê |
+|---|---|---|
+| Framework | **Next.js 14** (App Router) | Server components para dados, rotas de API para as ações do painel, tudo num só projeto. |
+| UI | **React 18**, CSS puro | Sem dependência de biblioteca de componentes — cada peça de UI (modal, seletor de data, calendário) foi construída sob medida para o caso de uso. |
+| Banco | **SQLite** via `better-sqlite3` | Um arquivo, zero infraestrutura de banco para operar. Toda consulta usa *prepared statements* — sem ORM, sem query builder. |
+| Animação | **anime.js** | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`. |
+| Autenticação | Zero dependências | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante. |
 
 ---
 
@@ -116,11 +197,12 @@ src/
       admin/                    Rotas protegidas por senha
   components/
     Icones.jsx                  Ícones em SVG
-    admin/                      Telas do painel
+    admin/                      Telas do painel (inclui o seletor de data/lista próprios)
   lib/
     db.js                       Banco e estrutura das tabelas
     slots.js                    Cálculo dos horários livres
     auth.js                     Sessão do painel
+    limitador.js                Controle de tentativas (rate limit)
     format.js                   Moeda, telefone, datas, link do WhatsApp
 ```
 
@@ -131,12 +213,10 @@ src/
 **Visão geral** — o dia de hoje: quantos agendamentos, quanto está previsto entrar, quem
 trabalha e o que acabou de chegar.
 
-**Agenda do dia** — a agenda de cada barbeiro hora a hora, com telefone e observação do
-cliente à vista.
-
-**Agendamentos** — a lista completa, com busca por nome ou telefone e filtros por status,
-profissional e data. Dá para confirmar, concluir, cancelar, excluir, chamar o cliente no
-WhatsApp e registrar quem chegou sem marcar (botão *Encaixar cliente*).
+**Agenda** — alterna entre a visão do dia por profissional (hora a hora, com telefone e
+observação do cliente à vista) e a lista completa, com busca por nome ou telefone e filtros
+por status, profissional e data. Dá para confirmar, concluir, cancelar, excluir, chamar o
+cliente no WhatsApp e registrar quem chegou sem marcar (botão *Encaixar cliente*).
 
 **Profissionais, Serviços, Produtos** — cadastro completo: incluir, editar e excluir. Em
 Serviços você define preço, duração e **quem executa cada um** — é isso que monta a segunda
@@ -146,29 +226,13 @@ tela do agendamento.
 os botões *Saí por 1 hora*, *Saí por 2 horas* e *Fechar o resto do dia* fecham a agenda a
 partir daquele minuto, com um clique. Os horários somem do site na hora.
 
-**Financeiro** — faturamento do mês comparado com outro mês à sua escolha, evolução dos
-últimos 12 meses, serviços mais feitos e desempenho por profissional.
+**Financeiro** — faturamento já recebido e a receber no mês, comparado com outro mês à sua
+escolha, evolução dos últimos 12 meses (com opção de sobrepor o mesmo período do ano
+anterior), serviços mais feitos e desempenho por profissional.
 
 **Configurações** — nome, frase de apresentação, WhatsApp, endereço, de quanto em quanto
 tempo abrir horários, antecedência mínima, quantos dias à frente aceitar e se o agendamento
 já entra confirmado ou fica pendente.
-
----
-
-## Detalhes que evitam dor de cabeça
-
-- **Dois clientes no mesmo horário:** o horário é conferido de novo contra o banco na hora
-  de salvar. Se alguém tiver pego no meio do caminho, o cliente recebe o aviso e volta para
-  escolher outro.
-- **Serviço ou profissional com histórico não é apagado:** é desativado. Some do site e do
-  agendamento, mas os atendimentos antigos continuam no financeiro.
-- **Encaixe manual pode ser fora do expediente** (o cliente que aparece às 21h), mas nunca
-  em cima de outro atendimento ou de um bloqueio (folga/ausência) do mesmo barbeiro.
-- **Fotos e logo:** cada cadastro (Profissionais, Serviços, Produtos, Configurações → Logo)
-  tem um campo de upload próprio — clique em "Enviar imagem", escolha o arquivo do seu
-  computador e pronto. As imagens ficam salvas em `public/uploads/`, dentro do mesmo disco
-  onde está o banco (por isso, em produção, precisam do mesmo disco persistente do
-  `data/barbosa.db`).
 
 ---
 
