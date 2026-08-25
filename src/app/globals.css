@@ -133,7 +133,9 @@ textarea {
 .anim-entrada,
 .secao-cabeca,
 .grade > *,
-.grade-equipe > * {
+.grade-equipe > *,
+.contato-grade > *,
+.chamada-interna > * {
   opacity: 0;
 }
 
@@ -141,7 +143,9 @@ textarea {
   .anim-entrada,
   .secao-cabeca,
   .grade > *,
-  .grade-equipe > * {
+  .grade-equipe > *,
+  .contato-grade > *,
+  .chamada-interna > * {
     opacity: 1;
   }
 }
@@ -946,44 +950,6 @@ textarea.entrada {
   }
 }
 
-/* ---------- Seções em quadrado sobre fundo fixo (experimental) ----------
-   Cada seção vira um bloco arredondado, com espaço ao redor mostrando o
-   fundo fixo por trás — em vez das seções coladas, de ponta a ponta. */
-
-.pagina-boxed {
-  background:
-    radial-gradient(ellipse 900px 480px at 50% -8%, rgba(216, 189, 124, 0.14), transparent 62%),
-    linear-gradient(180deg, var(--verde-900) 0%, var(--marrom-900) 100%);
-  background-attachment: fixed;
-  background-size: cover;
-}
-
-.pagina-boxed .capa,
-.pagina-boxed .secao,
-.pagina-boxed .chamada {
-  margin: 28px 28px 0;
-  border-radius: 28px;
-  overflow: hidden;
-  box-shadow: 0 24px 60px rgba(10, 16, 12, 0.35);
-}
-
-.pagina-boxed main > :last-child {
-  margin-bottom: 28px;
-}
-
-@media (max-width: 640px) {
-  .pagina-boxed .capa,
-  .pagina-boxed .secao,
-  .pagina-boxed .chamada {
-    margin: 14px 14px 0;
-    border-radius: 18px;
-  }
-
-  .pagina-boxed main > :last-child {
-    margin-bottom: 14px;
-  }
-}
-
 /* ---------- Seções ---------- */
 
 .secao {
@@ -991,20 +957,28 @@ textarea.entrada {
 }
 
 .secao-creme {
-  background: var(--creme);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(198, 160, 44, 0.07), transparent 55%),
+    var(--creme);
 }
 
 .secao-alta {
-  background: var(--creme-alto);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(198, 160, 44, 0.06), transparent 55%),
+    var(--creme-alto);
 }
 
 .secao-verde {
-  background: var(--verde-900);
+  background:
+    radial-gradient(circle at 12% 100%, rgba(216, 189, 124, 0.08), transparent 50%),
+    var(--verde-900);
   color: var(--creme-alto);
 }
 
 .secao-marrom {
-  background: linear-gradient(165deg, var(--marrom-700), var(--marrom-900));
+  background:
+    radial-gradient(circle at 12% 100%, rgba(216, 189, 124, 0.09), transparent 50%),
+    linear-gradient(165deg, var(--marrom-700), var(--marrom-900));
   color: var(--creme-alto);
 }
 
@@ -1020,7 +994,7 @@ textarea.entrada {
 }
 
 .secao-cabeca h2 {
-  font-size: clamp(30px, 4.2vw, 42px);
+  font-size: clamp(26px, 3.6vw, 36px);
 }
 
 .secao-cabeca p {
@@ -1083,15 +1057,17 @@ textarea.entrada {
   flex-direction: column;
   gap: 10px;
   padding: 26px;
-  background: var(--creme-alto);
-  border: 1px solid var(--linha);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: var(--raio-g);
   overflow: hidden;
-  transition: border-color 0.18s ease, transform 0.18s ease;
+  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
 }
 
 .secao-alta .cartao-servico {
-  background: var(--creme);
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .cartao-servico-oculto {
@@ -1112,13 +1088,13 @@ textarea.entrada {
 }
 
 .cartao-servico h3 {
-  font-size: 21px;
+  font-size: 19px;
 }
 
 .cartao-servico p {
   margin: 0;
   color: var(--tinta-suave);
-  font-size: 14.5px;
+  font-size: 13.5px;
   flex: 1;
 }
 
@@ -1146,7 +1122,7 @@ textarea.entrada {
 
 .preco {
   font-family: var(--fonte-display);
-  font-size: 25px;
+  font-size: 22px;
   color: var(--dourado-escuro);
 }
 
@@ -1168,9 +1144,11 @@ textarea.entrada {
 .cartao-barbeiro {
   text-align: center;
   padding: 34px 26px;
-  border: 1px solid rgba(247, 243, 234, 0.14);
+  border: 1px solid rgba(247, 243, 234, 0.18);
   border-radius: var(--raio-g);
-  background: rgba(247, 243, 234, 0.04);
+  background: rgba(247, 243, 234, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .retrato {
@@ -1190,7 +1168,7 @@ textarea.entrada {
 }
 
 .cartao-barbeiro h3 {
-  font-size: 21px;
+  font-size: 19px;
 }
 
 .cartao-barbeiro .funcao {
@@ -1242,8 +1220,10 @@ textarea.entrada {
 }
 
 .contato-bloco {
-  background: var(--creme-alto);
-  border: 1px solid var(--linha);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: var(--raio-g);
   padding: 30px 32px;
 }
@@ -1292,7 +1272,9 @@ textarea.entrada {
 }
 
 .contato-cta {
-  background: var(--verde-700);
+  background: rgba(18, 42, 31, 0.86);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   color: var(--creme-alto);
   border-radius: var(--raio-g);
   padding: 32px;
@@ -1303,13 +1285,13 @@ textarea.entrada {
 }
 
 .contato-cta h3 {
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .contato-cta p {
   margin: 0;
   color: rgba(247, 243, 234, 0.72);
-  font-size: 14.5px;
+  font-size: 13.5px;
 }
 
 .contato-instagram {
@@ -1329,7 +1311,9 @@ textarea.entrada {
 /* ---------- Chamada final ---------- */
 
 .chamada {
-  background: var(--verde-700);
+  background:
+    radial-gradient(circle at 88% 100%, rgba(216, 189, 124, 0.1), transparent 55%),
+    var(--verde-700);
   color: var(--creme-alto);
   padding: 76px 0;
 }
@@ -1343,7 +1327,7 @@ textarea.entrada {
 }
 
 .chamada h2 {
-  font-size: clamp(28px, 4.2vw, 42px);
+  font-size: clamp(24px, 3.6vw, 36px);
   max-width: 15ch;
 }
 

@@ -59,7 +59,7 @@ export default function PaginaInicial() {
   ];
 
   return (
-    <div className="pagina-boxed">
+    <>
       <Header
         nome="The Barbosa"
         logoUrl={config.logo_url}
@@ -364,6 +364,6 @@ export default function PaginaInicial() {
       </footer>
 
       <Animacoes />
-    </div>
+    </>
   );
 }

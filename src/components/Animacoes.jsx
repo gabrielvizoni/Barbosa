@@ -52,19 +52,27 @@ export default function Animacoes() {
         });
       });
 
-      // Cartões de cada grade (serviços, equipe, produtos) entram pela
-      // lateral, em cascata, assim que a grade aparece na tela.
-      document.querySelectorAll('.grade, .grade-equipe').forEach((grade) => {
-        const cartoes = Array.from(grade.children);
-        if (!cartoes.length) return;
-        animate(cartoes, {
+      // Os cartões de cada seção (serviços, equipe, produtos, contato,
+      // chamada final) entram pela lateral assim que a seção chega na tela
+      // — alternando o lado a cada seção (direita, esquerda, direita...),
+      // como se fosse uma trilha. A capa fica de fora dessa alternância: ela
+      // já tem a própria entrada, ao carregar a página (ver .anim-entrada
+      // acima), e continua "normal" — sem esperar rolagem nem vir de lado.
+      const secoesComQuadrados = document.querySelectorAll('main > .secao, main > .chamada');
+      secoesComQuadrados.forEach((secao, indice) => {
+        const contentor = secao.querySelector('.grade, .grade-equipe, .contato-grade, .chamada-interna');
+        const quadrados = contentor ? Array.from(contentor.children) : [];
+        if (!quadrados.length) return;
+
+        const daDireita = indice % 2 === 0;
+        animate(quadrados, {
           opacity: [0, 1],
-          translateX: [-38, 0],
+          translateX: daDireita ? [56, 0] : [-56, 0],
           delay: stagger(70),
-          duration: 650,
+          duration: 550,
           ease: 'outQuart',
-          onComplete: aoRevelar(cartoes),
-          autoplay: onScroll({ target: grade, once: true }),
+          onComplete: aoRevelar(quadrados),
+          autoplay: onScroll({ target: secao, once: true }),
         });
       });
 
