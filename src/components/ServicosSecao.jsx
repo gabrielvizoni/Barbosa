@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { animate } from 'animejs';
 import { moeda } from '@/lib/format';
 
 /** Agrupa serviços por categoria e permite filtrar por elas. */
@@ -14,6 +15,60 @@ export default function ServicosSecao({ servicos, barbeiros }) {
   }, [servicos]);
 
   const [filtro, setFiltro] = useState('Todos');
+  const gradeRef = useRef(null);
+  const primeiraRenderizacao = useRef(true);
+  const alturaAntes = useRef(null);
+
+  /* Guarda a altura da grade ANTES de trocar de categoria — depois que o
+   * React já escondeu/mostrou os cartões, não tem mais como saber de onde
+   * ela veio. */
+  function trocarFiltro(nova) {
+    const grade = gradeRef.current;
+    if (grade) alturaAntes.current = grade.getBoundingClientRect().height;
+    setFiltro(nova);
+  }
+
+  /* Um leve deslize na grade inteira a cada troca de categoria — simples e sem
+   * estado por cartão, então não tem como "travar" mesmo clicando rápido:
+   * cada troca só reinicia essa mesma animação no mesmo elemento. Anima
+   * também a altura (de quanto era pra quanto passou a ser), pra tudo que
+   * vem depois na página — a seção da equipe, por exemplo — deslizar junto
+   * em vez de simplesmente pular pro lugar novo. */
+  useEffect(() => {
+    if (primeiraRenderizacao.current) {
+      primeiraRenderizacao.current = false;
+      return;
+    }
+    const grade = gradeRef.current;
+    if (!grade) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const antiga = alturaAntes.current;
+    // Limpa antes de medir: uma transição anterior interrompida pode ter
+    // deixado a altura presa num valor no meio do caminho.
+    grade.style.height = '';
+    const nova = grade.getBoundingClientRect().height;
+
+    const parametros = {
+      opacity: [0.35, 1],
+      translateY: [10, 0],
+      duration: 400,
+      ease: 'outQuad',
+    };
+
+    if (antiga != null && Math.abs(antiga - nova) > 1) {
+      grade.style.overflow = 'hidden';
+      parametros.height = [antiga, nova];
+      parametros.onComplete = () => {
+        grade.style.height = '';
+        grade.style.overflow = '';
+      };
+    } else {
+      grade.style.overflow = '';
+    }
+
+    animate(grade, parametros);
+  }, [filtro]);
 
   function nomesProfissionais(idsBarbeiros) {
     return idsBarbeiros
@@ -29,7 +84,7 @@ export default function ServicosSecao({ servicos, barbeiros }) {
           <button
             type="button"
             className={`filtro-chip ${filtro === 'Todos' ? 'ativo' : ''}`}
-            onClick={() => setFiltro('Todos')}
+            onClick={() => trocarFiltro('Todos')}
             aria-pressed={filtro === 'Todos'}
           >
             Todos
@@ -39,7 +94,7 @@ export default function ServicosSecao({ servicos, barbeiros }) {
               key={categoria}
               type="button"
               className={`filtro-chip ${filtro === categoria ? 'ativo' : ''}`}
-              onClick={() => setFiltro(categoria)}
+              onClick={() => trocarFiltro(categoria)}
               aria-pressed={filtro === categoria}
             >
               {categoria}
@@ -48,7 +103,7 @@ export default function ServicosSecao({ servicos, barbeiros }) {
         </div>
       ) : null}
 
-      <div className="grade">
+      <div className="grade" ref={gradeRef}>
         {/* Sempre renderiza todos os cartões e só esconde via CSS — removê-los do
             DOM ao trocar de categoria criaria nós novos, que nunca passam pela
             animação de entrada (ela roda uma vez só, ver Animacoes.jsx) e
