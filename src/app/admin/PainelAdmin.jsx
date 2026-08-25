@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/components/admin/base';
 import VisaoGeral from '@/components/admin/VisaoGeral';
-import AgendaVisual from '@/components/admin/AgendaVisual';
 import Agendamentos from '@/components/admin/Agendamentos';
 import Profissionais from '@/components/admin/Profissionais';
 import Servicos from '@/components/admin/Servicos';
@@ -21,15 +20,13 @@ import {
   Equipe,
   Grafico,
   Pausa,
-  Relogio,
   Sair,
   Tesoura,
 } from '@/components/Icones';
 
 const SECOES = [
   { id: 'visao', rotulo: 'Visão geral', Icone: Casa, Tela: VisaoGeral },
-  { id: 'agenda', rotulo: 'Agenda do dia', Icone: Calendario, Tela: AgendaVisual },
-  { id: 'agendamentos', rotulo: 'Agendamentos', Icone: Relogio, Tela: Agendamentos },
+  { id: 'agenda', rotulo: 'Agenda', Icone: Calendario, Tela: Agendamentos },
   { id: 'profissionais', rotulo: 'Profissionais', Icone: Equipe, Tela: Profissionais },
   { id: 'servicos', rotulo: 'Serviços', Icone: Tesoura, Tela: Servicos },
   { id: 'produtos', rotulo: 'Produtos', Icone: Caixa, Tela: Produtos },

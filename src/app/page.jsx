@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { lerConfig, lerExpediente, listarBarbeiros, listarProdutos, listarServicos } from '@/lib/db';
 import { moeda, iniciais } from '@/lib/format';
-import { Local, Relogio, Seta, Zap } from '@/components/Icones';
+import { Local, Relogio, Seta, WhatsApp, Instagram } from '@/components/Icones';
+import Header from '@/components/Header';
+import ServicosSecao from '@/components/ServicosSecao';
 import Animacoes from '@/components/Animacoes';
 
 export const dynamic = 'force-dynamic';
@@ -35,90 +37,80 @@ function resumirExpediente(expediente) {
 
 export default function PaginaInicial() {
   const config = lerConfig();
-  const servicos = listarServicos({ somenteAtivos: true });
+  const todosServicos = listarServicos({ somenteAtivos: true });
+  const servicos = todosServicos.filter((s) => s.barbeiros.length > 0);
   const produtos = listarProdutos({ somenteAtivos: true });
   const barbeiros = listarBarbeiros({ somenteAtivos: true });
   const expediente = resumirExpediente(lerExpediente());
   const nome = config.nome_barbearia || 'The Barbosa Barbearia';
+  const linkInstagram = config.instagram ? `https://instagram.com/${config.instagram}` : null;
+  const linkWhats = config.whatsapp
+    ? `https://wa.me/${config.whatsapp.replace(/\D/g, '').startsWith('55') ? config.whatsapp.replace(/\D/g, '') : `55${config.whatsapp.replace(/\D/g, '')}`}`
+    : null;
+  const linkMapa = config.endereco
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(config.endereco)}`
+    : null;
+
+  const links = [
+    { href: '#servicos', label: 'Serviços' },
+    { href: '#equipe', label: 'Equipe' },
+    ...(produtos.length > 0 ? [{ href: '#produtos', label: 'Produtos' }] : []),
+    { href: '#contato', label: 'Contato' },
+  ];
 
   return (
     <>
-      <header className="cabecalho">
-        <div className="container cabecalho-interno">
-          <Link href="/" className="marca">
-            {config.logo_url ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img className="marca-logo" src={config.logo_url} alt={nome} />
-            ) : (
-              <span className="marca-poste" aria-hidden="true" />
-            )}
-            <span className="marca-nome">The Barbosa</span>
+      <Header
+        nome="The Barbosa"
+        logoUrl={config.logo_url}
+        links={links}
+        cta={
+          <Link href="/agendar" className="btn btn-ouro btn-mini">
+            Agendar
           </Link>
-          <nav className="menu">
-            <span className="menu-secundario">
-              <a href="#servicos">Serviços</a>
-            </span>
-            <span className="menu-secundario">
-              <a href="#equipe">Equipe</a>
-            </span>
-            {produtos.length > 0 ? (
-              <span className="menu-secundario">
-                <a href="#produtos">Produtos</a>
-              </span>
-            ) : null}
-            <Link href="/agendar" className="btn btn-ouro btn-mini">
-              Agendar
-            </Link>
-          </nav>
-        </div>
-      </header>
+        }
+      />
 
       <main>
         {/* Capa */}
         <section className="capa">
           <div className="container capa-interna">
-            <div>
-              <span className="sobrenome anim-entrada">Barbearia clássica · Maringá, PR</span>
-              <h1 className="anim-entrada">
-                Cadeira
-                <br />
-                <em>reservada.</em>
-              </h1>
-              <p className="capa-texto anim-entrada">{config.slogan}</p>
-              <div className="capa-acoes anim-entrada">
-                <Link href="/agendar" className="btn btn-ouro">
-                  Agendar horário <Seta />
-                </Link>
-                <a href="#servicos" className="btn btn-claro">
-                  Ver serviços
-                </a>
+            <span className="sobrenome anim-entrada">Estilo & Precisão</span>
+            <h1 className="anim-entrada">
+              Aqui, padrão não é promessa
+              <br />
+              <em>É Resultado</em>
+            </h1>
+            <p className="capa-texto anim-entrada">
+              Tradição, precisão e estilo. Onde cada detalhe é tratado com a seriedade que você
+              merece.
+            </p>
+            <div className="capa-acoes anim-entrada">
+              <Link href="/agendar" className="btn btn-ouro">
+                Agendar Agora — É Grátis
+              </Link>
+              <a href="#servicos" className="capa-link">
+                Nossos Serviços <Seta />
+              </a>
+            </div>
+            <dl className="capa-dados anim-entrada">
+              <div>
+                <dt>6</dt>
+                <dd>cliques até marcar</dd>
               </div>
-              <dl className="capa-dados anim-entrada">
-                <div>
-                  <dt>6</dt>
-                  <dd>cliques até marcar</dd>
-                </div>
-                <div>
-                  <dt>2</dt>
-                  <dd>campos pra preencher</dd>
-                </div>
-                <div>
-                  <dt>0</dt>
-                  <dd>cadastro necessário</dd>
-                </div>
-              </dl>
-            </div>
-
-            <div className="cartaz anim-entrada">
-              <span className="cartaz-linha">Desde 2021</span>
-              <span className="cartaz-poste" aria-hidden="true" />
-              <span className="cartaz-titulo">The Barbosa</span>
-              <span className="cartaz-linha">Corte · Barba · Navalha</span>
-            </div>
+              <div>
+                <dt>2</dt>
+                <dd>campos pra preencher</dd>
+              </div>
+              <div>
+                <dt>0</dt>
+                <dd>cadastro necessário</dd>
+              </div>
+            </dl>
           </div>
         </section>
 
-        <div className="poste" aria-hidden="true" />
+        <div className="poste-fino" aria-hidden="true" />
 
         {/* Serviços */}
         <section className="secao secao-creme" id="servicos">
@@ -126,7 +118,7 @@ export default function PaginaInicial() {
             <div className="secao-cabeca">
               <span className="sobrenome">O que fazemos</span>
               <h2>Nossos serviços</h2>
-              <p>Escolha o serviço na hora de agendar — o preço e a duração já vêm junto.</p>
+              <p>Escolha o serviço na hora de agendar — o preço, a duração e quem atende já vêm junto.</p>
             </div>
 
             {servicos.length === 0 ? (
@@ -136,31 +128,13 @@ export default function PaginaInicial() {
                 aqui e no agendamento na mesma hora.
               </div>
             ) : (
-              <div className="grade">
-                {servicos.map((servico) => (
-                  <article className="cartao-servico" key={servico.id}>
-                    {servico.imagem ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img className="cartao-servico-imagem" src={servico.imagem} alt="" />
-                    ) : null}
-                    <span className="sobrenome" style={{ marginBottom: 0 }}>
-                      {servico.categoria}
-                    </span>
-                    <h3>{servico.nome}</h3>
-                    <p>{servico.descricao}</p>
-                    <div className="cartao-rodape">
-                      <span className="preco">{moeda(servico.preco_centavos)}</span>
-                      <span className="duracao">{servico.duracao_min} min</span>
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <ServicosSecao servicos={servicos} barbeiros={barbeiros} />
             )}
           </div>
         </section>
 
         {/* Equipe */}
-        <section className="secao secao-verde" id="equipe">
+        <section className="secao secao-marrom" id="equipe">
           <div className="container">
             <div className="secao-cabeca">
               <span className="sobrenome">Quem cuida de você</span>
@@ -188,6 +162,9 @@ export default function PaginaInicial() {
                     <h3>{barbeiro.nome}</h3>
                     <p className="funcao">{barbeiro.funcao}</p>
                     <p>{barbeiro.bio}</p>
+                    <Link href="/agendar" className="cartao-barbeiro-cta">
+                      Agendar com {barbeiro.nome.split(' ')[0]} <Seta width={13} height={13} />
+                    </Link>
                   </article>
                 ))}
               </div>
@@ -228,6 +205,83 @@ export default function PaginaInicial() {
           </section>
         ) : null}
 
+        {/* Contato / localização */}
+        <section className="secao secao-alta" id="contato">
+          <div className="container">
+            <div className="secao-cabeca">
+              <span className="sobrenome">Fale com a gente</span>
+              <h2>Onde estamos</h2>
+            </div>
+
+            <div className="contato-grade">
+              <div className="contato-bloco">
+                <div className="contato-item">
+                  <span className="icone">
+                    <Local width={17} height={17} />
+                  </span>
+                  <div>
+                    <h4>Endereço</h4>
+                    {linkMapa ? (
+                      <a href={linkMapa} target="_blank" rel="noopener noreferrer">
+                        {config.endereco}
+                      </a>
+                    ) : (
+                      <p>{config.endereco}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="contato-item">
+                  <span className="icone">
+                    <Relogio width={17} height={17} />
+                  </span>
+                  <div>
+                    <h4>Horário de funcionamento</h4>
+                    {expediente.map((linha) => (
+                      <p key={linha.nome}>
+                        {linha.nome}: {linha.horas}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+                {linkInstagram ? (
+                  <div className="contato-item">
+                    <span className="icone">
+                      <Instagram width={17} height={17} />
+                    </span>
+                    <div>
+                      <h4>Instagram</h4>
+                      <a href={linkInstagram} target="_blank" rel="noopener noreferrer">
+                        @{config.instagram}
+                      </a>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="contato-cta">
+                <span className="sobrenome" style={{ color: 'var(--dourado-claro)' }}>
+                  Prefere marcar agora?
+                </span>
+                <h3>Seu horário em menos de um minuto.</h3>
+                <p>Escolha o serviço, o profissional e o horário — sem ligar, sem cadastro.</p>
+                <Link href="/agendar" className="btn btn-ouro" style={{ marginTop: 6 }}>
+                  Agendar horário <Seta />
+                </Link>
+                {linkWhats ? (
+                  <a
+                    href={linkWhats}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-claro"
+                  >
+                    <WhatsApp width={16} height={16} /> Falar no WhatsApp
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Chamada final */}
         <section className="chamada">
           <div className="container chamada-interna">
@@ -267,7 +321,7 @@ export default function PaginaInicial() {
               <ul>
                 {expediente.map((linha) => (
                   <li key={linha.nome}>
-                    <Relogio width={13} height={13} style={{ verticalAlign: -2, opacity: 0.6 }} />{' '}
+                    <Relogio width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
                     {linha.nome}: {linha.horas}
                   </li>
                 ))}
@@ -278,13 +332,21 @@ export default function PaginaInicial() {
               <h4>Onde estamos</h4>
               <ul>
                 <li>
-                  <Local width={13} height={13} style={{ verticalAlign: -2, opacity: 0.6 }} />{' '}
+                  <Local width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
                   {config.endereco}
                 </li>
                 {config.whatsapp ? (
                   <li>
-                    <Zap width={13} height={13} style={{ verticalAlign: -2, opacity: 0.6 }} />{' '}
+                    <WhatsApp width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
                     {config.whatsapp}
+                  </li>
+                ) : null}
+                {linkInstagram ? (
+                  <li>
+                    <Instagram width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+                    <a href={linkInstagram} target="_blank" rel="noopener noreferrer">
+                      @{config.instagram}
+                    </a>
                   </li>
                 ) : null}
               </ul>

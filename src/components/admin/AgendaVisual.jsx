@@ -1,35 +1,42 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Vazio } from './base';
+import { api, SeletorData, Vazio } from './base';
 import { iniciais, mascararTelefone, moeda } from '@/lib/format';
 
-/** Gera a régua de horas que cobre o dia de trabalho mostrado. */
-function faixaDeHoras(agendamentos) {
-  let inicio = 8;
-  let fim = 20;
-  for (const a of agendamentos) {
-    inicio = Math.min(inicio, Number(a.inicio.slice(0, 2)));
-    fim = Math.max(fim, Math.ceil(Number(a.fim.slice(0, 2)) + (a.fim.slice(3) === '00' ? 0 : 1)));
-  }
-  return Array.from({ length: Math.max(1, fim - inicio) }, (_, i) => inicio + i);
+function paraMinutos(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
 }
 
-export default function AgendaVisual({ tratarErro }) {
-  const [barbeiros, setBarbeiros] = useState([]);
+/** Gera a régua de meia em meia hora que cobre o dia de trabalho mostrado,
+ * pra um agendamento de 9h30 não parecer ocupar a hora inteira das 9h. */
+function faixaDeMeiaHora(agendamentos) {
+  let inicio = 8 * 60;
+  let fim = 20 * 60;
+  for (const a of agendamentos) {
+    inicio = Math.min(inicio, paraMinutos(a.inicio));
+    fim = Math.max(fim, paraMinutos(a.fim));
+  }
+  inicio = Math.floor(inicio / 30) * 30;
+  fim = Math.ceil(fim / 30) * 30;
+  const slots = [];
+  for (let m = inicio; m < fim; m += 30) slots.push(m);
+  return slots;
+}
+
+/** O dia visto por profissional, hora a hora — um jeito rápido de ver como
+ * a agenda está montada, sem precisar ler a lista inteira. Usado dentro da
+ * tela de Agendamentos, ao lado da visão em lista. */
+export default function AgendaVisual({ barbeiros, tratarErro }) {
   const [barbeiroId, setBarbeiroId] = useState(null);
   const [data, setData] = useState(() => new Date().toISOString().slice(0, 10));
   const [agendamentos, setAgendamentos] = useState([]);
 
   useEffect(() => {
-    api('barbeiros')
-      .then((r) => {
-        const ativos = r.itens.filter((b) => b.ativo);
-        setBarbeiros(ativos);
-        if (ativos.length) setBarbeiroId(ativos[0].id);
-      })
-      .catch(tratarErro);
-  }, [tratarErro]);
+    if (barbeiroId || barbeiros.length === 0) return;
+    setBarbeiroId(barbeiros[0].id);
+  }, [barbeiros, barbeiroId]);
 
   const carregar = useCallback(() => {
     if (!barbeiroId) return;
@@ -41,17 +48,10 @@ export default function AgendaVisual({ tratarErro }) {
   useEffect(carregar, [carregar]);
 
   const barbeiro = barbeiros.find((b) => b.id === barbeiroId);
-  const horas = faixaDeHoras(agendamentos);
+  const slots = faixaDeMeiaHora(agendamentos);
 
   return (
     <>
-      <div className="conteudo-topo">
-        <div>
-          <h1>Agenda do dia</h1>
-          <p>Como o dia está montado, hora a hora.</p>
-        </div>
-      </div>
-
       <div className="agenda-filtros">
         {barbeiros.map((b) => (
           <button
@@ -70,12 +70,9 @@ export default function AgendaVisual({ tratarErro }) {
             {b.nome.split(' ')[0]}
           </button>
         ))}
-        <input
-          type="date"
-          className="entrada mono"
-          style={{ width: 'auto' }}
+        <SeletorData
           value={data}
-          onChange={(e) => setData(e.target.value)}
+          onChange={(v) => setData(v || new Date().toISOString().slice(0, 10))}
         />
       </div>
 
@@ -96,15 +93,18 @@ export default function AgendaVisual({ tratarErro }) {
             </div>
 
             <div className="faixa-horaria">
-              {horas.map((hora) => {
-                const daHora = agendamentos.filter(
-                  (a) => Number(a.inicio.slice(0, 2)) === hora
+              {slots.map((min) => {
+                const cheia = min % 60 === 0;
+                const daSlot = agendamentos.filter(
+                  (a) => Math.floor(paraMinutos(a.inicio) / 30) * 30 === min
                 );
                 return (
-                  <div key={hora} style={{ display: 'contents' }}>
-                    <div className="faixa-hora">{String(hora).padStart(2, '0')}:00</div>
-                    <div className="faixa-conteudo">
-                      {daHora.map((a) => (
+                  <div key={min} style={{ display: 'contents' }}>
+                    <div className={`faixa-hora ${cheia ? '' : 'faixa-hora-meia'}`}>
+                      {cheia ? `${String(Math.floor(min / 60)).padStart(2, '0')}:00` : ''}
+                    </div>
+                    <div className={`faixa-conteudo ${cheia ? '' : 'faixa-conteudo-meia'}`}>
+                      {daSlot.map((a) => (
                         <div
                           key={a.id}
                           className={`cartao-agenda ${a.status === 'pendente' ? 'pendente' : ''}`}

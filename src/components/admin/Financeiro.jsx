@@ -57,12 +57,18 @@ function Variacao({ atual, anterior, formatar }) {
   );
 }
 
-/** Gráfico de linha dos 12 meses, desenhado à mão em SVG. */
-function GraficoLinha({ serie }) {
+/** Gráfico de linha dos 12 meses, desenhado à mão em SVG. Mostra uma segunda
+ * linha, mais clara e tracejada, com o mesmo período um ano antes — se ela
+ * for passada. */
+function GraficoLinha({ serie, serieAnoAnterior }) {
   const largura = 620;
-  const altura = 200;
-  const margem = { topo: 14, base: 26, esquerda: 54, direita: 10 };
-  const maximo = Math.max(1, ...serie.map((p) => p.total));
+  const altura = 140;
+  const margem = { topo: 12, base: 22, esquerda: 54, direita: 10 };
+  const maximo = Math.max(
+    1,
+    ...serie.map((p) => p.total),
+    ...(serieAnoAnterior ? serieAnoAnterior.map((p) => p.total) : [])
+  );
 
   const x = (i) =>
     margem.esquerda +
@@ -70,10 +76,14 @@ function GraficoLinha({ serie }) {
   const y = (v) =>
     altura - margem.base - (v / maximo) * (altura - margem.topo - margem.base);
 
-  const linha = serie.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.total)}`).join(' ');
+  const caminho = (pontos) =>
+    pontos.map((p, i) => `${i === 0 ? 'M' : 'L'} ${x(i)} ${y(p.total)}`).join(' ');
+
+  const linha = caminho(serie);
   const area = `${linha} L ${x(serie.length - 1)} ${altura - margem.base} L ${x(0)} ${
     altura - margem.base
   } Z`;
+  const linhaAnterior = serieAnoAnterior ? caminho(serieAnoAnterior) : null;
 
   return (
     <svg className="grafico" viewBox={`0 0 ${largura} ${altura}`} role="img" aria-label="Faturamento por mês">
@@ -101,13 +111,23 @@ function GraficoLinha({ serie }) {
       ))}
 
       <path d={area} fill="var(--dourado)" opacity="0.14" />
+      {linhaAnterior ? (
+        <path
+          d={linhaAnterior}
+          fill="none"
+          stroke="var(--tinta-suave)"
+          strokeWidth="1.75"
+          strokeDasharray="4 4"
+          strokeLinejoin="round"
+        />
+      ) : null}
       <path d={linha} fill="none" stroke="var(--dourado)" strokeWidth="2.5" strokeLinejoin="round" />
 
       {serie.map((p, i) => (
         <text
           key={p.mes}
           x={x(i)}
-          y={altura - 8}
+          y={altura - 6}
           textAnchor="middle"
           fontSize="10"
           fontFamily="var(--fonte-mono)"
@@ -154,6 +174,7 @@ export default function Financeiro({ tratarErro }) {
   const [mes, setMes] = useState(mesAtual);
   const [comparar, setComparar] = useState(() => mesAnterior(mesAtual()));
   const [dados, setDados] = useState(null);
+  const [compararAno, setCompararAno] = useState(false);
 
   const carregar = useCallback(() => {
     api(`resumo?mes=${mes}&comparar=${comparar}`)
@@ -165,7 +186,7 @@ export default function Financeiro({ tratarErro }) {
 
   if (!dados) return <p>Carregando…</p>;
 
-  const { principal, comparacao, serie, porServico, porBarbeiro, geral } = dados;
+  const { principal, comparacao, serie, serieAnoAnterior, porServico, porBarbeiro, geral } = dados;
   const semMovimento =
     principal.realizado.atendimentos === 0 &&
     principal.previsto.atendimentos === 0 &&
@@ -178,8 +199,8 @@ export default function Financeiro({ tratarErro }) {
         <div>
           <h1>Financeiro</h1>
           <p>
-            Realizado é o que já foi concluído; previsto é o que está pendente ou confirmado.
-            Cancelados não entram em nenhum dos dois.
+            Veja o que a barbearia já recebeu neste mês e o que ainda vai receber dos
+            agendamentos confirmados. Agendamentos cancelados não entram na conta.
           </p>
         </div>
       </div>
@@ -212,10 +233,10 @@ export default function Financeiro({ tratarErro }) {
               </label>
             </div>
 
-            <span className="sobrenome">Realizado — atendimentos já concluídos</span>
+            <span className="sobrenome">Já recebido — atendimentos que já aconteceram</span>
             <div className="cartoes" style={{ marginBottom: 20 }}>
               <div className="cartao">
-                <div className="rotulo">Faturamento realizado</div>
+                <div className="rotulo">Total recebido</div>
                 <div className="numero" style={{ fontSize: 30 }}>
                   {moeda(principal.realizado.faturamento)}
                 </div>
@@ -226,7 +247,7 @@ export default function Financeiro({ tratarErro }) {
                 />
               </div>
               <div className="cartao">
-                <div className="rotulo">Atendimentos concluídos</div>
+                <div className="rotulo">Atendimentos feitos</div>
                 <div className="numero">{principal.realizado.atendimentos}</div>
                 <Variacao
                   atual={principal.realizado.atendimentos}
@@ -235,7 +256,7 @@ export default function Financeiro({ tratarErro }) {
                 />
               </div>
               <div className="cartao">
-                <div className="rotulo">Ticket médio</div>
+                <div className="rotulo">Valor médio por atendimento</div>
                 <div className="numero" style={{ fontSize: 30 }}>
                   {moeda(principal.realizado.ticket)}
                 </div>
@@ -247,10 +268,10 @@ export default function Financeiro({ tratarErro }) {
               </div>
             </div>
 
-            <span className="sobrenome">Previsto — pendente + confirmado, ainda vai acontecer</span>
+            <span className="sobrenome">A receber — agendamentos que ainda vão acontecer</span>
             <div className="cartoes" style={{ marginBottom: 0 }}>
               <div className="cartao">
-                <div className="rotulo">Faturamento previsto</div>
+                <div className="rotulo">Total a receber</div>
                 <div className="numero" style={{ fontSize: 30 }}>
                   {moeda(principal.previsto.faturamento)}
                 </div>
@@ -261,7 +282,7 @@ export default function Financeiro({ tratarErro }) {
                 />
               </div>
               <div className="cartao">
-                <div className="rotulo">Atendimentos previstos</div>
+                <div className="rotulo">Atendimentos agendados</div>
                 <div className="numero">{principal.previsto.atendimentos}</div>
                 <Variacao
                   atual={principal.previsto.atendimentos}
@@ -270,19 +291,60 @@ export default function Financeiro({ tratarErro }) {
                 />
               </div>
               <div className="cartao">
-                <div className="rotulo">Cancelamentos</div>
+                <div className="rotulo">Cancelados nesse mês</div>
                 <div className="numero">{principal.cancelados}</div>
-                <div className="nota">no mês escolhido</div>
               </div>
             </div>
           </section>
 
           <section className="bloco">
-            <h2>Movimento dos últimos 12 meses</h2>
-            <p style={{ marginTop: -8, marginBottom: 16, fontSize: 13.5, color: 'var(--tinta-suave)' }}>
-              Soma realizado + previsto (não cancelados) de cada mês.
-            </p>
-            <GraficoLinha serie={serie} />
+            <div className="bloco-titulo" style={{ marginBottom: 4 }}>
+              <div>
+                <h2 style={{ marginBottom: 2 }}>Movimento dos últimos 12 meses</h2>
+                <p style={{ margin: 0, fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+                  Quanto entrou (e ainda vai entrar) em cada mês.
+                </p>
+              </div>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 13.5,
+                  color: 'var(--tinta-suave)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={compararAno}
+                  onChange={(e) => setCompararAno(e.target.checked)}
+                />
+                Comparar com o ano anterior
+              </label>
+            </div>
+            {compararAno ? (
+              <div style={{ display: 'flex', gap: 16, marginBottom: 12, fontSize: 12.5 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{ width: 14, height: 2, background: 'var(--dourado)', display: 'inline-block' }}
+                  />
+                  Últimos 12 meses
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--tinta-suave)' }}>
+                  <span
+                    style={{
+                      width: 14,
+                      height: 0,
+                      borderTop: '2px dashed var(--tinta-suave)',
+                      display: 'inline-block',
+                    }}
+                  />
+                  Mesmo período, ano anterior
+                </span>
+              </div>
+            ) : null}
+            <GraficoLinha serie={serie} serieAnoAnterior={compararAno ? serieAnoAnterior : null} />
           </section>
 
           <div className="duas-colunas">
@@ -310,38 +372,30 @@ export default function Financeiro({ tratarErro }) {
           </div>
 
           <section className="bloco">
-            <h2>Desde o começo</h2>
-            <span className="sobrenome">Realizado</span>
-            <div className="cartoes" style={{ marginBottom: 20 }}>
-              <div className="cartao">
-                <div className="rotulo">Faturamento realizado</div>
-                <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(geral.realizado.faturamento)}
-                </div>
+            <h2 style={{ marginBottom: 2 }}>Total desde a abertura</h2>
+            <p style={{ marginTop: 0, marginBottom: 18, fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+              A soma de tudo, desde o primeiro agendamento — sem filtro de mês.
+            </p>
+            <div className="resumo-total">
+              <div className="resumo-total-item">
+                <span className="resumo-total-rotulo">Total recebido</span>
+                <span className="resumo-total-valor">{moeda(geral.realizado.faturamento)}</span>
               </div>
-              <div className="cartao">
-                <div className="rotulo">Atendimentos concluídos</div>
-                <div className="numero">{geral.realizado.atendimentos}</div>
+              <div className="resumo-total-item">
+                <span className="resumo-total-rotulo">Atendimentos feitos</span>
+                <span className="resumo-total-valor">{geral.realizado.atendimentos}</span>
               </div>
-              <div className="cartao">
-                <div className="rotulo">Ticket médio</div>
-                <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(geral.realizado.ticket)}
-                </div>
+              <div className="resumo-total-item">
+                <span className="resumo-total-rotulo">Valor médio por atendimento</span>
+                <span className="resumo-total-valor">{moeda(geral.realizado.ticket)}</span>
               </div>
-            </div>
-
-            <span className="sobrenome">Previsto</span>
-            <div className="cartoes" style={{ marginBottom: 0 }}>
-              <div className="cartao">
-                <div className="rotulo">Faturamento previsto</div>
-                <div className="numero" style={{ fontSize: 30 }}>
-                  {moeda(geral.previsto.faturamento)}
-                </div>
+              <div className="resumo-total-item">
+                <span className="resumo-total-rotulo">Total a receber</span>
+                <span className="resumo-total-valor">{moeda(geral.previsto.faturamento)}</span>
               </div>
-              <div className="cartao">
-                <div className="rotulo">Atendimentos previstos</div>
-                <div className="numero">{geral.previsto.atendimentos}</div>
+              <div className="resumo-total-item">
+                <span className="resumo-total-rotulo">Atendimentos agendados</span>
+                <span className="resumo-total-valor">{geral.previsto.atendimentos}</span>
               </div>
             </div>
           </section>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { animate, utils } from 'animejs';
 import {
   moeda,
@@ -11,16 +12,14 @@ import {
   telefoneValido,
   linkWhatsapp,
 } from '@/lib/format';
-import { CheckCirculo, SetaEsquerda, Zap } from '@/components/Icones';
+import { CheckCirculo, SetaEsquerda, WhatsApp } from '@/components/Icones';
 
 const PASSOS = ['Serviço', 'Profissional', 'Data', 'Horário', 'Seus dados'];
 
 /* --- Formatação de datas no navegador (sem depender do fuso do servidor) --- */
-const DIAS_CURTOS = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
-const MESES_CURTOS = [
-  'jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.',
-  'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.',
-];
+/* Cabeçalho do calendário: sempre seg. a dom., nessa ordem — mesmo que
+ * domingo não tenha expediente, a coluna continua existindo. */
+const DIAS_SEMANA_CABECALHO = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.', 'dom.'];
 const DIAS_LONGOS = [
   'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
   'quinta-feira', 'sexta-feira', 'sábado',
@@ -36,12 +35,98 @@ function partes(data) {
   return { ano: a, mes: m, dia: d, semana };
 }
 
+function hojeISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * As semanas (seg. a dom.) de um mês, sempre com as 7 colunas — inclusive
+ * domingo, mesmo quando a barbearia não abre nesse dia. Cada célula sabe se
+ * está entre hoje e o fim da janela de agendamento (`ultimaData`) e se tem
+ * horário disponível.
+ */
+function gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis) {
+  const primeiroDoMes = new Date(Date.UTC(ano, mesIndice, 1));
+  const deslocamento = (primeiroDoMes.getUTCDay() + 6) % 7; // segunda-feira = primeira coluna
+  const inicioGrade = new Date(primeiroDoMes);
+  inicioGrade.setUTCDate(inicioGrade.getUTCDate() - deslocamento);
+
+  const diasNoMes = new Date(Date.UTC(ano, mesIndice + 1, 0)).getUTCDate();
+  const totalCelulas = Math.ceil((deslocamento + diasNoMes) / 7) * 7;
+  const hoje = hojeISO();
+
+  return Array.from({ length: totalCelulas }, (_, i) => {
+    const d = new Date(inicioGrade);
+    d.setUTCDate(inicioGrade.getUTCDate() + i);
+    const chave = d.toISOString().slice(0, 10);
+    const noMes = d.getUTCMonth() === mesIndice;
+    const noIntervalo = noMes && chave >= hoje && chave <= ultimaData;
+    return {
+      chave,
+      dia: d.getUTCDate(),
+      visivel: noIntervalo,
+      disponivel: noIntervalo && disponiveis.has(chave),
+    };
+  });
+}
+
 function dataLonga(data) {
   const p = partes(data);
   return `${DIAS_LONGOS[p.semana]}, ${p.dia} de ${MESES_LONGOS[p.mes - 1]} de ${p.ano}`;
 }
 
+/** Resumo persistente do que já foi escolhido — some ao lado do painel no
+ * desktop e vira uma faixa fixa no rodapé da tela no mobile (ver globals.css). */
+function ComandaLateral({ servico, barbeiro, data, hora }) {
+  if (!servico) {
+    return (
+      <div className="comanda-lateral-vazia">
+        Escolha um serviço para começar a montar seu horário.
+      </div>
+    );
+  }
+  return (
+    <div className="comanda">
+      <h3>Sua escolha até agora</h3>
+      <dl>
+        <div className="comanda-linha">
+          <dt>Serviço</dt>
+          <dd>{servico.nome}</dd>
+        </div>
+        {barbeiro ? (
+          <div className="comanda-linha">
+            <dt>Profissional</dt>
+            <dd>{barbeiro.nome}</dd>
+          </div>
+        ) : null}
+        {data ? (
+          <div className="comanda-linha">
+            <dt>Data</dt>
+            <dd>{dataBr(data)}</dd>
+          </div>
+        ) : null}
+        {hora ? (
+          <div className="comanda-linha">
+            <dt>Horário</dt>
+            <dd className="mono">{hora}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <div className="comanda-total">
+        <span>Total · {servico.duracao_min} min</span>
+        <strong>{moeda(servico.preco_centavos)}</strong>
+      </div>
+    </div>
+  );
+}
+
 export default function FluxoAgendamento() {
+  const searchParams = useSearchParams();
+  const barbeiroPreferidoId = useMemo(() => {
+    const v = searchParams.get('barbeiro');
+    return v ? Number(v) : null;
+  }, [searchParams]);
+
   const [dados, setDados] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [falhaCarregamento, setFalhaCarregamento] = useState(false);
@@ -109,6 +194,38 @@ export default function FluxoAgendamento() {
     return dados.barbeiros.filter((b) => servico.barbeiros.includes(b.id));
   }, [dados, servico]);
 
+  /* Um calendário de verdade por mês — seg. a dom., domingo incluso mesmo
+   * fechado — em vez de só empilhar os dias que têm horário livre. */
+  const gruposData = useMemo(() => {
+    if (!dados?.dias?.length) return [];
+    const disponiveis = new Set(dados.dias);
+    const hoje = hojeISO();
+    const ultimaData = dados.dias[dados.dias.length - 1];
+    const [anoIni, mesIni] = hoje.split('-').map(Number);
+    const [anoFim, mesFim] = ultimaData.split('-').map(Number);
+    const indiceFinal = anoFim * 12 + (mesFim - 1);
+
+    const grupos = [];
+    let ano = anoIni;
+    let mesIndice = mesIni - 1;
+    while (ano * 12 + mesIndice <= indiceFinal) {
+      grupos.push({
+        chave: `${ano}-${mesIndice}`,
+        ano,
+        mesIndice,
+        celulas: gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis),
+      });
+      mesIndice += 1;
+      if (mesIndice > 11) {
+        mesIndice = 0;
+        ano += 1;
+      }
+    }
+    return grupos;
+  }, [dados]);
+
+  const hojeChave = hojeISO();
+
   function voltar() {
     setErro('');
     setPasso((p) => Math.max(0, p - 1));
@@ -121,13 +238,22 @@ export default function FluxoAgendamento() {
     setData(null);
     setHora(null);
     const disponiveis = dados.barbeiros.filter((b) => s.barbeiros.includes(b.id));
+
     // Com um único profissional, não faz sentido pedir uma escolha: pula o passo.
     if (disponiveis.length === 1) {
       setBarbeiro(disponiveis[0]);
       setPasso(2);
-    } else {
-      setPasso(1);
+      return;
     }
+    // Veio de "Agendar com [nome]" na equipe: se esse profissional atende
+    // esse serviço, já pula a escolha também.
+    const preferido = disponiveis.find((b) => b.id === barbeiroPreferidoId);
+    if (preferido) {
+      setBarbeiro(preferido);
+      setPasso(2);
+      return;
+    }
+    setPasso(1);
   }
 
   function escolherBarbeiro(b) {
@@ -213,7 +339,7 @@ export default function FluxoAgendamento() {
   if (confirmado) {
     const link = linkWhatsapp(dados?.barbearia?.whatsapp, confirmado);
     return (
-      <div className="painel">
+      <div className="painel" style={{ maxWidth: 640, margin: '0 auto' }}>
         <div className="sucesso-topo">
           <div className="selo">
             <CheckCirculo width={32} height={32} />
@@ -260,7 +386,7 @@ export default function FluxoAgendamento() {
           {link ? (
             <>
               <a href={link} target="_blank" rel="noopener noreferrer" className="btn btn-zap btn-bloco">
-                <Zap /> Enviar confirmação no WhatsApp
+                <WhatsApp width={16} height={16} /> Enviar confirmação no WhatsApp
               </a>
               <p
                 className="painel-ajuda"
@@ -298,212 +424,241 @@ export default function FluxoAgendamento() {
   }
 
   return (
-    <>
-      <ol className="trilha">
-        {PASSOS.map((rotulo, indice) => (
-          <li
-            key={rotulo}
-            className={`trilha-passo ${
-              indice === passo ? 'ativo' : indice < passo ? 'feito' : ''
-            }`}
-          >
-            <span>{rotulo}</span>
-          </li>
-        ))}
-      </ol>
+    <div className="agendar-layout">
+      <div className="agendar-principal">
+        <ol className="trilha">
+          {PASSOS.map((rotulo, indice) => (
+            <li
+              key={rotulo}
+              className={`trilha-passo ${
+                indice === passo ? 'ativo' : indice < passo ? 'feito' : ''
+              }`}
+            >
+              <span>{rotulo}</span>
+            </li>
+          ))}
+        </ol>
 
-      <div className="painel" ref={painelRef}>
-        <div className="painel-topo">
-          <span className="sobrenome">Passo {passo + 1} de 5</span>
-          <h2>{PASSOS[passo]}</h2>
-        </div>
+        <div className="painel" ref={painelRef}>
+          <div className="painel-topo">
+            <span className="sobrenome">Passo {passo + 1} de 5</span>
+            <h2>{PASSOS[passo]}</h2>
+          </div>
 
-        <div className="painel-corpo">
-          {erro ? <div className="aviso aviso-erro">{erro}</div> : null}
+          <div className="painel-corpo">
+            {erro ? <div className="aviso aviso-erro">{erro}</div> : null}
 
-          {/* 1. Serviço */}
-          {passo === 0 && (
-            <>
-              <p className="painel-ajuda">O que você quer fazer hoje?</p>
-              <div className="opcoes">
-                {dados.servicos.map((s) => (
-                  <button key={s.id} className="opcao" onClick={() => escolherServico(s)}>
-                    <div className="opcao-texto">
-                      <div className="opcao-nome">{s.nome}</div>
-                      {s.descricao ? <div className="opcao-sub">{s.descricao}</div> : null}
-                    </div>
-                    <div className="opcao-valor">
-                      <div className="opcao-preco">{moeda(s.preco_centavos)}</div>
-                      <div className="opcao-duracao">{s.duracao_min} min</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          {/* 2. Profissional */}
-          {passo === 1 && (
-            <>
-              <p className="painel-ajuda">
-                Quem você prefere para <strong>{servico.nome}</strong>?
-              </p>
-              <div className="opcoes">
-                {barbeirosDoServico.map((b) => (
-                  <button key={b.id} className="opcao" onClick={() => escolherBarbeiro(b)}>
-                    {b.foto ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img className="avatar-mini" src={b.foto} alt="" />
-                    ) : (
-                      <span className="avatar-mini" aria-hidden="true">
-                        {iniciais(b.nome)}
-                      </span>
-                    )}
-                    <div className="opcao-texto">
-                      <div className="opcao-nome">{b.nome}</div>
-                      <div className="opcao-sub">{b.funcao || b.bio}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              <button className="voltar" onClick={voltar}>
-                <SetaEsquerda width={14} height={14} /> Trocar de serviço
-              </button>
-            </>
-          )}
-
-          {/* 3. Data */}
-          {passo === 2 && (
-            <>
-              <p className="painel-ajuda">Escolha o dia. Só aparecem dias em que abrimos.</p>
-              <div className="grade-datas">
-                {dados.dias.map((d, indice) => {
-                  const p = partes(d);
-                  return (
-                    <button
-                      key={d}
-                      className={`data-btn ${indice === 0 ? 'hoje' : ''}`}
-                      onClick={() => escolherData(d)}
-                    >
-                      <span className="dia-semana">{DIAS_CURTOS[p.semana]}</span>
-                      <span className="numero">{p.dia}</span>
-                      <span className="mes">{MESES_CURTOS[p.mes - 1]}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <button className="voltar" onClick={voltar}>
-                <SetaEsquerda width={14} height={14} /> Voltar
-              </button>
-            </>
-          )}
-
-          {/* 4. Horário */}
-          {passo === 3 && (
-            <>
-              <p className="painel-ajuda">
-                {dataLonga(data)} · {servico.nome} ({servico.duracao_min} min) com {barbeiro.nome}
-              </p>
-
-              {buscandoHorarios ? (
-                <p className="painel-ajuda">Buscando horários livres…</p>
-              ) : horarios.length === 0 ? (
-                <div className="vazio">
-                  <strong>Nenhum horário livre nesse dia</strong>
-                  A agenda de {barbeiro.nome} está cheia. Volte e escolha outro dia.
-                </div>
-              ) : (
-                <div className="grade-horarios">
-                  {horarios.map((h) => (
-                    <button key={h} className="hora-btn" onClick={() => escolherHora(h)}>
-                      {h}
+            {/* 1. Serviço */}
+            {passo === 0 && (
+              <>
+                <p className="painel-ajuda">O que você quer fazer hoje?</p>
+                <div className="opcoes">
+                  {dados.servicos.map((s) => (
+                    <button key={s.id} className="opcao" onClick={() => escolherServico(s)}>
+                      <div className="opcao-texto">
+                        <div className="opcao-nome">{s.nome}</div>
+                        {s.descricao ? <div className="opcao-sub">{s.descricao}</div> : null}
+                      </div>
+                      <div className="opcao-valor">
+                        <div className="opcao-preco">{moeda(s.preco_centavos)}</div>
+                        <div className="opcao-duracao">{s.duracao_min} min</div>
+                      </div>
                     </button>
                   ))}
                 </div>
-              )}
+              </>
+            )}
 
-              <button className="voltar" onClick={voltar}>
-                <SetaEsquerda width={14} height={14} /> Escolher outro dia
-              </button>
-            </>
-          )}
-
-          {/* 5. Dados */}
-          {passo === 4 && (
-            <>
-              <div className="comanda">
-                <h3>Confira antes de fechar</h3>
-                <dl>
-                  <div className="comanda-linha">
-                    <dt>Serviço</dt>
-                    <dd>{servico.nome}</dd>
-                  </div>
-                  <div className="comanda-linha">
-                    <dt>Profissional</dt>
-                    <dd>{barbeiro.nome}</dd>
-                  </div>
-                  <div className="comanda-linha">
-                    <dt>Data</dt>
-                    <dd>{dataBr(data)}</dd>
-                  </div>
-                  <div className="comanda-linha">
-                    <dt>Horário</dt>
-                    <dd className="mono">
-                      {hora} ({servico.duracao_min} min)
-                    </dd>
-                  </div>
-                </dl>
-                <div className="comanda-total">
-                  <span>Total</span>
-                  <strong>{moeda(servico.preco_centavos)}</strong>
+            {/* 2. Profissional */}
+            {passo === 1 && (
+              <>
+                <p className="painel-ajuda">
+                  Quem você prefere para <strong>{servico.nome}</strong>?
+                </p>
+                <div className="opcoes">
+                  {barbeirosDoServico.map((b) => (
+                    <button key={b.id} className="opcao" onClick={() => escolherBarbeiro(b)}>
+                      {b.foto ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img className="avatar-mini" src={b.foto} alt="" />
+                      ) : (
+                        <span className="avatar-mini" aria-hidden="true">
+                          {iniciais(b.nome)}
+                        </span>
+                      )}
+                      <div className="opcao-texto">
+                        <div className="opcao-nome">{b.nome}</div>
+                        <div className="opcao-sub">{b.funcao || b.bio}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </div>
+                <button className="voltar" onClick={voltar}>
+                  <SetaEsquerda width={14} height={14} /> Trocar de serviço
+                </button>
+              </>
+            )}
 
-              <label className="campo">
-                <span>Seu nome</span>
-                <input
-                  className="entrada"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Ex: João da Silva"
-                  autoComplete="name"
-                  autoFocus
-                />
-              </label>
+            {/* 3. Data */}
+            {passo === 2 && (
+              <>
+                <p className="painel-ajuda">
+                  Escolha o dia. Os dias sem expediente aparecem apagados.
+                </p>
+                <div className="meses-datas">
+                  <div className="semana-cabecalho">
+                    {DIAS_SEMANA_CABECALHO.map((letra) => (
+                      <span key={letra}>{letra}</span>
+                    ))}
+                  </div>
+                  {gruposData.map((grupo) => (
+                    <div className="mes-grupo" key={grupo.chave}>
+                      <span className="mes-rotulo">
+                        {MESES_LONGOS[grupo.mesIndice]} de {grupo.ano}
+                      </span>
+                      <div className="grade-datas">
+                        {grupo.celulas.map((c) =>
+                          !c.visivel ? (
+                            <div key={c.chave} className="data-vazia" aria-hidden="true" />
+                          ) : c.disponivel ? (
+                            <button
+                              key={c.chave}
+                              className={`data-btn ${c.chave === hojeChave ? 'hoje' : ''}`}
+                              onClick={() => escolherData(c.chave)}
+                            >
+                              <span className="numero">{c.dia}</span>
+                            </button>
+                          ) : (
+                            <div
+                              key={c.chave}
+                              className={`data-btn fechado ${c.chave === hojeChave ? 'hoje' : ''}`}
+                              aria-disabled="true"
+                            >
+                              <span className="numero">{c.dia}</span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button className="voltar" onClick={voltar}>
+                  <SetaEsquerda width={14} height={14} /> Voltar
+                </button>
+              </>
+            )}
 
-              <label className="campo">
-                <span>WhatsApp com DDD</span>
-                <input
-                  className="entrada mono"
-                  value={telefone}
-                  onChange={(e) => setTelefone(mascararTelefone(e.target.value))}
-                  placeholder="(44) 99999-0000"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                />
-              </label>
+            {/* 4. Horário */}
+            {passo === 3 && (
+              <>
+                <p className="painel-ajuda">
+                  {dataLonga(data)} · {servico.nome} ({servico.duracao_min} min) com {barbeiro.nome}
+                </p>
 
-              <label className="campo">
-                <span>Observação (opcional)</span>
-                <input
-                  className="entrada"
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
-                  placeholder="Ex: prefiro tesoura"
-                />
-              </label>
+                {buscandoHorarios ? (
+                  <p className="painel-ajuda">Buscando horários livres…</p>
+                ) : horarios.length === 0 ? (
+                  <div className="vazio">
+                    <strong>Nenhum horário livre nesse dia</strong>
+                    A agenda de {barbeiro.nome} está cheia. Volte e escolha outro dia.
+                  </div>
+                ) : (
+                  <div className="grade-horarios">
+                    {horarios.map((h) => (
+                      <button key={h} className="hora-btn" onClick={() => escolherHora(h)}>
+                        {h}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-              <button className="btn btn-ouro btn-bloco" onClick={confirmar} disabled={enviando}>
-                {enviando ? 'Reservando…' : 'Confirmar agendamento'}
-              </button>
+                <button className="voltar" onClick={voltar}>
+                  <SetaEsquerda width={14} height={14} /> Escolher outro dia
+                </button>
+              </>
+            )}
 
-              <button className="voltar" onClick={voltar}>
-                <SetaEsquerda width={14} height={14} /> Trocar o horário
-              </button>
-            </>
-          )}
+            {/* 5. Dados */}
+            {passo === 4 && (
+              <>
+                <div className="comanda">
+                  <h3>Confira antes de fechar</h3>
+                  <dl>
+                    <div className="comanda-linha">
+                      <dt>Serviço</dt>
+                      <dd>{servico.nome}</dd>
+                    </div>
+                    <div className="comanda-linha">
+                      <dt>Profissional</dt>
+                      <dd>{barbeiro.nome}</dd>
+                    </div>
+                    <div className="comanda-linha">
+                      <dt>Data</dt>
+                      <dd>{dataBr(data)}</dd>
+                    </div>
+                    <div className="comanda-linha">
+                      <dt>Horário</dt>
+                      <dd className="mono">
+                        {hora} ({servico.duracao_min} min)
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="comanda-total">
+                    <span>Total</span>
+                    <strong>{moeda(servico.preco_centavos)}</strong>
+                  </div>
+                </div>
+
+                <label className="campo">
+                  <span>Seu nome</span>
+                  <input
+                    className="entrada"
+                    value={nome}
+                    onChange={(e) => setNome(e.target.value)}
+                    placeholder="Ex: João da Silva"
+                    autoComplete="name"
+                    autoFocus
+                  />
+                </label>
+
+                <label className="campo">
+                  <span>WhatsApp com DDD</span>
+                  <input
+                    className="entrada mono"
+                    value={telefone}
+                    onChange={(e) => setTelefone(mascararTelefone(e.target.value))}
+                    placeholder="(44) 99999-0000"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                  />
+                </label>
+
+                <label className="campo">
+                  <span>Observação (opcional)</span>
+                  <input
+                    className="entrada"
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                    placeholder="Ex: prefiro tesoura"
+                  />
+                </label>
+
+                <button className="btn btn-ouro btn-bloco" onClick={confirmar} disabled={enviando}>
+                  {enviando ? 'Reservando…' : 'Confirmar agendamento'}
+                </button>
+
+                <button className="voltar" onClick={voltar}>
+                  <SetaEsquerda width={14} height={14} /> Trocar o horário
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </div>
-    </>
+
+      <aside className="comanda-lateral" aria-label="Resumo do agendamento">
+        <ComandaLateral servico={servico} barbeiro={barbeiro} data={data} hora={hora} />
+      </aside>
+    </div>
   );
 }
