@@ -946,6 +946,44 @@ textarea.entrada {
   }
 }
 
+/* ---------- Seções em quadrado sobre fundo fixo (experimental) ----------
+   Cada seção vira um bloco arredondado, com espaço ao redor mostrando o
+   fundo fixo por trás — em vez das seções coladas, de ponta a ponta. */
+
+.pagina-boxed {
+  background:
+    radial-gradient(ellipse 900px 480px at 50% -8%, rgba(216, 189, 124, 0.14), transparent 62%),
+    linear-gradient(180deg, var(--verde-900) 0%, var(--marrom-900) 100%);
+  background-attachment: fixed;
+  background-size: cover;
+}
+
+.pagina-boxed .capa,
+.pagina-boxed .secao,
+.pagina-boxed .chamada {
+  margin: 28px 28px 0;
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(10, 16, 12, 0.35);
+}
+
+.pagina-boxed main > :last-child {
+  margin-bottom: 28px;
+}
+
+@media (max-width: 640px) {
+  .pagina-boxed .capa,
+  .pagina-boxed .secao,
+  .pagina-boxed .chamada {
+    margin: 14px 14px 0;
+    border-radius: 18px;
+  }
+
+  .pagina-boxed main > :last-child {
+    margin-bottom: 14px;
+  }
+}
+
 /* ---------- Seções ---------- */
 
 .secao {
