@@ -40,15 +40,23 @@ export default function Animacoes() {
         onComplete: aoRevelar(entradas),
       });
 
+      // Ponto do scroll em que a revelação dispara: por padrão o anime.js
+      // dispara assim que 1px do elemento toca a base da tela (enter: 'end
+      // start'), o que é cedo demais — o usuário mal chega a ver o
+      // movimento antes dele já ter acabado. Aqui só dispara quando o topo
+      // do alvo alcança 75% da altura da tela, com boa margem ainda
+      // visível pra animação rodar à vista.
+      const gatilhoDeScroll = { enter: '75% top', once: true };
+
       // Título de cada seção revela ao chegar perto dele na rolagem.
       document.querySelectorAll('.secao-cabeca').forEach((cabeca) => {
         animate(cabeca, {
           opacity: [0, 1],
           translateY: [18, 0],
-          duration: 600,
+          duration: 480,
           ease: 'outQuart',
           onComplete: aoRevelar([cabeca]),
-          autoplay: onScroll({ target: cabeca, once: true }),
+          autoplay: onScroll({ target: cabeca, ...gatilhoDeScroll }),
         });
       });
 
@@ -68,11 +76,11 @@ export default function Animacoes() {
         animate(quadrados, {
           opacity: [0, 1],
           translateX: daDireita ? [56, 0] : [-56, 0],
-          delay: stagger(70),
-          duration: 550,
+          delay: stagger(60),
+          duration: 480,
           ease: 'outQuart',
           onComplete: aoRevelar(quadrados),
-          autoplay: onScroll({ target: secao, once: true }),
+          autoplay: onScroll({ target: secao, ...gatilhoDeScroll }),
         });
       });
 

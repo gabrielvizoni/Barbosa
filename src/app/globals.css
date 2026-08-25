@@ -1144,9 +1144,9 @@ textarea.entrada {
 .cartao-barbeiro {
   text-align: center;
   padding: 34px 26px;
-  border: 1px solid rgba(247, 243, 234, 0.18);
+  border: 1px solid rgba(247, 243, 234, 0.2);
   border-radius: var(--raio-g);
-  background: rgba(247, 243, 234, 0.08);
+  background: rgba(247, 243, 234, 0.13);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
