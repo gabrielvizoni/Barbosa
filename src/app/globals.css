@@ -68,6 +68,14 @@ body {
   padding: 0;
 }
 
+/* Só no html: em body isso criaria um contexto de rolagem próprio (o
+   overflow-y viraria "auto" por tabela da spec) e quebraria o cabeçalho
+   sticky. Aqui só evita a barra horizontal durante as entradas com
+   translateX, sem mexer no scroll vertical. */
+html {
+  overflow-x: hidden;
+}
+
 body {
   background: var(--creme);
   color: var(--tinta);

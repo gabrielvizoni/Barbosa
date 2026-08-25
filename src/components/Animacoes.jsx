@@ -52,14 +52,14 @@ export default function Animacoes() {
         });
       });
 
-      // Cartões de cada grade (serviços, equipe, produtos) revelam em
-      // cascata assim que a grade aparece na tela.
+      // Cartões de cada grade (serviços, equipe, produtos) entram pela
+      // lateral, em cascata, assim que a grade aparece na tela.
       document.querySelectorAll('.grade, .grade-equipe').forEach((grade) => {
         const cartoes = Array.from(grade.children);
         if (!cartoes.length) return;
         animate(cartoes, {
           opacity: [0, 1],
-          translateY: [26, 0],
+          translateX: [-38, 0],
           delay: stagger(70),
           duration: 650,
           ease: 'outQuart',
@@ -93,8 +93,54 @@ export default function Animacoes() {
     }
     document.addEventListener('pointerdown', aoPressionar);
 
+    // Clique num link de âncora (Serviços, Equipe, Contato...): em vez do
+    // pulo seco do navegador, rola suavemente até a seção — descontando a
+    // altura do cabeçalho fixo, senão o título fica escondido atrás dele —
+    // e dá um pequeno salto no próprio link, como resposta ao toque.
+    function aoClicarLink(evento) {
+      if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+        return;
+      }
+      const link = evento.target.closest('a[href^="#"]');
+      if (!link) return;
+      const id = link.getAttribute('href').slice(1);
+      const alvo = id && document.getElementById(id);
+      if (!alvo) return;
+
+      evento.preventDefault();
+
+      const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!reduzido) {
+        animate(link, {
+          keyframes: [{ translateY: -4 }, { translateY: 0 }],
+          duration: 420,
+          ease: 'outBack',
+          onComplete: aoTerminar,
+        });
+      }
+
+      const folga = (document.querySelector('.cabecalho')?.offsetHeight || 0) + 16;
+      const destino = Math.max(0, alvo.getBoundingClientRect().top + window.scrollY - folga);
+
+      if (reduzido) {
+        window.scrollTo(0, destino);
+        return;
+      }
+
+      const distancia = Math.abs(destino - window.scrollY);
+      const posicao = { y: window.scrollY };
+      animate(posicao, {
+        y: destino,
+        duration: Math.min(900, Math.max(380, distancia * 0.6)),
+        ease: 'inOutQuad',
+        onUpdate: () => window.scrollTo(0, posicao.y),
+      });
+    }
+    document.addEventListener('click', aoClicarLink);
+
     return () => {
       document.removeEventListener('pointerdown', aoPressionar);
+      document.removeEventListener('click', aoClicarLink);
       escopo.revert();
     };
   }, []);
