@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Etiqueta, Modal, Vazio } from './base';
+import { api, Etiqueta, Modal, SeletorData, SeletorLista, Vazio } from './base';
 import { dataBr, mascararTelefone, moeda } from '@/lib/format';
 import { Check, Lixeira, Mais, Xis, Zap } from '@/components/Icones';
+import AgendaPorProfissional from './AgendaVisual';
 
 const STATUS = [
   { id: '', rotulo: 'Todos os status' },
@@ -24,6 +25,7 @@ const VAZIO = {
 };
 
 export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
+  const [visao, setVisao] = useState('dia');
   const [itens, setItens] = useState([]);
   const [barbeiros, setBarbeiros] = useState([]);
   const [servicos, setServicos] = useState([]);
@@ -36,6 +38,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const [novo, setNovo] = useState(VAZIO);
   const [erroEncaixe, setErroEncaixe] = useState('');
   const [horarios, setHorarios] = useState([]);
+  const [horarioManual, setHorarioManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [processando, setProcessando] = useState(null); // id do agendamento em ação (status/exclusão)
 
@@ -105,6 +108,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   function abrirEncaixe() {
     setNovo(VAZIO);
     setErroEncaixe('');
+    setHorarioManual(false);
     setAberto(true);
   }
 
@@ -153,161 +157,162 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
     <>
       <div className="conteudo-topo">
         <div>
-          <h1>Agendamentos</h1>
-          <p>Confirme, conclua ou cancele. Também dá para registrar quem chegou sem marcar.</p>
+          <h1>Agenda</h1>
+          <p>
+            Veja o dia por profissional ou a lista completa. Confirme, conclua ou cancele —
+            e registre quem chegou sem marcar.
+          </p>
         </div>
         <button className="btn btn-ouro" onClick={abrirEncaixe}>
           <Mais /> Encaixar cliente
         </button>
       </div>
 
-      <section className="bloco">
-        <div className="agenda-filtros">
-          <input
-            className="entrada"
-            style={{ maxWidth: 280 }}
-            placeholder="Buscar por nome ou telefone"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
-          <select className="entrada" style={{ width: 'auto' }} value={status} onChange={(e) => setStatus(e.target.value)}>
-            {STATUS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.rotulo}
-              </option>
-            ))}
-          </select>
-          <select
-            className="entrada"
-            style={{ width: 'auto' }}
-            value={barbeiro}
-            onChange={(e) => setBarbeiro(e.target.value)}
-          >
-            <option value="">Todos os profissionais</option>
-            {barbeiros.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nome}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            className="entrada mono"
-            style={{ width: 'auto' }}
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-          />
-          {data ? (
-            <button className="btn btn-contorno btn-mini" onClick={() => setData('')}>
-              Limpar data
-            </button>
-          ) : null}
-        </div>
+      <div className="agenda-filtros" style={{ marginBottom: 20 }}>
+        <button className={`pilula ${visao === 'dia' ? 'ativa' : ''}`} onClick={() => setVisao('dia')}>
+          Agenda do dia
+        </button>
+        <button
+          className={`pilula ${visao === 'lista' ? 'ativa' : ''}`}
+          onClick={() => setVisao('lista')}
+        >
+          Lista completa
+        </button>
+      </div>
 
-        {itens.length === 0 ? (
-          <Vazio titulo="Nenhum agendamento por aqui">
-            Ajuste os filtros ou espere o primeiro cliente marcar pelo site.
-          </Vazio>
-        ) : (
-          <div className="tabela-rolagem">
-            <table className="tabela">
-              <thead>
-                <tr>
-                  <th>Data / hora</th>
-                  <th>Cliente</th>
-                  <th>Telefone</th>
-                  <th>Profissional</th>
-                  <th>Serviço</th>
-                  <th>Valor</th>
-                  <th>Status</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itens.map((a) => (
-                  <tr key={a.id}>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {dataBr(a.data)}
-                      <br />
-                      {a.inicio}–{a.fim}
-                    </td>
-                    <td>
-                      <strong>{a.cliente_nome}</strong>
-                      {a.observacoes ? (
-                        <div style={{ fontSize: 12.5, color: 'var(--tinta-suave)' }}>
-                          {a.observacoes}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {mascararTelefone(a.cliente_telefone)}
-                    </td>
-                    <td>{a.barbeiro_nome}</td>
-                    <td>{a.servico_nome}</td>
-                    <td className="mono">{moeda(a.preco_centavos)}</td>
-                    <td>
-                      <Etiqueta status={a.status} />
-                    </td>
-                    <td>
-                      <div className="acoes-linha">
-                        {linkZap(a) ? (
-                          <a
-                            className="icone-btn positivo"
-                            href={linkZap(a)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Falar no WhatsApp"
-                          >
-                            <Zap width={15} height={15} />
-                          </a>
+      {visao === 'dia' ? (
+        <AgendaPorProfissional barbeiros={barbeiros} tratarErro={tratarErro} />
+      ) : (
+        <section className="bloco">
+          <div className="agenda-filtros">
+            <input
+              className="entrada"
+              style={{ maxWidth: 280 }}
+              placeholder="Buscar por nome ou telefone"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+            />
+            <SeletorLista
+              value={status}
+              onChange={setStatus}
+              options={STATUS.map((s) => ({ value: s.id, rotulo: s.rotulo }))}
+            />
+            <SeletorLista
+              value={barbeiro}
+              onChange={setBarbeiro}
+              options={[
+                { value: '', rotulo: 'Todos os profissionais' },
+                ...barbeiros.map((b) => ({ value: String(b.id), rotulo: b.nome })),
+              ]}
+            />
+            <SeletorData value={data} onChange={setData} />
+          </div>
+
+          {itens.length === 0 ? (
+            <Vazio titulo="Nenhum agendamento por aqui">
+              Ajuste os filtros ou espere o primeiro cliente marcar pelo site.
+            </Vazio>
+          ) : (
+            <div className="tabela-rolagem">
+              <table className="tabela">
+                <thead>
+                  <tr>
+                    <th>Data / hora</th>
+                    <th>Cliente</th>
+                    <th>Telefone</th>
+                    <th>Profissional</th>
+                    <th>Serviço</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itens.map((a) => (
+                    <tr key={a.id}>
+                      <td className="mono" style={{ fontSize: 13 }}>
+                        {dataBr(a.data)}
+                        <br />
+                        {a.inicio}–{a.fim}
+                      </td>
+                      <td>
+                        <strong>{a.cliente_nome}</strong>
+                        {a.observacoes ? (
+                          <div style={{ fontSize: 12.5, color: 'var(--tinta-suave)' }}>
+                            {a.observacoes}
+                          </div>
                         ) : null}
-                        {a.status !== 'confirmado' && a.status !== 'concluido' ? (
-                          <button
-                            className="icone-btn positivo"
-                            onClick={() => mudarStatus(a.id, 'confirmado')}
-                            title="Confirmar"
-                            disabled={processando === a.id}
-                          >
-                            <Check width={15} height={15} />
-                          </button>
-                        ) : null}
-                        {a.status === 'confirmado' ? (
-                          <button
-                            className="icone-btn positivo"
-                            onClick={() => mudarStatus(a.id, 'concluido')}
-                            title="Marcar como concluído"
-                            disabled={processando === a.id}
-                          >
-                            <Check width={15} height={15} />
-                          </button>
-                        ) : null}
-                        {a.status !== 'cancelado' ? (
+                      </td>
+                      <td className="mono" style={{ fontSize: 13 }}>
+                        {mascararTelefone(a.cliente_telefone)}
+                      </td>
+                      <td>{a.barbeiro_nome}</td>
+                      <td>{a.servico_nome}</td>
+                      <td className="mono">{moeda(a.preco_centavos)}</td>
+                      <td>
+                        <Etiqueta status={a.status} />
+                      </td>
+                      <td>
+                        <div className="acoes-linha">
+                          {linkZap(a) ? (
+                            <a
+                              className="icone-btn positivo"
+                              href={linkZap(a)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Falar no WhatsApp"
+                            >
+                              <Zap width={15} height={15} />
+                            </a>
+                          ) : null}
+                          {a.status !== 'confirmado' && a.status !== 'concluido' ? (
+                            <button
+                              className="icone-btn positivo"
+                              onClick={() => mudarStatus(a.id, 'confirmado')}
+                              title="Confirmar"
+                              disabled={processando === a.id}
+                            >
+                              <Check width={15} height={15} />
+                            </button>
+                          ) : null}
+                          {a.status === 'confirmado' ? (
+                            <button
+                              className="icone-btn positivo"
+                              onClick={() => mudarStatus(a.id, 'concluido')}
+                              title="Marcar como concluído"
+                              disabled={processando === a.id}
+                            >
+                              <Check width={15} height={15} />
+                            </button>
+                          ) : null}
+                          {a.status !== 'cancelado' ? (
+                            <button
+                              className="icone-btn perigo"
+                              onClick={() => mudarStatus(a.id, 'cancelado')}
+                              title="Cancelar"
+                              disabled={processando === a.id}
+                            >
+                              <Xis width={15} height={15} />
+                            </button>
+                          ) : null}
                           <button
                             className="icone-btn perigo"
-                            onClick={() => mudarStatus(a.id, 'cancelado')}
-                            title="Cancelar"
+                            onClick={() => excluir(a.id, a.cliente_nome)}
+                            title="Excluir"
                             disabled={processando === a.id}
                           >
-                            <Xis width={15} height={15} />
+                            <Lixeira width={15} height={15} />
                           </button>
-                        ) : null}
-                        <button
-                          className="icone-btn perigo"
-                          onClick={() => excluir(a.id, a.cliente_nome)}
-                          title="Excluir"
-                          disabled={processando === a.id}
-                        >
-                          <Lixeira width={15} height={15} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       {aberto ? (
         <Modal
@@ -381,39 +386,24 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
             </label>
           </div>
 
-          <div className="linha-campos">
-            <label className="campo">
-              <span>Data</span>
-              <input
-                type="date"
-                className="entrada mono"
-                value={novo.data}
-                onChange={(e) => setNovo({ ...novo, data: e.target.value, inicio: '' })}
-              />
-            </label>
-            <label className="campo">
-              <span>Horário</span>
-              <input
-                type="time"
-                className="entrada mono"
-                value={novo.inicio}
-                onChange={(e) => setNovo({ ...novo, inicio: e.target.value })}
-              />
-            </label>
-          </div>
+          <label className="campo">
+            <span>Data</span>
+            <SeletorData
+              className="seletor-data-bloco"
+              value={novo.data}
+              onChange={(data) => setNovo({ ...novo, data, inicio: '' })}
+            />
+          </label>
 
-          {horarios.length > 0 ? (
-            <div style={{ marginBottom: 16 }}>
-              <span
-                className="mono"
-                style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--tinta-suave)' }}
-              >
-                Livres nesse dia
-              </span>
-              <div className="caixas" style={{ marginTop: 8 }}>
+          <div className="campo">
+            <span>Horário</span>
+
+            {horarios.length > 0 ? (
+              <div className="caixas">
                 {horarios.map((h) => (
                   <button
                     key={h}
+                    type="button"
                     className="caixa mono"
                     onClick={() => setNovo({ ...novo, inicio: h })}
                     style={
@@ -426,8 +416,34 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                   </button>
                 ))}
               </div>
-            </div>
-          ) : null}
+            ) : (
+              <p style={{ margin: '2px 0 0', fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+                {novo.barbeiro_id && novo.servico_id && novo.data
+                  ? 'Nenhum horário livre nesse dia — escolha outro dia ou digite um horário manualmente.'
+                  : 'Escolha o serviço, o profissional e a data pra ver os horários livres.'}
+              </p>
+            )}
+
+            {horarioManual ? (
+              <input
+                type="time"
+                className="entrada mono"
+                style={{ marginTop: 10, maxWidth: 160 }}
+                value={novo.inicio}
+                onChange={(e) => setNovo({ ...novo, inicio: e.target.value })}
+                autoFocus
+              />
+            ) : (
+              <button
+                type="button"
+                className="link-simples"
+                style={{ marginTop: 10 }}
+                onClick={() => setHorarioManual(true)}
+              >
+                Digitar outro horário
+              </button>
+            )}
+          </div>
 
           <label className="campo">
             <span>Observação</span>

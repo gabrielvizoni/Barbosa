@@ -4,11 +4,16 @@ import { agora } from '@/lib/slots';
 
 export const dynamic = 'force-dynamic';
 
+/** Soma (ou subtrai, com delta negativo) meses a 'AAAA-MM'. */
+function somarMeses(mes, delta) {
+  const [ano, m] = mes.split('-').map(Number);
+  const data = new Date(Date.UTC(ano, m - 1 + delta, 1));
+  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
 /** Mês anterior a 'AAAA-MM'. */
 function mesAnterior(mes) {
-  const [ano, m] = mes.split('-').map(Number);
-  const data = new Date(Date.UTC(ano, m - 2, 1));
-  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}`;
+  return somarMeses(mes, -1);
 }
 
 /** Os últimos 12 meses terminando em 'AAAA-MM'. */
@@ -125,16 +130,22 @@ export async function GET(request) {
     .get().n;
 
   // --- Financeiro ---
-  const serie = ultimosDozeMeses(mes).map((m) => {
+  function totalDoMes(m) {
     const [inicio, fim] = limitesDoMes(m);
-    const linha = conn
+    return conn
       .prepare(
         `SELECT COALESCE(SUM(preco_centavos), 0) AS total FROM agendamentos
          WHERE data >= ? AND data < ? AND status <> 'cancelado'`
       )
-      .get(inicio, fim);
-    return { mes: m, total: linha.total };
-  });
+      .get(inicio, fim).total;
+  }
+
+  const serie = ultimosDozeMeses(mes).map((m) => ({ mes: m, total: totalDoMes(m) }));
+  // Mesmos 12 meses, um ano antes — dá pra comparar o mesmo período com o ano anterior.
+  const serieAnoAnterior = ultimosDozeMeses(somarMeses(mes, -12)).map((m) => ({
+    mes: m,
+    total: totalDoMes(m),
+  }));
 
   const [inicioMes, fimMes] = limitesDoMes(mes);
 
@@ -188,6 +199,7 @@ export async function GET(request) {
       principal: totaisDoMes(conn, mes),
       comparacao: totaisDoMes(conn, comparar),
       serie,
+      serieAnoAnterior,
       porServico,
       porBarbeiro,
       geral: {

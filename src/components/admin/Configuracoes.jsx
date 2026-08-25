@@ -141,6 +141,16 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
           </label>
         </div>
 
+        <label className="campo">
+          <span>Instagram (usuário, sem @)</span>
+          <input
+            className="entrada"
+            value={config.instagram}
+            onChange={(e) => mudar('instagram', e.target.value.replace(/^@/, ''))}
+            placeholder="thebarbosabarbearia"
+          />
+        </label>
+
         <div className="aviso">
           Sem esse número, o botão de confirmação no WhatsApp não aparece para o cliente no fim do
           agendamento.
@@ -191,6 +201,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
               <option value="15">15 dias</option>
               <option value="30">30 dias</option>
               <option value="60">60 dias</option>
+              <option value="90">90 dias (3 meses)</option>
             </select>
           </label>
         </div>

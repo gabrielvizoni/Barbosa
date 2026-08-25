@@ -121,8 +121,16 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const hoje = agora();
   const minimo = data === hoje.data ? hoje.minutos + antecedencia : -1;
 
+  // Candidatos na grade fixa (a cada `passo` minutos) + o fim de cada
+  // atendimento/bloqueio: sem isso, um atendimento que termina fora da
+  // grade (ex.: 9h45, com passo de 30 min) esconde o tempo livre logo
+  // depois dele até o próximo múltiplo do passo.
+  const candidatos = new Set();
+  for (let inicio = abre; inicio + duracao <= fecha; inicio += passo) candidatos.add(inicio);
+  for (const [, f] of intervalos) if (f >= abre && f + duracao <= fecha) candidatos.add(f);
+
   const livres = [];
-  for (let inicio = abre; inicio + duracao <= fecha; inicio += passo) {
+  for (const inicio of [...candidatos].sort((a, b) => a - b)) {
     if (inicio < minimo) continue;
     const fim = inicio + duracao;
     const conflita = intervalos.some(([i, f]) => inicio < f && fim > i);
