@@ -192,11 +192,6 @@ textarea {
   border-bottom: 1px solid rgba(10, 24, 17, 0.15);
 }
 
-.poste-fino {
-  height: 4px;
-  background: var(--poste);
-}
-
 /* ---------- Botões ---------- */
 
 .btn {
@@ -239,15 +234,6 @@ textarea {
 
 .btn-verde:hover:not(:disabled) {
   background: var(--verde-500);
-}
-
-.btn-marrom {
-  background: var(--marrom-700);
-  color: var(--creme-alto);
-}
-
-.btn-marrom:hover:not(:disabled) {
-  background: var(--marrom-500);
 }
 
 .btn-zap {
@@ -968,13 +954,6 @@ textarea.entrada {
     var(--creme-alto);
 }
 
-.secao-verde {
-  background:
-    radial-gradient(circle at 12% 100%, rgba(216, 189, 124, 0.08), transparent 50%),
-    var(--verde-900);
-  color: var(--creme-alto);
-}
-
 .secao-marrom {
   background:
     radial-gradient(circle at 12% 100%, rgba(216, 189, 124, 0.09), transparent 50%),
@@ -1008,7 +987,6 @@ textarea.entrada {
   margin-right: auto;
 }
 
-.secao-verde .secao-cabeca p,
 .secao-marrom .secao-cabeca p {
   color: rgba(247, 243, 234, 0.7);
 }
@@ -1294,20 +1272,6 @@ textarea.entrada {
   font-size: 13.5px;
 }
 
-.contato-instagram {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--dourado-claro);
-  margin-top: 4px;
-}
-
-.contato-instagram:hover {
-  color: var(--creme-alto);
-}
-
 /* ---------- Chamada final ---------- */
 
 .chamada {
@@ -1418,14 +1382,12 @@ textarea.entrada {
   margin-bottom: 6px;
 }
 
-.secao-verde .vazio,
 .secao-marrom .vazio {
   border-color: rgba(247, 243, 234, 0.22);
   background: rgba(247, 243, 234, 0.04);
   color: rgba(247, 243, 234, 0.7);
 }
 
-.secao-verde .vazio strong,
 .secao-marrom .vazio strong {
   color: var(--creme-alto);
 }
