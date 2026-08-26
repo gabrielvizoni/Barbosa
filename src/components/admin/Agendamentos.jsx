@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, Etiqueta, Modal, SeletorData, SeletorLista, Vazio } from './base';
 import { dataBr, mascararTelefone, moeda } from '@/lib/format';
-import { Check, Lixeira, Mais, Xis, Zap } from '@/components/Icones';
+import { Check, Lapis, Lixeira, Mais, Relogio, Xis, Zap } from '@/components/Icones';
 import AgendaPorProfissional from './AgendaVisual';
 
 const STATUS = [
@@ -14,6 +14,15 @@ const STATUS = [
   { id: 'cancelado', rotulo: 'Cancelados' },
 ];
 
+// Espelha src/lib/agendamentos.js — só para decidir quais botões mostrar.
+// Quem garante a regra de verdade é o backend; a UI aqui é só conveniência.
+const TRANSICOES_LEGAIS = {
+  pendente: ['confirmado', 'cancelado'],
+  confirmado: ['concluido', 'cancelado'],
+  concluido: [],
+  cancelado: ['pendente', 'confirmado'],
+};
+
 const VAZIO = {
   cliente_nome: '',
   cliente_telefone: '',
@@ -23,6 +32,8 @@ const VAZIO = {
   inicio: '',
   observacoes: '',
 };
+
+const VAZIO_REMARCAR = { barbeiro_id: '', servico_id: '', data: '', inicio: '' };
 
 export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const [visao, setVisao] = useState('dia');
@@ -41,6 +52,13 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const [horarioManual, setHorarioManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [processando, setProcessando] = useState(null); // id do agendamento em ação (status/exclusão)
+
+  const [remarcando, setRemarcando] = useState(null); // agendamento em remarcação, ou null
+  const [formRemarcar, setFormRemarcar] = useState(VAZIO_REMARCAR);
+  const [erroRemarcar, setErroRemarcar] = useState('');
+  const [horariosRemarcar, setHorariosRemarcar] = useState([]);
+  const [horarioManualRemarcar, setHorarioManualRemarcar] = useState(false);
+  const [salvandoRemarcar, setSalvandoRemarcar] = useState(false);
 
   const carregar = useCallback(() => {
     const query = new URLSearchParams({ busca, status, barbeiro, data }).toString();
@@ -73,6 +91,23 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       .then((r) => setHorarios(r.horarios))
       .catch(() => setHorarios([]));
   }, [novo.barbeiro_id, novo.servico_id, novo.data]);
+
+  // Mesma ideia, para o modal de remarcação.
+  useEffect(() => {
+    if (!formRemarcar.barbeiro_id || !formRemarcar.servico_id || !formRemarcar.data) {
+      return setHorariosRemarcar([]);
+    }
+    api('agendamentos', {
+      method: 'PUT',
+      body: {
+        barbeiro_id: formRemarcar.barbeiro_id,
+        servico_id: formRemarcar.servico_id,
+        data: formRemarcar.data,
+      },
+    })
+      .then((r) => setHorariosRemarcar(r.horarios))
+      .catch(() => setHorariosRemarcar([]));
+  }, [formRemarcar.barbeiro_id, formRemarcar.servico_id, formRemarcar.data]);
 
   async function mudarStatus(id, novoStatus) {
     if (processando) return;
@@ -143,6 +178,51 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       setErroEncaixe(erro.message);
     } finally {
       setSalvando(false);
+    }
+  }
+
+  function abrirRemarcar(a) {
+    setFormRemarcar({
+      barbeiro_id: String(a.barbeiro_id ?? ''),
+      servico_id: String(a.servico_id ?? ''),
+      data: a.data,
+      inicio: a.inicio,
+    });
+    setErroRemarcar('');
+    // Começa no campo manual, já preenchido com o horário atual: a lista de
+    // sugestões (mesma regra do site) não inclui o horário que o próprio
+    // agendamento já ocupa, então digitar de novo seria só atrito à toa.
+    setHorarioManualRemarcar(true);
+    setRemarcando(a);
+  }
+
+  async function salvarRemarcar() {
+    setErroRemarcar('');
+    if (!formRemarcar.servico_id) return setErroRemarcar('Escolha o serviço.');
+    if (!formRemarcar.barbeiro_id) return setErroRemarcar('Escolha o profissional.');
+    if (!formRemarcar.data) return setErroRemarcar('Escolha a data.');
+    if (!formRemarcar.inicio) return setErroRemarcar('Escolha o horário.');
+
+    setSalvandoRemarcar(true);
+    try {
+      await api(`agendamentos/${remarcando.id}`, {
+        method: 'PATCH',
+        body: {
+          data: formRemarcar.data,
+          inicio: formRemarcar.inicio,
+          barbeiro_id: formRemarcar.barbeiro_id,
+          servico_id: formRemarcar.servico_id,
+        },
+      });
+      setRemarcando(null);
+      carregar();
+      aoMudar?.();
+      avisar('Agendamento remarcado.');
+    } catch (erro) {
+      if (erro.status === 401) return tratarErro(erro);
+      setErroRemarcar(erro.message);
+    } finally {
+      setSalvandoRemarcar(false);
     }
   }
 
@@ -265,7 +345,17 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                               <Zap width={15} height={15} />
                             </a>
                           ) : null}
-                          {a.status !== 'confirmado' && a.status !== 'concluido' ? (
+                          {TRANSICOES_LEGAIS[a.status]?.includes('pendente') ? (
+                            <button
+                              className="icone-btn"
+                              onClick={() => mudarStatus(a.id, 'pendente')}
+                              title="Reabrir"
+                              disabled={processando === a.id}
+                            >
+                              <Relogio width={15} height={15} />
+                            </button>
+                          ) : null}
+                          {TRANSICOES_LEGAIS[a.status]?.includes('confirmado') ? (
                             <button
                               className="icone-btn positivo"
                               onClick={() => mudarStatus(a.id, 'confirmado')}
@@ -275,7 +365,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                               <Check width={15} height={15} />
                             </button>
                           ) : null}
-                          {a.status === 'confirmado' ? (
+                          {TRANSICOES_LEGAIS[a.status]?.includes('concluido') ? (
                             <button
                               className="icone-btn positivo"
                               onClick={() => mudarStatus(a.id, 'concluido')}
@@ -285,7 +375,17 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                               <Check width={15} height={15} />
                             </button>
                           ) : null}
-                          {a.status !== 'cancelado' ? (
+                          {a.status === 'pendente' || a.status === 'confirmado' ? (
+                            <button
+                              className="icone-btn"
+                              onClick={() => abrirRemarcar(a)}
+                              title="Remarcar"
+                              disabled={processando === a.id}
+                            >
+                              <Lapis width={15} height={15} />
+                            </button>
+                          ) : null}
+                          {TRANSICOES_LEGAIS[a.status]?.includes('cancelado') ? (
                             <button
                               className="icone-btn perigo"
                               onClick={() => mudarStatus(a.id, 'cancelado')}
@@ -457,6 +557,125 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           <div className="aviso" style={{ marginBottom: 0 }}>
             O encaixe entra já confirmado e pode ficar fora do expediente — só não pode
             colidir com outro atendimento do mesmo profissional.
+          </div>
+        </Modal>
+      ) : null}
+
+      {remarcando ? (
+        <Modal
+          titulo={`Remarcar — ${remarcando.cliente_nome}`}
+          aoFechar={() => setRemarcando(null)}
+          rodape={
+            <>
+              <button className="btn btn-contorno" onClick={() => setRemarcando(null)}>
+                Cancelar
+              </button>
+              <button className="btn btn-ouro" onClick={salvarRemarcar} disabled={salvandoRemarcar}>
+                {salvandoRemarcar ? 'Salvando…' : 'Remarcar'}
+              </button>
+            </>
+          }
+        >
+          {erroRemarcar ? <div className="aviso aviso-erro">{erroRemarcar}</div> : null}
+
+          <div className="linha-campos">
+            <label className="campo">
+              <span>Serviço</span>
+              <select
+                className="entrada"
+                value={formRemarcar.servico_id}
+                onChange={(e) =>
+                  setFormRemarcar({ ...formRemarcar, servico_id: e.target.value, inicio: '' })
+                }
+              >
+                <option value="">Escolha…</option>
+                {servicos.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nome} — {moeda(s.preco_centavos)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="campo">
+              <span>Profissional</span>
+              <select
+                className="entrada"
+                value={formRemarcar.barbeiro_id}
+                onChange={(e) =>
+                  setFormRemarcar({ ...formRemarcar, barbeiro_id: e.target.value, inicio: '' })
+                }
+              >
+                <option value="">Escolha…</option>
+                {barbeiros.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.nome}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <label className="campo">
+            <span>Data</span>
+            <SeletorData
+              className="seletor-data-bloco"
+              value={formRemarcar.data}
+              onChange={(data) => setFormRemarcar({ ...formRemarcar, data, inicio: '' })}
+            />
+          </label>
+
+          <div className="campo">
+            <span>Horário</span>
+
+            {horariosRemarcar.length > 0 ? (
+              <div className="caixas">
+                {horariosRemarcar.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    className="caixa mono"
+                    onClick={() => setFormRemarcar({ ...formRemarcar, inicio: h })}
+                    style={
+                      formRemarcar.inicio === h
+                        ? { borderColor: 'var(--verde-500)', background: 'rgba(47,98,72,.1)' }
+                        : undefined
+                    }
+                  >
+                    {h}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p style={{ margin: '2px 0 0', fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+                Nenhuma sugestão pronta pra esse dia — o horário atual já está preenchido
+                abaixo, ou digite outro.
+              </p>
+            )}
+
+            {horarioManualRemarcar ? (
+              <input
+                type="time"
+                className="entrada mono"
+                style={{ marginTop: 10, maxWidth: 160 }}
+                value={formRemarcar.inicio}
+                onChange={(e) => setFormRemarcar({ ...formRemarcar, inicio: e.target.value })}
+                autoFocus
+              />
+            ) : (
+              <button
+                type="button"
+                className="link-simples"
+                style={{ marginTop: 10 }}
+                onClick={() => setHorarioManualRemarcar(true)}
+              >
+                Digitar outro horário
+              </button>
+            )}
+          </div>
+
+          <div className="aviso" style={{ marginBottom: 0 }}>
+            A remarcação pode ficar fora do expediente — só não pode colidir com outro
+            atendimento do mesmo profissional.
           </div>
         </Modal>
       ) : null}
