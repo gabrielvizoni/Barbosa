@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Calendario, Seta, SetaEsquerda, Xis } from "@/components/Icones";
-import { dataBr } from "@/lib/format";
-import { hojeLocal } from "@/lib/datas-cliente";
-import { usePainelConfig } from "./ConfigContext";
+import { Xis } from "@/components/Icones";
 
 /** Chama a API do painel e transforma erro de resposta em exceção com mensagem legível. */
 export async function api(caminho, opcoes = {}) {
@@ -25,7 +21,53 @@ export async function api(caminho, opcoes = {}) {
   return corpo;
 }
 
+const SELETOR_FOCAVEIS =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Prende o foco dentro do modal (Tab/Shift+Tab não escapam para o resto da
+ * página), fecha com Escape e devolve o foco a quem abriu o modal ao
+ * fechar — para quem navega só com teclado, era o defeito mais grave da
+ * interface antes desta correção.
+ */
 export function Modal({ titulo, children, aoFechar, rodape }) {
+  const caixa = useRef(null);
+  const gatilhoAnterior = useRef(null);
+
+  useEffect(() => {
+    gatilhoAnterior.current = document.activeElement;
+    const foco = caixa.current?.querySelector(SELETOR_FOCAVEIS);
+    (foco || caixa.current)?.focus();
+
+    function aoTeclar(e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        aoFechar();
+        return;
+      }
+      if (e.key !== "Tab" || !caixa.current) return;
+      const focaveis = Array.from(
+        caixa.current.querySelectorAll(SELETOR_FOCAVEIS),
+      );
+      if (focaveis.length === 0) return;
+      const primeiro = focaveis[0];
+      const ultimo = focaveis[focaveis.length - 1];
+      if (e.shiftKey && document.activeElement === primeiro) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primeiro.focus();
+      }
+    }
+
+    document.addEventListener("keydown", aoTeclar);
+    return () => {
+      document.removeEventListener("keydown", aoTeclar);
+      gatilhoAnterior.current?.focus?.();
+    };
+  }, [aoFechar]);
+
   return (
     <div
       className="fundo-modal"
@@ -38,6 +80,8 @@ export function Modal({ titulo, children, aoFechar, rodape }) {
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
+        tabIndex={-1}
+        ref={caixa}
       >
         <div className="modal-topo">
           <h2>{titulo}</h2>
@@ -142,6 +186,9 @@ export function CampoImagem({ label, valor, aoMudar, pasta, avisar }) {
       const corpo = new FormData();
       corpo.append("arquivo", arquivo);
       corpo.append("pasta", pasta);
+      // Manda a imagem atual para o servidor apagar depois de gravar a
+      // nova — senão a antiga fica órfã no disco para sempre.
+      if (valor) corpo.append("anterior", valor);
       const resposta = await fetch("/api/admin/upload", {
         method: "POST",
         body: corpo,
@@ -163,7 +210,14 @@ export function CampoImagem({ label, valor, aoMudar, pasta, avisar }) {
       <div className="campo-imagem">
         {valor ? (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img className="campo-imagem-previa" src={valor} alt="" />
+          <img
+            className="campo-imagem-previa"
+            src={valor}
+            alt=""
+            width={64}
+            height={64}
+            loading="lazy"
+          />
         ) : (
           <div className="campo-imagem-vazia">Sem imagem</div>
         )}
@@ -200,297 +254,6 @@ export function Vazio({ titulo, children }) {
     <div className="vazio">
       <strong>{titulo}</strong>
       {children}
-    </div>
-  );
-}
-
-const DIAS_SEMANA_LETRA = ["D", "S", "T", "Q", "Q", "S", "S"];
-const MESES_LONGOS_CALENDARIO = [
-  "janeiro",
-  "fevereiro",
-  "março",
-  "abril",
-  "maio",
-  "junho",
-  "julho",
-  "agosto",
-  "setembro",
-  "outubro",
-  "novembro",
-  "dezembro",
-];
-
-/** As 6 semanas (42 dias) que cobrem o mês, incluindo as pontas dos meses vizinhos. */
-function gradeDoMes(ano, mes) {
-  const inicio = new Date(Date.UTC(ano, mes, 1));
-  inicio.setUTCDate(inicio.getUTCDate() - inicio.getUTCDay());
-  return Array.from({ length: 42 }, (_, i) => {
-    const d = new Date(inicio);
-    d.setUTCDate(inicio.getUTCDate() + i);
-    return {
-      chave: d.toISOString().slice(0, 10),
-      dia: d.getUTCDate(),
-      foraDoMes: d.getUTCMonth() !== mes,
-    };
-  });
-}
-
-// Tamanho aproximado do painel — usado só pra decidir de que lado ele abre,
-// antes mesmo do primeiro paint (por isso não dá pra medir o elemento real).
-const PAINEL_LARGURA = 284;
-const PAINEL_ALTURA = 370;
-
-/**
- * Calendário próprio, com o mesmo formato do seletor nativo do navegador
- * (cabeçalho do mês, dias da semana em uma letra, grade de 6 semanas,
- * "Limpar" e "Hoje" no rodapé) — só que na cara da casa, em vez do azul
- * padrão do sistema. O painel é desenhado num portal fixado à janela, pra
- * não ficar cortado por modais e outros contêineres com overflow: hidden.
- */
-export function SeletorData({ value, onChange, className = "" }) {
-  const { fuso } = usePainelConfig();
-  const [aberto, setAberto] = useState(false);
-  const [cursor, setCursor] = useState(() => {
-    const base = value ? new Date(`${value}T00:00:00Z`) : new Date();
-    return { ano: base.getUTCFullYear(), mes: base.getUTCMonth() };
-  });
-  const [posicao, setPosicao] = useState(null);
-  const gatilho = useRef(null);
-  const painel = useRef(null);
-
-  useEffect(() => {
-    if (!aberto) return;
-    function aoClicarFora(e) {
-      if (
-        gatilho.current?.contains(e.target) ||
-        painel.current?.contains(e.target)
-      )
-        return;
-      setAberto(false);
-    }
-    document.addEventListener("mousedown", aoClicarFora);
-    return () => document.removeEventListener("mousedown", aoClicarFora);
-  }, [aberto]);
-
-  useEffect(() => {
-    if (!aberto) return;
-    function posicionar() {
-      const r = gatilho.current?.getBoundingClientRect();
-      if (!r) return;
-      const cabeAbaixo = r.bottom + 8 + PAINEL_ALTURA <= window.innerHeight;
-      setPosicao({
-        top: cabeAbaixo ? r.bottom + 8 : Math.max(8, r.top - 8 - PAINEL_ALTURA),
-        left: Math.min(r.left, window.innerWidth - PAINEL_LARGURA - 12),
-      });
-    }
-    posicionar();
-    window.addEventListener("resize", posicionar);
-    window.addEventListener("scroll", posicionar, true);
-    return () => {
-      window.removeEventListener("resize", posicionar);
-      window.removeEventListener("scroll", posicionar, true);
-    };
-  }, [aberto]);
-
-  function alternar() {
-    const base = value ? new Date(`${value}T00:00:00Z`) : new Date();
-    setCursor({ ano: base.getUTCFullYear(), mes: base.getUTCMonth() });
-    setAberto((a) => !a);
-  }
-
-  function mudarMes(delta) {
-    setCursor((c) => {
-      const d = new Date(Date.UTC(c.ano, c.mes + delta, 1));
-      return { ano: d.getUTCFullYear(), mes: d.getUTCMonth() };
-    });
-  }
-
-  function escolher(chave) {
-    onChange(chave);
-    setAberto(false);
-  }
-
-  const celulas = gradeDoMes(cursor.ano, cursor.mes);
-  const hoje = hojeLocal(fuso);
-
-  return (
-    <div className={`seletor-data ${className}`} ref={gatilho}>
-      <button
-        type="button"
-        className="entrada mono seletor-data-gatilho"
-        onClick={alternar}
-      >
-        {value ? dataBr(value) : "dd/mm/aaaa"}
-        <Calendario width={14} height={14} />
-      </button>
-
-      {aberto && posicao
-        ? createPortal(
-            <div
-              className="seletor-data-painel"
-              ref={painel}
-              style={{ top: posicao.top, left: posicao.left }}
-            >
-              <div className="seletor-data-cabeca">
-                <span>
-                  {MESES_LONGOS_CALENDARIO[cursor.mes]} de {cursor.ano}
-                </span>
-                <div className="seletor-data-nav">
-                  <button
-                    type="button"
-                    onClick={() => mudarMes(-1)}
-                    aria-label="Mês anterior"
-                  >
-                    <SetaEsquerda width={13} height={13} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => mudarMes(1)}
-                    aria-label="Próximo mês"
-                  >
-                    <Seta width={13} height={13} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="seletor-data-semana">
-                {DIAS_SEMANA_LETRA.map((letra, i) => (
-                  <span key={i}>{letra}</span>
-                ))}
-              </div>
-
-              <div className="seletor-data-grade">
-                {celulas.map((c) => (
-                  <button
-                    type="button"
-                    key={c.chave}
-                    className={[
-                      "seletor-data-dia",
-                      c.foraDoMes && "fora",
-                      c.chave === value && "selecionado",
-                      c.chave === hoje && "hoje",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onClick={() => escolher(c.chave)}
-                  >
-                    {c.dia}
-                  </button>
-                ))}
-              </div>
-
-              <div className="seletor-data-rodape">
-                <button type="button" onClick={() => escolher("")}>
-                  Limpar
-                </button>
-                <button type="button" onClick={() => escolher(hoje)}>
-                  Hoje
-                </button>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-    </div>
-  );
-}
-
-/**
- * Um <select> com a cara da casa em vez do menu cinza do sistema —
- * mesmo mecanismo de portal fixado à janela do SeletorData, só que como
- * lista de opções em vez de calendário. `options` é [{ value, rotulo }].
- */
-export function SeletorLista({
-  value,
-  onChange,
-  options,
-  placeholder = "Selecione…",
-  className = "",
-}) {
-  const [aberto, setAberto] = useState(false);
-  const [posicao, setPosicao] = useState(null);
-  const gatilho = useRef(null);
-  const painel = useRef(null);
-
-  useEffect(() => {
-    if (!aberto) return;
-    function aoClicarFora(e) {
-      if (
-        gatilho.current?.contains(e.target) ||
-        painel.current?.contains(e.target)
-      )
-        return;
-      setAberto(false);
-    }
-    document.addEventListener("mousedown", aoClicarFora);
-    return () => document.removeEventListener("mousedown", aoClicarFora);
-  }, [aberto]);
-
-  useEffect(() => {
-    if (!aberto) return;
-    function posicionar() {
-      const r = gatilho.current?.getBoundingClientRect();
-      if (!r) return;
-      setPosicao({
-        top: r.bottom + 6,
-        left: r.left,
-        minWidth: r.width,
-        maxHeight: Math.max(160, window.innerHeight - r.bottom - 24),
-      });
-    }
-    posicionar();
-    window.addEventListener("resize", posicionar);
-    window.addEventListener("scroll", posicionar, true);
-    return () => {
-      window.removeEventListener("resize", posicionar);
-      window.removeEventListener("scroll", posicionar, true);
-    };
-  }, [aberto]);
-
-  const selecionada = options.find((o) => o.value === value);
-
-  function escolher(v) {
-    onChange(v);
-    setAberto(false);
-  }
-
-  return (
-    <div className={`seletor-lista ${className}`} ref={gatilho}>
-      <button
-        type="button"
-        className="entrada seletor-lista-gatilho"
-        onClick={() => setAberto((a) => !a)}
-      >
-        <span>{selecionada ? selecionada.rotulo : placeholder}</span>
-        <Seta width={11} height={11} className="seletor-lista-seta" />
-      </button>
-
-      {aberto && posicao
-        ? createPortal(
-            <div
-              className="seletor-lista-painel"
-              ref={painel}
-              style={{
-                top: posicao.top,
-                left: posicao.left,
-                minWidth: posicao.minWidth,
-                maxHeight: posicao.maxHeight,
-              }}
-            >
-              {options.map((o) => (
-                <button
-                  type="button"
-                  key={o.value}
-                  className={`seletor-lista-opcao ${o.value === value ? "selecionada" : ""}`}
-                  onClick={() => escolher(o.value)}
-                >
-                  {o.rotulo}
-                </button>
-              ))}
-            </div>,
-            document.body,
-          )
-        : null}
     </div>
   );
 }

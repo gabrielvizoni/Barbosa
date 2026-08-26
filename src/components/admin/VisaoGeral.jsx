@@ -45,14 +45,81 @@ function porExtenso(data) {
 
 export default function VisaoGeral({ tratarErro }) {
   const [resumo, setResumo] = useState(null);
+  const [config, setConfig] = useState(null);
+  const [senhaInicial, setSenhaInicial] = useState(false);
+  const [barbeiros, setBarbeiros] = useState(null);
+  const [servicos, setServicos] = useState(null);
 
   useEffect(() => {
     api("resumo").then(setResumo).catch(tratarErro);
+    api("config")
+      .then((r) => {
+        setConfig(r.config);
+        setSenhaInicial(!!r.senhaInicial);
+      })
+      .catch(() => {});
+    api("barbeiros")
+      .then((r) => setBarbeiros(r.itens))
+      .catch(() => {});
+    api("servicos")
+      .then((r) => setServicos(r.itens))
+      .catch(() => {});
   }, [tratarErro]);
+
+  async function marcarExpedienteConferido() {
+    try {
+      await api("config", {
+        method: "PUT",
+        body: { config: { onboarding_expediente_ok: "1" } },
+      });
+      setConfig((c) => ({ ...c, onboarding_expediente_ok: "1" }));
+    } catch (erro) {
+      tratarErro(erro);
+    }
+  }
 
   if (!resumo) return <p>Carregando…</p>;
 
   const { hoje } = resumo;
+
+  // Checklist de primeiros passos: no dia 1, nada explicava que sem
+  // cadastrar serviços o site não aceita agendamento — essa informação
+  // ficava só no README, que o cliente não lê. Some da tela sozinho quando
+  // os cinco passos estiverem concluídos.
+  const passos =
+    config && barbeiros && servicos
+      ? [
+          {
+            chave: "senha",
+            rotulo: "Defina uma senha própria",
+            feito: !senhaInicial,
+          },
+          {
+            chave: "identidade",
+            rotulo: "Preencha o nome e o WhatsApp da barbearia",
+            feito: !!config.nome_barbearia?.trim() && !!config.whatsapp?.trim(),
+          },
+          {
+            chave: "profissionais",
+            rotulo: "Cadastre os profissionais",
+            feito: barbeiros.length > 0,
+          },
+          {
+            chave: "servicos",
+            rotulo: "Cadastre os serviços e vincule quem executa cada um",
+            feito:
+              servicos.length > 0 &&
+              servicos.every((s) => s.barbeiros.length > 0),
+          },
+          {
+            chave: "expediente",
+            rotulo: "Confira o expediente da semana",
+            feito: config.onboarding_expediente_ok === "1",
+          },
+        ]
+      : [];
+  const concluidos = passos.filter((p) => p.feito).length;
+  const tudoPronto = passos.length > 0 && concluidos === passos.length;
 
   return (
     <>
@@ -62,6 +129,60 @@ export default function VisaoGeral({ tratarErro }) {
           <p>{porExtenso(hoje.data)}</p>
         </div>
       </div>
+
+      {passos.length > 0 && !tudoPronto ? (
+        <section className="bloco" style={{ borderColor: "var(--dourado)" }}>
+          <h2>Primeiros passos</h2>
+          <p
+            style={{ marginTop: -6, color: "var(--tinta-suave)", fontSize: 14 }}
+          >
+            {concluidos} de {passos.length} concluídos — sem cadastrar serviços,
+            o site não aceita agendamento.
+          </p>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {passos.map((p) => (
+              <li
+                key={p.chave}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "9px 0",
+                  borderBottom: "1px solid rgba(217,201,173,.5)",
+                }}
+              >
+                <CheckCirculo
+                  width={17}
+                  height={17}
+                  aria-hidden="true"
+                  style={{
+                    flexShrink: 0,
+                    color: p.feito ? "var(--verde-500)" : "var(--tinta-suave)",
+                    opacity: p.feito ? 1 : 0.35,
+                  }}
+                />
+                <span
+                  style={{
+                    flex: 1,
+                    textDecoration: p.feito ? "line-through" : "none",
+                    opacity: p.feito ? 0.65 : 1,
+                  }}
+                >
+                  {p.rotulo}
+                </span>
+                {p.chave === "expediente" && !p.feito ? (
+                  <button
+                    className="btn btn-contorno btn-mini"
+                    onClick={marcarExpedienteConferido}
+                  >
+                    Já conferi
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="cartoes">
         <div className="cartao">
@@ -152,7 +273,14 @@ export default function VisaoGeral({ tratarErro }) {
               >
                 {b.foto ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img className="avatar-mini" src={b.foto} alt="" />
+                  <img
+                    className="avatar-mini"
+                    src={b.foto}
+                    alt=""
+                    width={42}
+                    height={42}
+                    loading="lazy"
+                  />
                 ) : (
                   <span className="avatar-mini">{iniciais(b.nome)}</span>
                 )}

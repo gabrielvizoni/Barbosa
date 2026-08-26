@@ -127,6 +127,9 @@ export default function ServicosSecao({ servicos, barbeiros }) {
                   className="cartao-servico-imagem"
                   src={servico.imagem}
                   alt=""
+                  width={480}
+                  height={160}
+                  loading="lazy"
                 />
               ) : null}
               <span className="sobrenome" style={{ marginBottom: 0 }}>

@@ -27,7 +27,16 @@ export default function Header({ nome, logoUrl, links = [], cta, extra }) {
         <Link href="/" className="marca">
           {logoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
-            <img className="marca-logo" src={logoUrl} alt={nome} />
+            // Sem loading="lazy" de propósito: aparece no topo de toda
+            // página, no primeiro trecho visível — atrasar o carregamento
+            // dela seria o oposto do ganho de performance que a Etapa 9 pede.
+            <img
+              className="marca-logo"
+              src={logoUrl}
+              alt={nome}
+              width={160}
+              height={40}
+            />
           ) : (
             <span className="marca-poste" aria-hidden="true" />
           )}
