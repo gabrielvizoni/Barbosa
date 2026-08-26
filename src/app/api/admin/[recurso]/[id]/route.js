@@ -2,10 +2,12 @@ import { exigirSessao } from '@/lib/auth';
 import { getDb, definirBarbeirosDoServico } from '@/lib/db';
 import { filtrarCampos, obterRecurso } from '../route';
 import { primeiroErro, validar } from '@/lib/validacao';
+import { lerCorpoJson } from '@/lib/requisicao';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
-export async function PATCH(request, { params }) {
+export const PATCH = comLog('PATCH /api/admin/[recurso]/[id]', async (request, { params }) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
@@ -15,7 +17,10 @@ export async function PATCH(request, { params }) {
     return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });
   }
 
-  const corpo = await request.json().catch(() => ({}));
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
   const campos = filtrarCampos(recurso, corpo);
   const colunas = Object.keys(campos);
 
@@ -43,9 +48,9 @@ export async function PATCH(request, { params }) {
   }
 
   return Response.json({ ok: true });
-}
+});
 
-export async function DELETE(request, { params }) {
+export const DELETE = comLog('DELETE /api/admin/[recurso]/[id]', async (request, { params }) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
@@ -83,4 +88,4 @@ export async function DELETE(request, { params }) {
   }
 
   return Response.json({ ok: true });
-}
+});

@@ -24,7 +24,7 @@ export default function Servicos({ avisar, tratarErro }) {
 
   const carregar = useCallback(() => {
     api('servicos').then((r) => setItens(r.itens)).catch(tratarErro);
-    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(() => {});
+    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(tratarErro);
   }, [tratarErro]);
 
   useEffect(carregar, [carregar]);

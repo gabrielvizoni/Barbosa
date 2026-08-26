@@ -11,8 +11,12 @@ import {
   obterIp,
   registrarTentativa,
 } from '@/lib/limitador';
+import { lerCorpoJson } from '@/lib/requisicao';
+import { comLog, registrarAviso, registrarInfo } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
+
+const ROTA = 'POST /api/admin/login';
 
 // Só protege contra tentativa-e-erro simples — não é um cofre. Passado o
 // limite, a janela desliza sozinha: ninguém fica bloqueado para sempre.
@@ -26,7 +30,7 @@ const JANELA_GLOBAL_MINUTOS = 15;
 const MAXIMO_GLOBAL = 50;
 const BLOQUEIO_GLOBAL_SEGUNDOS = 60;
 
-export async function POST(request) {
+export const POST = comLog(ROTA, async (request) => {
   if (!autenticacaoConfiguradaComSeguranca()) {
     return Response.json(
       {
@@ -46,20 +50,28 @@ export async function POST(request) {
       bloqueioSegundos: BLOQUEIO_GLOBAL_SEGUNDOS,
     });
   if (bloqueado) {
+    registrarAviso(ROTA, 'bloqueado por limite de tentativas');
     return Response.json(
       { erro: 'Muitas tentativas. Aguarde alguns minutos e tente de novo.' },
       { status: 429 }
     );
   }
 
-  const { senha } = await request.json().catch(() => ({}));
-  if (!(await senhaConfere(senha))) {
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
+
+  // Nunca logar a senha em si — nem em caso de erro.
+  if (!(await senhaConfere(corpo.senha))) {
     registrarTentativa(chave);
     registrarTentativa(CHAVE_GLOBAL);
+    registrarAviso(ROTA, 'login falho');
     return Response.json({ erro: 'Senha incorreta.' }, { status: 401 });
   }
 
   limparTentativas(chave);
   criarSessao();
+  registrarInfo(ROTA, 'login bem-sucedido');
   return Response.json({ ok: true, senhaInicial: usandoSenhaInicial() });
-}
+});

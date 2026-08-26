@@ -51,7 +51,7 @@ export default function Horarios({ avisar, tratarErro }) {
   const carregar = useCallback(() => {
     api('config').then((r) => setExpediente(r.expediente)).catch(tratarErro);
     api('bloqueios').then((r) => setBloqueios(r.itens)).catch(tratarErro);
-    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(() => {});
+    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(tratarErro);
   }, [tratarErro]);
 
   useEffect(carregar, [carregar]);

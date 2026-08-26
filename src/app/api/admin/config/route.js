@@ -2,6 +2,8 @@ import { exigirSessao, usandoSenhaInicial } from '@/lib/auth';
 import { lerConfig, lerExpediente, salvarConfig, salvarExpediente } from '@/lib/db';
 import { validarExpediente } from '@/lib/validacao';
 import { FUSO } from '@/lib/slots';
+import { lerCorpoJson } from '@/lib/requisicao';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +29,7 @@ function configPublica() {
   return config;
 }
 
-export async function GET(request) {
+export const GET = comLog('GET /api/admin/config', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
   return Response.json({
@@ -36,13 +38,16 @@ export async function GET(request) {
     senhaInicial: usandoSenhaInicial(),
     fuso: FUSO,
   });
-}
+});
 
-export async function PUT(request) {
+export const PUT = comLog('PUT /api/admin/config', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
-  const corpo = await request.json().catch(() => ({}));
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
 
   if (corpo.config) {
     const pares = {};
@@ -75,4 +80,4 @@ export async function PUT(request) {
   }
 
   return Response.json({ config: configPublica(), expediente: lerExpediente() });
-}
+});

@@ -2,10 +2,12 @@ import { exigirSessao } from '@/lib/auth';
 import { getDb } from '@/lib/db';
 import { horariosLivres } from '@/lib/slots';
 import { criarAgendamento } from '@/lib/agendamentos';
+import { lerCorpoJson } from '@/lib/requisicao';
+import { comLog, registrarInfo } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request) {
+export const GET = comLog('GET /api/admin/agendamentos', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
@@ -41,14 +43,17 @@ export async function GET(request) {
     .all(...valores);
 
   return Response.json({ itens });
-}
+});
 
 /** Encaixe manual: o cliente ligou ou apareceu na porta. */
-export async function POST(request) {
+export const POST = comLog('POST /api/admin/agendamentos', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
-  const corpo = await request.json().catch(() => ({}));
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
 
   const resultado = criarAgendamento({
     origem: 'painel',
@@ -65,15 +70,22 @@ export async function POST(request) {
     return Response.json({ erro: resultado.erro }, { status: resultado.status });
   }
 
+  registrarInfo('POST /api/admin/agendamentos', 'agendamento criado (encaixe)', {
+    agendamentoId: resultado.id,
+  });
+
   return Response.json({ id: resultado.id }, { status: 201 });
-}
+});
 
 /** Horários livres para o encaixe manual — reaproveita a mesma regra do site. */
-export async function PUT(request) {
+export const PUT = comLog('PUT /api/admin/agendamentos', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
-  const corpo = await request.json().catch(() => ({}));
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
   const servico = getDb()
     .prepare('SELECT duracao_min FROM servicos WHERE id = ?')
     .get(Number(corpo.servico_id));
@@ -87,4 +99,4 @@ export async function PUT(request) {
       data: String(corpo.data ?? ''),
     }),
   });
-}
+});

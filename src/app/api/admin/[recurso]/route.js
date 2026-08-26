@@ -1,6 +1,8 @@
 import { exigirSessao } from '@/lib/auth';
 import { getDb, definirBarbeirosDoServico, listarBloqueios, listarServicos } from '@/lib/db';
 import { primeiroErro, validar } from '@/lib/validacao';
+import { lerCorpoJson } from '@/lib/requisicao';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,7 +79,7 @@ export function filtrarCampos(recurso, corpo) {
   return campos;
 }
 
-export async function GET(request, { params }) {
+export const GET = comLog('GET /api/admin/[recurso]', async (request, { params }) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
@@ -91,16 +93,19 @@ export async function GET(request, { params }) {
     .prepare(`SELECT * FROM ${recurso.tabela} ORDER BY ${recurso.ordem}`)
     .all();
   return Response.json({ itens });
-}
+});
 
-export async function POST(request, { params }) {
+export const POST = comLog('POST /api/admin/[recurso]', async (request, { params }) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
   const recurso = obterRecurso(params.recurso);
   if (!recurso) return Response.json({ erro: 'Cadastro não encontrado.' }, { status: 404 });
 
-  const corpo = await request.json().catch(() => ({}));
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
   const campos = filtrarCampos(recurso, corpo);
 
   const { ok, erros } = validar(params.recurso, campos, { criando: true });
@@ -126,4 +131,4 @@ export async function POST(request, { params }) {
   }
 
   return Response.json({ id }, { status: 201 });
-}
+});

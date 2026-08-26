@@ -1,8 +1,9 @@
 import { autenticacaoConfiguradaComSeguranca, sessaoValida, usandoSenhaInicial } from '@/lib/auth';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export const GET = comLog('GET /api/admin/sessao', async () => {
   if (!autenticacaoConfiguradaComSeguranca()) {
     return Response.json({ autenticado: false, configuracaoInsegura: true });
   }
@@ -11,4 +12,4 @@ export async function GET() {
     autenticado,
     senhaInicial: autenticado ? usandoSenhaInicial() : false,
   });
-}
+});

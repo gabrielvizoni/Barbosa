@@ -1,14 +1,20 @@
 import { exigirSessao, senhaConfere, trocarSenha } from '@/lib/auth';
+import { lerCorpoJson } from '@/lib/requisicao';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
 const MINIMO = 6;
 
-export async function POST(request) {
+export const POST = comLog('POST /api/admin/senha', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
-  const { senhaAtual, novaSenha, confirmacao } = await request.json().catch(() => ({}));
+  const corpo = await lerCorpoJson(request);
+  if (!corpo) {
+    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+  }
+  const { senhaAtual, novaSenha, confirmacao } = corpo;
 
   if (!(await senhaConfere(senhaAtual))) {
     return Response.json({ erro: 'A senha atual está incorreta.' }, { status: 400 });
@@ -30,4 +36,4 @@ export async function POST(request) {
 
   await trocarSenha(nova);
   return Response.json({ ok: true });
-}
+});
