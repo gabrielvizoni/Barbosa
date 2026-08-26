@@ -14,7 +14,7 @@ const GLOB_HORA = "[0-9][0-9]:[0-9][0-9]";
 export const migrations = [
   {
     versao: 1,
-    descricao: 'schema inicial',
+    descricao: "schema inicial",
     up(conn) {
       conn.exec(`
         CREATE TABLE IF NOT EXISTS config (
@@ -109,34 +109,37 @@ export const migrations = [
       // slogan e endereço começam vazios de propósito — este é um sistema
       // white-label, não vem pré-preenchido com dados de nenhum cliente.
       const padroes = {
-        nome_barbearia: '',
-        slogan: '',
-        whatsapp: '',
-        endereco: '',
-        instagram: '',
-        logo_url: '',
-        intervalo_min: '30',
-        antecedencia_min: '60',
-        dias_futuros: '90',
-        confirmacao_automatica: '1',
-        sessao_versao: '1',
+        nome_barbearia: "",
+        slogan: "",
+        whatsapp: "",
+        endereco: "",
+        instagram: "",
+        logo_url: "",
+        intervalo_min: "30",
+        antecedencia_min: "60",
+        dias_futuros: "90",
+        confirmacao_automatica: "1",
+        sessao_versao: "1",
       };
-      const insereConfig = conn.prepare('INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)');
-      for (const [chave, valor] of Object.entries(padroes)) insereConfig.run(chave, valor);
+      const insereConfig = conn.prepare(
+        "INSERT OR IGNORE INTO config (chave, valor) VALUES (?, ?)",
+      );
+      for (const [chave, valor] of Object.entries(padroes))
+        insereConfig.run(chave, valor);
 
       // Expediente padrão: domingo fechado, seg–sex 09–20, sábado 08–18.
       // Isso é um default operacional razoável, não dado de cliente — fica.
       const insereDia = conn.prepare(
-        'INSERT OR IGNORE INTO expediente (dia, aberto, abre, fecha) VALUES (?, ?, ?, ?)'
+        "INSERT OR IGNORE INTO expediente (dia, aberto, abre, fecha) VALUES (?, ?, ?, ?)",
       );
       const semana = [
-        [0, 0, '09:00', '18:00'],
-        [1, 1, '09:00', '20:00'],
-        [2, 1, '09:00', '20:00'],
-        [3, 1, '09:00', '20:00'],
-        [4, 1, '09:00', '20:00'],
-        [5, 1, '09:00', '20:00'],
-        [6, 1, '08:00', '18:00'],
+        [0, 0, "09:00", "18:00"],
+        [1, 1, "09:00", "20:00"],
+        [2, 1, "09:00", "20:00"],
+        [3, 1, "09:00", "20:00"],
+        [4, 1, "09:00", "20:00"],
+        [5, 1, "09:00", "20:00"],
+        [6, 1, "08:00", "18:00"],
       ];
       for (const dia of semana) insereDia.run(...dia);
 
@@ -146,23 +149,24 @@ export const migrations = [
 
   {
     versao: 2,
-    descricao: 'adiciona coluna imagem em servicos e produtos',
+    descricao: "adiciona coluna imagem em servicos e produtos",
     up(conn) {
       const garantirColuna = (tabela, coluna, definicao) => {
         const existe = conn
           .prepare(`PRAGMA table_info(${tabela})`)
           .all()
           .some((c) => c.name === coluna);
-        if (!existe) conn.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
+        if (!existe)
+          conn.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
       };
-      garantirColuna('servicos', 'imagem', "TEXT NOT NULL DEFAULT ''");
-      garantirColuna('produtos', 'imagem', "TEXT NOT NULL DEFAULT ''");
+      garantirColuna("servicos", "imagem", "TEXT NOT NULL DEFAULT ''");
+      garantirColuna("produtos", "imagem", "TEXT NOT NULL DEFAULT ''");
     },
   },
 
   {
     versao: 3,
-    descricao: 'adiciona constraints de integridade',
+    descricao: "adiciona constraints de integridade",
     up(conn) {
       // SQLite não suporta ALTER TABLE ADD CONSTRAINT: o procedimento
       // oficial é criar uma tabela nova (já com os CHECK) sob um nome
@@ -265,7 +269,7 @@ export const migrations = [
 
   {
     versao: 4,
-    descricao: 'índice único parcial contra agendamento duplicado',
+    descricao: "índice único parcial contra agendamento duplicado",
     up(conn) {
       // Cobre a colisão exata (mesmo barbeiro, data e início) — sobreposição
       // parcial de horário continua sendo responsabilidade da aplicação.
@@ -279,7 +283,7 @@ export const migrations = [
 
   {
     versao: 5,
-    descricao: 'soft delete de agendamentos e tabela de auditoria',
+    descricao: "soft delete de agendamentos e tabela de auditoria",
     up(conn) {
       // Coluna nova sem CHECK: ALTER TABLE ADD COLUMN é suportado direto pelo
       // SQLite (diferente de ADD CONSTRAINT) — não precisa do procedimento de
@@ -313,10 +317,12 @@ export function versaoEsperada() {
 /** Versão atual gravada no banco — 0 quando ele nunca foi migrado. */
 export function versaoDoBanco(conn) {
   const existe = conn
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_version'")
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'schema_version'",
+    )
     .get();
   if (!existe) return 0;
-  const linha = conn.prepare('SELECT versao FROM schema_version LIMIT 1').get();
+  const linha = conn.prepare("SELECT versao FROM schema_version LIMIT 1").get();
   return linha ? linha.versao : 0;
 }
 
@@ -328,7 +334,9 @@ export function versaoDoBanco(conn) {
  * Devolve a lista das migrations aplicadas (vazia se já estava em dia).
  */
 export function aplicarMigrations(conn) {
-  conn.exec('CREATE TABLE IF NOT EXISTS schema_version (versao INTEGER NOT NULL)');
+  conn.exec(
+    "CREATE TABLE IF NOT EXISTS schema_version (versao INTEGER NOT NULL)",
+  );
 
   const atual = versaoDoBanco(conn);
   const pendentes = migrations
@@ -336,14 +344,16 @@ export function aplicarMigrations(conn) {
     .sort((a, b) => a.versao - b.versao);
 
   for (const migration of pendentes) {
-    conn.pragma('foreign_keys = OFF');
+    conn.pragma("foreign_keys = OFF");
     const aplicar = conn.transaction(() => {
       migration.up(conn);
-      conn.prepare('DELETE FROM schema_version').run();
-      conn.prepare('INSERT INTO schema_version (versao) VALUES (?)').run(migration.versao);
+      conn.prepare("DELETE FROM schema_version").run();
+      conn
+        .prepare("INSERT INTO schema_version (versao) VALUES (?)")
+        .run(migration.versao);
     });
     aplicar();
-    conn.pragma('foreign_keys = ON');
+    conn.pragma("foreign_keys = ON");
   }
 
   return pendentes;

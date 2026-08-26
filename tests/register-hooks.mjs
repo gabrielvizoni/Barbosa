@@ -16,22 +16,22 @@
 // completamente independentes, então a migration não "aparece" para o
 // getDb() de dentro do app; um arquivo real, aberto duas vezes, é o mesmo
 // banco nas duas conexões — como vai ser no ambiente real também.
-import { register } from 'node:module';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import crypto from 'node:crypto';
+import { register } from "node:module";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import crypto from "node:crypto";
 
 const CAMINHO_DB_TESTE = path.join(
   os.tmpdir(),
-  `barbosa-teste-${process.pid}-${crypto.randomBytes(4).toString('hex')}.db`
+  `barbosa-teste-${process.pid}-${crypto.randomBytes(4).toString("hex")}.db`,
 );
 process.env.DATABASE_PATH = CAMINHO_DB_TESTE;
 
-register('./module-hooks.mjs', import.meta.url);
+register("./module-hooks.mjs", import.meta.url);
 
-process.on('exit', () => {
-  for (const sufixo of ['', '-wal', '-shm']) {
+process.on("exit", () => {
+  for (const sufixo of ["", "-wal", "-shm"]) {
     try {
       fs.unlinkSync(CAMINHO_DB_TESTE + sufixo);
     } catch {

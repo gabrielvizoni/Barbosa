@@ -1,15 +1,15 @@
-import { exigirSessao } from '@/lib/auth';
-import { getDb } from '@/lib/db';
-import { agora } from '@/lib/slots';
-import { comLog } from '@/lib/log';
+import { exigirSessao } from "@/lib/auth";
+import { getDb } from "@/lib/db";
+import { agora } from "@/lib/slots";
+import { comLog } from "@/lib/log";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /** Soma (ou subtrai, com delta negativo) meses a 'AAAA-MM'. */
 function somarMeses(mes, delta) {
-  const [ano, m] = mes.split('-').map(Number);
+  const [ano, m] = mes.split("-").map(Number);
   const data = new Date(Date.UTC(ano, m - 1 + delta, 1));
-  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}`;
+  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 /** Mês anterior a 'AAAA-MM'. */
@@ -19,11 +19,13 @@ function mesAnterior(mes) {
 
 /** Os últimos 12 meses terminando em 'AAAA-MM'. */
 function ultimosDozeMeses(mes) {
-  const [ano, m] = mes.split('-').map(Number);
+  const [ano, m] = mes.split("-").map(Number);
   const lista = [];
   for (let i = 11; i >= 0; i -= 1) {
     const data = new Date(Date.UTC(ano, m - 1 - i, 1));
-    lista.push(`${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, '0')}`);
+    lista.push(
+      `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}`,
+    );
   }
   return lista;
 }
@@ -35,9 +37,9 @@ function ultimosDozeMeses(mes) {
  * que obriga uma varredura completa da tabela a cada consulta).
  */
 function limitesDoMes(mes) {
-  const [ano, m] = mes.split('-').map(Number);
+  const [ano, m] = mes.split("-").map(Number);
   const fim = new Date(Date.UTC(ano, m, 1));
-  const fimStr = `${fim.getUTCFullYear()}-${String(fim.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const fimStr = `${fim.getUTCFullYear()}-${String(fim.getUTCMonth() + 1).padStart(2, "0")}-01`;
   return [`${mes}-01`, fimStr];
 }
 
@@ -58,7 +60,7 @@ function totaisPorMes(conn, mesInicio, mesFim) {
               COALESCE(SUM(CASE WHEN status IN ('pendente', 'confirmado') THEN preco_centavos ELSE 0 END), 0) AS previsto
        FROM agendamentos
        WHERE data >= ? AND data < ? AND status <> 'cancelado' AND excluido_em IS NULL
-       GROUP BY substr(data, 1, 7)`
+       GROUP BY substr(data, 1, 7)`,
     )
     .all(inicio, fim);
 
@@ -86,20 +88,20 @@ function totaisDoMes(conn, mes) {
   const realizado = conn
     .prepare(
       `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
-       FROM agendamentos WHERE data >= ? AND data < ? AND status = 'concluido' AND excluido_em IS NULL`
+       FROM agendamentos WHERE data >= ? AND data < ? AND status = 'concluido' AND excluido_em IS NULL`,
     )
     .get(inicio, fim);
 
   const previsto = conn
     .prepare(
       `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
-       FROM agendamentos WHERE data >= ? AND data < ? AND status IN ('pendente', 'confirmado') AND excluido_em IS NULL`
+       FROM agendamentos WHERE data >= ? AND data < ? AND status IN ('pendente', 'confirmado') AND excluido_em IS NULL`,
     )
     .get(inicio, fim);
 
   const cancelados = conn
     .prepare(
-      `SELECT COUNT(*) AS n FROM agendamentos WHERE data >= ? AND data < ? AND status = 'cancelado' AND excluido_em IS NULL`
+      `SELECT COUNT(*) AS n FROM agendamentos WHERE data >= ? AND data < ? AND status = 'cancelado' AND excluido_em IS NULL`,
     )
     .get(inicio, fim).n;
 
@@ -108,27 +110,33 @@ function totaisDoMes(conn, mes) {
     realizado: {
       atendimentos: realizado.atendimentos,
       faturamento: realizado.faturamento,
-      ticket: realizado.atendimentos ? Math.round(realizado.faturamento / realizado.atendimentos) : 0,
+      ticket: realizado.atendimentos
+        ? Math.round(realizado.faturamento / realizado.atendimentos)
+        : 0,
     },
     previsto: {
       atendimentos: previsto.atendimentos,
       faturamento: previsto.faturamento,
-      ticket: previsto.atendimentos ? Math.round(previsto.faturamento / previsto.atendimentos) : 0,
+      ticket: previsto.atendimentos
+        ? Math.round(previsto.faturamento / previsto.atendimentos)
+        : 0,
     },
     cancelados,
   };
 }
 
-export const GET = comLog('GET /api/admin/resumo', async (request) => {
+export const GET = comLog("GET /api/admin/resumo", async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
   const conn = getDb();
   const params = new URL(request.url).searchParams;
   const hoje = agora().data;
-  const mes = /^\d{4}-\d{2}$/.test(params.get('mes') || '') ? params.get('mes') : hoje.slice(0, 7);
-  const comparar = /^\d{4}-\d{2}$/.test(params.get('comparar') || '')
-    ? params.get('comparar')
+  const mes = /^\d{4}-\d{2}$/.test(params.get("mes") || "")
+    ? params.get("mes")
+    : hoje.slice(0, 7);
+  const comparar = /^\d{4}-\d{2}$/.test(params.get("comparar") || "")
+    ? params.get("comparar")
     : mesAnterior(mes);
 
   // --- Visão geral: o dia de hoje ---
@@ -140,7 +148,7 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
          COALESCE(SUM(CASE WHEN status IN ('pendente','confirmado') THEN preco_centavos ELSE 0 END), 0) AS previsto,
          SUM(CASE WHEN status = 'confirmado' THEN 1 ELSE 0 END) AS confirmados,
          SUM(CASE WHEN status = 'pendente' THEN 1 ELSE 0 END) AS pendentes
-       FROM agendamentos WHERE data = ? AND excluido_em IS NULL`
+       FROM agendamentos WHERE data = ? AND excluido_em IS NULL`,
     )
     .get(hoje);
 
@@ -154,16 +162,20 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
        LEFT JOIN agendamentos a
          ON a.barbeiro_id = b.id AND a.data = ? AND a.status <> 'cancelado' AND a.excluido_em IS NULL
        WHERE b.ativo = 1
-       GROUP BY b.id ORDER BY b.ordem, b.id`
+       GROUP BY b.id ORDER BY b.ordem, b.id`,
     )
     .all(hoje);
 
   const recentes = conn
-    .prepare('SELECT * FROM agendamentos WHERE excluido_em IS NULL ORDER BY criado_em DESC, id DESC LIMIT 8')
+    .prepare(
+      "SELECT * FROM agendamentos WHERE excluido_em IS NULL ORDER BY criado_em DESC, id DESC LIMIT 8",
+    )
     .all();
 
   const pendentesTotal = conn
-    .prepare("SELECT COUNT(*) AS n FROM agendamentos WHERE status = 'pendente' AND excluido_em IS NULL")
+    .prepare(
+      "SELECT COUNT(*) AS n FROM agendamentos WHERE status = 'pendente' AND excluido_em IS NULL",
+    )
     .get().n;
 
   // --- Financeiro ---
@@ -173,7 +185,11 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
   // queries sequenciais bloqueando o event loop uma atrás da outra.
   const meses = ultimosDozeMeses(mes);
   const mesesAnoAnterior = ultimosDozeMeses(somarMeses(mes, -12));
-  const totalDoMes = totaisPorMes(conn, mesesAnoAnterior[0], meses[meses.length - 1]);
+  const totalDoMes = totaisPorMes(
+    conn,
+    mesesAnoAnterior[0],
+    meses[meses.length - 1],
+  );
 
   const serie = meses.map(totalDoMes);
   // Mesmos 12 meses, um ano antes — dá pra comparar o mesmo período com o ano anterior.
@@ -195,7 +211,7 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
        LEFT JOIN servicos s ON s.id = a.servico_id
        WHERE a.status <> 'cancelado' AND a.excluido_em IS NULL AND a.data >= ? AND a.data < ?
        GROUP BY CASE WHEN a.servico_id IS NOT NULL THEN 'id:' || a.servico_id ELSE 'nome:' || a.servico_nome END
-       ORDER BY quantidade DESC LIMIT 8`
+       ORDER BY quantidade DESC LIMIT 8`,
     )
     .all(inicioMes, fimMes);
 
@@ -207,21 +223,21 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
        LEFT JOIN barbeiros b ON b.id = a.barbeiro_id
        WHERE a.status <> 'cancelado' AND a.excluido_em IS NULL AND a.data >= ? AND a.data < ?
        GROUP BY CASE WHEN a.barbeiro_id IS NOT NULL THEN 'id:' || a.barbeiro_id ELSE 'nome:' || a.barbeiro_nome END
-       ORDER BY total DESC`
+       ORDER BY total DESC`,
     )
     .all(inicioMes, fimMes);
 
   const geralRealizado = conn
     .prepare(
       `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
-       FROM agendamentos WHERE status = 'concluido' AND excluido_em IS NULL`
+       FROM agendamentos WHERE status = 'concluido' AND excluido_em IS NULL`,
     )
     .get();
 
   const geralPrevisto = conn
     .prepare(
       `SELECT COUNT(*) AS atendimentos, COALESCE(SUM(preco_centavos), 0) AS faturamento
-       FROM agendamentos WHERE status IN ('pendente', 'confirmado') AND excluido_em IS NULL`
+       FROM agendamentos WHERE status IN ('pendente', 'confirmado') AND excluido_em IS NULL`,
     )
     .get();
 
@@ -249,7 +265,9 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
           atendimentos: geralRealizado.atendimentos,
           faturamento: geralRealizado.faturamento,
           ticket: geralRealizado.atendimentos
-            ? Math.round(geralRealizado.faturamento / geralRealizado.atendimentos)
+            ? Math.round(
+                geralRealizado.faturamento / geralRealizado.atendimentos,
+              )
             : 0,
         },
         previsto: {

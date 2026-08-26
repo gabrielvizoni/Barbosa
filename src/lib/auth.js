@@ -1,12 +1,12 @@
-import crypto from 'node:crypto';
-import { promisify } from 'node:util';
-import { cookies } from 'next/headers';
-import { lerConfig, salvarConfig } from './db';
-import { segredoDeSessaoValido, senhaInicialValida } from './config-ambiente';
+import crypto from "node:crypto";
+import { promisify } from "node:util";
+import { cookies } from "next/headers";
+import { lerConfig, salvarConfig } from "./db";
+import { segredoDeSessaoValido, senhaInicialValida } from "./config-ambiente";
 
 const scrypt = promisify(crypto.scrypt);
 
-const NOME_COOKIE = 'admin_sessao';
+const NOME_COOKIE = "admin_sessao";
 const DURACAO_SEGUNDOS = 60 * 60 * 12; // 12 horas
 
 /**
@@ -17,7 +17,10 @@ const DURACAO_SEGUNDOS = 60 * 60 * 12; // 12 horas
  * continua valendo, por conveniência.
  */
 export function sessaoConfiguradaComSeguranca() {
-  return segredoDeSessaoValido(process.env.SESSION_SECRET) || process.env.NODE_ENV !== 'production';
+  return (
+    segredoDeSessaoValido(process.env.SESSION_SECRET) ||
+    process.env.NODE_ENV !== "production"
+  );
 }
 
 /**
@@ -27,31 +30,35 @@ export function sessaoConfiguradaComSeguranca() {
  * .env deixa de valer (ver senhaConfere()).
  */
 export function senhaInicialConfiguradaComSeguranca() {
-  return senhaInicialValida(process.env.ADMIN_PASSWORD) || process.env.NODE_ENV !== 'production';
+  return (
+    senhaInicialValida(process.env.ADMIN_PASSWORD) ||
+    process.env.NODE_ENV !== "production"
+  );
 }
 
 /** As duas checagens acima juntas — usada para decidir se o login pode nem tentar. */
 export function autenticacaoConfiguradaComSeguranca() {
   if (!sessaoConfiguradaComSeguranca()) return false;
-  if (usandoSenhaInicial() && !senhaInicialConfiguradaComSeguranca()) return false;
+  if (usandoSenhaInicial() && !senhaInicialConfiguradaComSeguranca())
+    return false;
   return true;
 }
 
 const MENSAGEM_CONFIGURACAO_INSEGURA =
-  'O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem.';
+  "O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem.";
 
 function segredo() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === "production") {
     // Não deveria chegar aqui: autenticacaoConfiguradaComSeguranca() barra
     // antes, em exigirSessao() e no login. Mantido como rede de segurança.
-    throw new Error('SESSION_SECRET não configurado em produção.');
+    throw new Error("SESSION_SECRET não configurado em produção.");
   }
-  return 'segredo-de-desenvolvimento-troque-em-producao';
+  return "segredo-de-desenvolvimento-troque-em-producao";
 }
 
 function assinar(valor) {
-  return crypto.createHmac('sha256', segredo()).update(valor).digest('hex');
+  return crypto.createHmac("sha256", segredo()).update(valor).digest("hex");
 }
 
 /** Compara duas strings sem vazar, pelo tempo de resposta, onde elas diferem. */
@@ -90,11 +97,11 @@ export async function gerarHash(senha) {
     r: SCRYPT_R,
     p: SCRYPT_P,
   });
-  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${sal.toString('hex')}$${derivada.toString('hex')}`;
+  return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${sal.toString("hex")}$${derivada.toString("hex")}`;
 }
 
 async function conferirHash(senha, guardado) {
-  const partes = String(guardado).split('$');
+  const partes = String(guardado).split("$");
   let algoritmo;
   let n;
   let r;
@@ -119,20 +126,26 @@ async function conferirHash(senha, guardado) {
     return false;
   }
 
-  if (algoritmo !== 'scrypt' || !salHex || !hashHex || !Number.isFinite(n)) return false;
+  if (algoritmo !== "scrypt" || !salHex || !hashHex || !Number.isFinite(n))
+    return false;
 
-  const esperado = Buffer.from(hashHex, 'hex');
-  const derivada = await scrypt(String(senha), Buffer.from(salHex, 'hex'), esperado.length, {
-    N: n,
-    r,
-    p,
-  });
+  const esperado = Buffer.from(hashHex, "hex");
+  const derivada = await scrypt(
+    String(senha),
+    Buffer.from(salHex, "hex"),
+    esperado.length,
+    {
+      N: n,
+      r,
+      p,
+    },
+  );
   if (derivada.length !== esperado.length) return false;
   return crypto.timingSafeEqual(derivada, esperado);
 }
 
 export async function senhaConfere(tentativa) {
-  const texto = String(tentativa ?? '');
+  const texto = String(tentativa ?? "");
   if (!texto) return false;
 
   const { senha_hash: guardado } = lerConfig();
@@ -155,7 +168,10 @@ export function usandoSenhaInicial() {
  */
 export async function trocarSenha(nova) {
   const versao = Number(lerConfig().sessao_versao || 1) + 1;
-  salvarConfig({ senha_hash: await gerarHash(nova), sessao_versao: String(versao) });
+  salvarConfig({
+    senha_hash: await gerarHash(nova),
+    sessao_versao: String(versao),
+  });
   criarSessao();
 }
 
@@ -178,28 +194,28 @@ export function construirToken(versao, expiraEm) {
 export { NOME_COOKIE };
 
 export function criarSessao() {
-  const versao = lerConfig().sessao_versao || '1';
+  const versao = lerConfig().sessao_versao || "1";
   const expiraEm = Date.now() + DURACAO_SEGUNDOS * 1000;
   cookies().set(NOME_COOKIE, construirToken(versao, expiraEm), {
     httpOnly: true,
     // Não existe fluxo do painel vindo de fora do próprio site — 'strict' não
     // quebra nada aqui e fecha a porta pra CSRF via navegação/formulário externo.
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
     maxAge: DURACAO_SEGUNDOS,
   });
 }
 
 export function encerrarSessao() {
-  cookies().set(NOME_COOKIE, '', { path: '/', maxAge: 0 });
+  cookies().set(NOME_COOKIE, "", { path: "/", maxAge: 0 });
 }
 
 /** Mesma verificação de sessaoValida(), mas recebendo o token diretamente. */
 export function tokenValido(token) {
   if (!token) return false;
 
-  const partes = token.split('.');
+  const partes = token.split(".");
   if (partes.length !== 4) return false;
 
   const [dono, versao, expiraEm, assinatura] = partes;
@@ -209,32 +225,38 @@ export function tokenValido(token) {
   if (Number(expiraEm) <= Date.now()) return false;
 
   // Uma troca de senha invalida os cookies emitidos antes dela.
-  return versao === (lerConfig().sessao_versao || '1');
+  return versao === (lerConfig().sessao_versao || "1");
 }
 
 export function sessaoValida() {
   return tokenValido(cookies().get(NOME_COOKIE)?.value);
 }
 
-const METODOS_MUTACAO = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const METODOS_MUTACAO = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 // Enquanto a senha ainda é a inicial (a do .env), o painel só deixa trocar a
 // senha e ler a configuração — o resto responde 403. A trava visual no
 // frontend (PainelAdmin.jsx) continua existindo, mas quem decide é aqui.
 function rotaPermitidaComSenhaInicial(request) {
   const { pathname } = new URL(request.url);
-  if (pathname === '/api/admin/senha') return true;
-  if (pathname === '/api/admin/config' && request.method === 'GET') return true;
+  if (pathname === "/api/admin/senha") return true;
+  if (pathname === "/api/admin/config" && request.method === "GET") return true;
   return false;
 }
 
 /** Devolve null quando autorizado, ou uma Response de erro quando não. */
 export function exigirSessao(request) {
   if (!autenticacaoConfiguradaComSeguranca()) {
-    return Response.json({ erro: MENSAGEM_CONFIGURACAO_INSEGURA }, { status: 503 });
+    return Response.json(
+      { erro: MENSAGEM_CONFIGURACAO_INSEGURA },
+      { status: 503 },
+    );
   }
   if (!sessaoValida()) {
-    return Response.json({ erro: 'Sessão expirada. Entre novamente.' }, { status: 401 });
+    return Response.json(
+      { erro: "Sessão expirada. Entre novamente." },
+      { status: 401 },
+    );
   }
 
   // CSRF: uma mutação de fora do próprio site sempre manda Origin — quando
@@ -242,8 +264,8 @@ export function exigirSessao(request) {
   // (cliente não-navegador, ou navegador antigo em same-origin), deixa
   // passar; sameSite=strict no cookie já cobre a maior parte do risco.
   if (request && METODOS_MUTACAO.has(request.method)) {
-    const origem = request.headers.get('origin');
-    const host = request.headers.get('host');
+    const origem = request.headers.get("origin");
+    const host = request.headers.get("host");
     if (origem && host) {
       let hostDaOrigem = null;
       try {
@@ -252,15 +274,22 @@ export function exigirSessao(request) {
         hostDaOrigem = null;
       }
       if (hostDaOrigem !== host) {
-        return Response.json({ erro: 'Origem não permitida.' }, { status: 403 });
+        return Response.json(
+          { erro: "Origem não permitida." },
+          { status: 403 },
+        );
       }
     }
   }
 
-  if (request && usandoSenhaInicial() && !rotaPermitidaComSenhaInicial(request)) {
+  if (
+    request &&
+    usandoSenhaInicial() &&
+    !rotaPermitidaComSenhaInicial(request)
+  ) {
     return Response.json(
-      { erro: 'Troque a senha inicial antes de continuar usando o painel.' },
-      { status: 403 }
+      { erro: "Troque a senha inicial antes de continuar usando o painel." },
+      { status: 403 },
     );
   }
 

@@ -1,10 +1,10 @@
-import { getDb, lerConfig } from './db';
+import { getDb, lerConfig } from "./db";
 
-export const FUSO = process.env.TZ || 'America/Sao_Paulo';
+export const FUSO = process.env.TZ || "America/Sao_Paulo";
 
 /** "HH:MM" -> minutos desde a meia-noite. */
 export function paraMinutos(hhmm) {
-  const [h, m] = String(hhmm).split(':').map(Number);
+  const [h, m] = String(hhmm).split(":").map(Number);
   return h * 60 + (m || 0);
 }
 
@@ -12,23 +12,25 @@ export function paraMinutos(hhmm) {
 export function paraHora(minutos) {
   const h = Math.floor(minutos / 60);
   const m = minutos % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 /** Data/hora atual no fuso da barbearia, como { data: 'AAAA-MM-DD', minutos, diaSemana }. */
 export function agora() {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: FUSO,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   });
-  const partes = Object.fromEntries(fmt.formatToParts(new Date()).map((p) => [p.type, p.value]));
+  const partes = Object.fromEntries(
+    fmt.formatToParts(new Date()).map((p) => [p.type, p.value]),
+  );
   const data = `${partes.year}-${partes.month}-${partes.day}`;
-  const hora = partes.hour === '24' ? '00' : partes.hour;
+  const hora = partes.hour === "24" ? "00" : partes.hour;
   return {
     data,
     minutos: Number(hora) * 60 + Number(partes.minute),
@@ -38,35 +40,55 @@ export function agora() {
 
 /** Dia da semana (0 = domingo) de uma data 'AAAA-MM-DD', sem sofrer com fuso. */
 export function diaDaSemana(data) {
-  const [a, m, d] = data.split('-').map(Number);
+  const [a, m, d] = data.split("-").map(Number);
   return new Date(Date.UTC(a, m - 1, d)).getUTCDay();
 }
 
 /** Soma dias a uma data 'AAAA-MM-DD' e devolve outra data no mesmo formato. */
 export function somarDias(data, dias) {
-  const [a, m, d] = data.split('-').map(Number);
+  const [a, m, d] = data.split("-").map(Number);
   const base = new Date(Date.UTC(a, m - 1, d));
   base.setUTCDate(base.getUTCDate() + dias);
   return base.toISOString().slice(0, 10);
 }
 
-const DIAS_CURTOS = ['dom.', 'seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.'];
+const DIAS_CURTOS = ["dom.", "seg.", "ter.", "qua.", "qui.", "sex.", "sáb."];
 const DIAS_LONGOS = [
-  'domingo',
-  'segunda-feira',
-  'terça-feira',
-  'quarta-feira',
-  'quinta-feira',
-  'sexta-feira',
-  'sábado',
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
 ];
 const MESES_CURTOS = [
-  'jan.', 'fev.', 'mar.', 'abr.', 'mai.', 'jun.',
-  'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.',
+  "jan.",
+  "fev.",
+  "mar.",
+  "abr.",
+  "mai.",
+  "jun.",
+  "jul.",
+  "ago.",
+  "set.",
+  "out.",
+  "nov.",
+  "dez.",
 ];
 const MESES_LONGOS = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
 ];
 
 export function rotuloDiaCurto(data) {
@@ -74,12 +96,12 @@ export function rotuloDiaCurto(data) {
 }
 
 export function rotuloDataLonga(data) {
-  const [a, m, d] = data.split('-').map(Number);
+  const [a, m, d] = data.split("-").map(Number);
   return `${DIAS_LONGOS[diaDaSemana(data)]}, ${d} de ${MESES_LONGOS[m - 1]} de ${a}`;
 }
 
 export function rotuloMesCurto(data) {
-  return MESES_CURTOS[Number(data.split('-')[1]) - 1];
+  return MESES_CURTOS[Number(data.split("-")[1]) - 1];
 }
 
 /**
@@ -94,7 +116,9 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const antecedencia = Math.max(0, Number(config.antecedencia_min) || 0);
   const duracao = Math.max(5, Number(duracaoMin) || 30);
 
-  const dia = conn.prepare('SELECT * FROM expediente WHERE dia = ?').get(diaDaSemana(data));
+  const dia = conn
+    .prepare("SELECT * FROM expediente WHERE dia = ?")
+    .get(diaDaSemana(data));
   if (!dia || !dia.aberto) return [];
 
   const abre = paraMinutos(dia.abre);
@@ -104,7 +128,7 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const ocupados = conn
     .prepare(
       `SELECT inicio, fim FROM agendamentos
-       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado' AND excluido_em IS NULL`
+       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado' AND excluido_em IS NULL`,
     )
     .all(data, barbeiroId)
     .map((a) => [paraMinutos(a.inicio), paraMinutos(a.fim)]);
@@ -112,7 +136,7 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const bloqueios = conn
     .prepare(
       `SELECT inicio, fim FROM bloqueios
-       WHERE data = ? AND (barbeiro_id IS NULL OR barbeiro_id = ?)`
+       WHERE data = ? AND (barbeiro_id IS NULL OR barbeiro_id = ?)`,
     )
     .all(data, barbeiroId)
     .map((b) => [paraMinutos(b.inicio), paraMinutos(b.fim)]);
@@ -126,8 +150,10 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   // grade (ex.: 9h45, com passo de 30 min) esconde o tempo livre logo
   // depois dele até o próximo múltiplo do passo.
   const candidatos = new Set();
-  for (let inicio = abre; inicio + duracao <= fecha; inicio += passo) candidatos.add(inicio);
-  for (const [, f] of intervalos) if (f >= abre && f + duracao <= fecha) candidatos.add(f);
+  for (let inicio = abre; inicio + duracao <= fecha; inicio += passo)
+    candidatos.add(inicio);
+  for (const [, f] of intervalos)
+    if (f >= abre && f + duracao <= fecha) candidatos.add(f);
 
   const livres = [];
   for (const inicio of [...candidatos].sort((a, b) => a - b)) {
@@ -146,7 +172,7 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
  */
 export function diasDisponiveis(quantidade = 30) {
   const conn = getDb();
-  const expediente = conn.prepare('SELECT * FROM expediente').all();
+  const expediente = conn.prepare("SELECT * FROM expediente").all();
   const abertoNoDia = new Map(expediente.map((e) => [e.dia, e.aberto]));
   const hoje = agora().data;
   const datas = [];

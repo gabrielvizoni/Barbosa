@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Calendario, Seta, SetaEsquerda, Xis } from '@/components/Icones';
-import { dataBr } from '@/lib/format';
-import { hojeLocal } from '@/lib/datas-cliente';
-import { usePainelConfig } from './ConfigContext';
+import { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Calendario, Seta, SetaEsquerda, Xis } from "@/components/Icones";
+import { dataBr } from "@/lib/format";
+import { hojeLocal } from "@/lib/datas-cliente";
+import { usePainelConfig } from "./ConfigContext";
 
 /** Chama a API do painel e transforma erro de resposta em exceção com mensagem legível. */
 export async function api(caminho, opcoes = {}) {
   const resposta = await fetch(`/api/admin/${caminho}`, {
-    headers: opcoes.body ? { 'Content-Type': 'application/json' } : undefined,
+    headers: opcoes.body ? { "Content-Type": "application/json" } : undefined,
     ...opcoes,
     body: opcoes.body ? JSON.stringify(opcoes.body) : undefined,
   });
@@ -18,7 +18,7 @@ export async function api(caminho, opcoes = {}) {
   const corpo = await resposta.json().catch(() => ({}));
 
   if (!resposta.ok) {
-    const erro = new Error(corpo.erro || 'Não consegui completar a ação.');
+    const erro = new Error(corpo.erro || "Não consegui completar a ação.");
     erro.status = resposta.status;
     throw erro;
   }
@@ -33,7 +33,12 @@ export function Modal({ titulo, children, aoFechar, rodape }) {
         if (e.target === e.currentTarget) aoFechar();
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-label={titulo}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={titulo}
+      >
         <div className="modal-topo">
           <h2>{titulo}</h2>
           <button className="fechar" onClick={aoFechar} aria-label="Fechar">
@@ -56,16 +61,18 @@ export function Modal({ titulo, children, aoFechar, rodape }) {
 export function ModalConfirmacao({
   titulo,
   mensagem,
-  confirmarLabel = 'Confirmar',
-  cancelarLabel = 'Cancelar',
+  confirmarLabel = "Confirmar",
+  cancelarLabel = "Cancelar",
   perigo = false,
   exigirTexto,
   confirmando = false,
   aoConfirmar,
   aoFechar,
 }) {
-  const [digitado, setDigitado] = useState('');
-  const bloqueado = confirmando || (exigirTexto !== undefined && digitado.trim() !== exigirTexto);
+  const [digitado, setDigitado] = useState("");
+  const bloqueado =
+    confirmando ||
+    (exigirTexto !== undefined && digitado.trim() !== exigirTexto);
 
   return (
     <Modal
@@ -77,7 +84,7 @@ export function ModalConfirmacao({
             {cancelarLabel}
           </button>
           <button
-            className={`btn ${perigo ? 'btn-perigo' : 'btn-ouro'}`}
+            className={`btn ${perigo ? "btn-perigo" : "btn-ouro"}`}
             onClick={aoConfirmar}
             disabled={bloqueado}
           >
@@ -86,7 +93,9 @@ export function ModalConfirmacao({
         </>
       }
     >
-      <div style={{ marginBottom: exigirTexto !== undefined ? 14 : 0 }}>{mensagem}</div>
+      <div style={{ marginBottom: exigirTexto !== undefined ? 14 : 0 }}>
+        {mensagem}
+      </div>
       {exigirTexto !== undefined ? (
         <label className="campo" style={{ marginBottom: 0 }}>
           <span>
@@ -106,12 +115,16 @@ export function ModalConfirmacao({
 
 export function Etiqueta({ status }) {
   const rotulos = {
-    pendente: 'Pendente',
-    confirmado: 'Confirmado',
-    concluido: 'Concluído',
-    cancelado: 'Cancelado',
+    pendente: "Pendente",
+    confirmado: "Confirmado",
+    concluido: "Concluído",
+    cancelado: "Cancelado",
   };
-  return <span className={`etiqueta etiqueta-${status}`}>{rotulos[status] || status}</span>;
+  return (
+    <span className={`etiqueta etiqueta-${status}`}>
+      {rotulos[status] || status}
+    </span>
+  );
 }
 
 /** Campo de upload de imagem: mostra a prévia e envia pro servidor assim que o arquivo é escolhido. */
@@ -121,20 +134,24 @@ export function CampoImagem({ label, valor, aoMudar, pasta, avisar }) {
 
   async function selecionar(evento) {
     const arquivo = evento.target.files?.[0];
-    evento.target.value = '';
+    evento.target.value = "";
     if (!arquivo) return;
 
     setEnviando(true);
     try {
       const corpo = new FormData();
-      corpo.append('arquivo', arquivo);
-      corpo.append('pasta', pasta);
-      const resposta = await fetch('/api/admin/upload', { method: 'POST', body: corpo });
+      corpo.append("arquivo", arquivo);
+      corpo.append("pasta", pasta);
+      const resposta = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: corpo,
+      });
       const dados = await resposta.json().catch(() => ({}));
-      if (!resposta.ok) throw new Error(dados.erro || 'Não consegui enviar a imagem.');
+      if (!resposta.ok)
+        throw new Error(dados.erro || "Não consegui enviar a imagem.");
       aoMudar(dados.url);
     } catch (erro) {
-      avisar?.(erro.message, 'erro');
+      avisar?.(erro.message, "erro");
     } finally {
       setEnviando(false);
     }
@@ -152,13 +169,13 @@ export function CampoImagem({ label, valor, aoMudar, pasta, avisar }) {
         )}
         <div className="campo-imagem-acoes">
           <label className="btn btn-contorno btn-mini" htmlFor={idEntrada}>
-            {enviando ? 'Enviando…' : valor ? 'Trocar imagem' : 'Enviar imagem'}
+            {enviando ? "Enviando…" : valor ? "Trocar imagem" : "Enviar imagem"}
           </label>
           <input
             id={idEntrada}
             type="file"
             accept="image/png,image/jpeg,image/webp,image/gif"
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
             onChange={selecionar}
             disabled={enviando}
           />
@@ -166,7 +183,7 @@ export function CampoImagem({ label, valor, aoMudar, pasta, avisar }) {
             <button
               type="button"
               className="icone-btn perigo"
-              onClick={() => aoMudar('')}
+              onClick={() => aoMudar("")}
               title="Remover imagem"
             >
               <Xis width={14} height={14} />
@@ -187,10 +204,20 @@ export function Vazio({ titulo, children }) {
   );
 }
 
-const DIAS_SEMANA_LETRA = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+const DIAS_SEMANA_LETRA = ["D", "S", "T", "Q", "Q", "S", "S"];
 const MESES_LONGOS_CALENDARIO = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
 ];
 
 /** As 6 semanas (42 dias) que cobrem o mês, incluindo as pontas dos meses vizinhos. */
@@ -220,7 +247,7 @@ const PAINEL_ALTURA = 370;
  * padrão do sistema. O painel é desenhado num portal fixado à janela, pra
  * não ficar cortado por modais e outros contêineres com overflow: hidden.
  */
-export function SeletorData({ value, onChange, className = '' }) {
+export function SeletorData({ value, onChange, className = "" }) {
   const { fuso } = usePainelConfig();
   const [aberto, setAberto] = useState(false);
   const [cursor, setCursor] = useState(() => {
@@ -234,11 +261,15 @@ export function SeletorData({ value, onChange, className = '' }) {
   useEffect(() => {
     if (!aberto) return;
     function aoClicarFora(e) {
-      if (gatilho.current?.contains(e.target) || painel.current?.contains(e.target)) return;
+      if (
+        gatilho.current?.contains(e.target) ||
+        painel.current?.contains(e.target)
+      )
+        return;
       setAberto(false);
     }
-    document.addEventListener('mousedown', aoClicarFora);
-    return () => document.removeEventListener('mousedown', aoClicarFora);
+    document.addEventListener("mousedown", aoClicarFora);
+    return () => document.removeEventListener("mousedown", aoClicarFora);
   }, [aberto]);
 
   useEffect(() => {
@@ -253,11 +284,11 @@ export function SeletorData({ value, onChange, className = '' }) {
       });
     }
     posicionar();
-    window.addEventListener('resize', posicionar);
-    window.addEventListener('scroll', posicionar, true);
+    window.addEventListener("resize", posicionar);
+    window.addEventListener("scroll", posicionar, true);
     return () => {
-      window.removeEventListener('resize', posicionar);
-      window.removeEventListener('scroll', posicionar, true);
+      window.removeEventListener("resize", posicionar);
+      window.removeEventListener("scroll", posicionar, true);
     };
   }, [aberto]);
 
@@ -284,8 +315,12 @@ export function SeletorData({ value, onChange, className = '' }) {
 
   return (
     <div className={`seletor-data ${className}`} ref={gatilho}>
-      <button type="button" className="entrada mono seletor-data-gatilho" onClick={alternar}>
-        {value ? dataBr(value) : 'dd/mm/aaaa'}
+      <button
+        type="button"
+        className="entrada mono seletor-data-gatilho"
+        onClick={alternar}
+      >
+        {value ? dataBr(value) : "dd/mm/aaaa"}
         <Calendario width={14} height={14} />
       </button>
 
@@ -301,10 +336,18 @@ export function SeletorData({ value, onChange, className = '' }) {
                   {MESES_LONGOS_CALENDARIO[cursor.mes]} de {cursor.ano}
                 </span>
                 <div className="seletor-data-nav">
-                  <button type="button" onClick={() => mudarMes(-1)} aria-label="Mês anterior">
+                  <button
+                    type="button"
+                    onClick={() => mudarMes(-1)}
+                    aria-label="Mês anterior"
+                  >
                     <SetaEsquerda width={13} height={13} />
                   </button>
-                  <button type="button" onClick={() => mudarMes(1)} aria-label="Próximo mês">
+                  <button
+                    type="button"
+                    onClick={() => mudarMes(1)}
+                    aria-label="Próximo mês"
+                  >
                     <Seta width={13} height={13} />
                   </button>
                 </div>
@@ -322,13 +365,13 @@ export function SeletorData({ value, onChange, className = '' }) {
                     type="button"
                     key={c.chave}
                     className={[
-                      'seletor-data-dia',
-                      c.foraDoMes && 'fora',
-                      c.chave === value && 'selecionado',
-                      c.chave === hoje && 'hoje',
+                      "seletor-data-dia",
+                      c.foraDoMes && "fora",
+                      c.chave === value && "selecionado",
+                      c.chave === hoje && "hoje",
                     ]
                       .filter(Boolean)
-                      .join(' ')}
+                      .join(" ")}
                     onClick={() => escolher(c.chave)}
                   >
                     {c.dia}
@@ -337,7 +380,7 @@ export function SeletorData({ value, onChange, className = '' }) {
               </div>
 
               <div className="seletor-data-rodape">
-                <button type="button" onClick={() => escolher('')}>
+                <button type="button" onClick={() => escolher("")}>
                   Limpar
                 </button>
                 <button type="button" onClick={() => escolher(hoje)}>
@@ -345,7 +388,7 @@ export function SeletorData({ value, onChange, className = '' }) {
                 </button>
               </div>
             </div>,
-            document.body
+            document.body,
           )
         : null}
     </div>
@@ -357,7 +400,13 @@ export function SeletorData({ value, onChange, className = '' }) {
  * mesmo mecanismo de portal fixado à janela do SeletorData, só que como
  * lista de opções em vez de calendário. `options` é [{ value, rotulo }].
  */
-export function SeletorLista({ value, onChange, options, placeholder = 'Selecione…', className = '' }) {
+export function SeletorLista({
+  value,
+  onChange,
+  options,
+  placeholder = "Selecione…",
+  className = "",
+}) {
   const [aberto, setAberto] = useState(false);
   const [posicao, setPosicao] = useState(null);
   const gatilho = useRef(null);
@@ -366,11 +415,15 @@ export function SeletorLista({ value, onChange, options, placeholder = 'Selecion
   useEffect(() => {
     if (!aberto) return;
     function aoClicarFora(e) {
-      if (gatilho.current?.contains(e.target) || painel.current?.contains(e.target)) return;
+      if (
+        gatilho.current?.contains(e.target) ||
+        painel.current?.contains(e.target)
+      )
+        return;
       setAberto(false);
     }
-    document.addEventListener('mousedown', aoClicarFora);
-    return () => document.removeEventListener('mousedown', aoClicarFora);
+    document.addEventListener("mousedown", aoClicarFora);
+    return () => document.removeEventListener("mousedown", aoClicarFora);
   }, [aberto]);
 
   useEffect(() => {
@@ -386,11 +439,11 @@ export function SeletorLista({ value, onChange, options, placeholder = 'Selecion
       });
     }
     posicionar();
-    window.addEventListener('resize', posicionar);
-    window.addEventListener('scroll', posicionar, true);
+    window.addEventListener("resize", posicionar);
+    window.addEventListener("scroll", posicionar, true);
     return () => {
-      window.removeEventListener('resize', posicionar);
-      window.removeEventListener('scroll', posicionar, true);
+      window.removeEventListener("resize", posicionar);
+      window.removeEventListener("scroll", posicionar, true);
     };
   }, [aberto]);
 
@@ -403,7 +456,11 @@ export function SeletorLista({ value, onChange, options, placeholder = 'Selecion
 
   return (
     <div className={`seletor-lista ${className}`} ref={gatilho}>
-      <button type="button" className="entrada seletor-lista-gatilho" onClick={() => setAberto((a) => !a)}>
+      <button
+        type="button"
+        className="entrada seletor-lista-gatilho"
+        onClick={() => setAberto((a) => !a)}
+      >
         <span>{selecionada ? selecionada.rotulo : placeholder}</span>
         <Seta width={11} height={11} className="seletor-lista-seta" />
       </button>
@@ -424,14 +481,14 @@ export function SeletorLista({ value, onChange, options, placeholder = 'Selecion
                 <button
                   type="button"
                   key={o.value}
-                  className={`seletor-lista-opcao ${o.value === value ? 'selecionada' : ''}`}
+                  className={`seletor-lista-opcao ${o.value === value ? "selecionada" : ""}`}
                   onClick={() => escolher(o.value)}
                 >
                   {o.rotulo}
                 </button>
               ))}
             </div>,
-            document.body
+            document.body,
           )
         : null}
     </div>

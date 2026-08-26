@@ -1,26 +1,46 @@
-import Link from 'next/link';
-import { lerConfig, lerExpediente, listarBarbeiros, listarProdutos, listarServicos } from '@/lib/db';
-import { moeda, iniciais, NOME_PADRAO } from '@/lib/format';
-import { Local, Relogio, Seta, WhatsApp, Instagram } from '@/components/Icones';
-import Header from '@/components/Header';
-import ServicosSecao from '@/components/ServicosSecao';
-import Animacoes from '@/components/Animacoes';
+import Link from "next/link";
+import {
+  lerConfig,
+  lerExpediente,
+  listarBarbeiros,
+  listarProdutos,
+  listarServicos,
+} from "@/lib/db";
+import { moeda, iniciais, NOME_PADRAO } from "@/lib/format";
+import { Local, Relogio, Seta, WhatsApp, Instagram } from "@/components/Icones";
+import Header from "@/components/Header";
+import ServicosSecao from "@/components/ServicosSecao";
+import Animacoes from "@/components/Animacoes";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-const NOMES_DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+const NOMES_DIAS = [
+  "Domingo",
+  "Segunda",
+  "Terça",
+  "Quarta",
+  "Quinta",
+  "Sexta",
+  "Sábado",
+];
 
 /** Agrupa dias seguidos com o mesmo horário: "Segunda a sexta: 9h às 20h". */
 function resumirExpediente(expediente) {
   const linhas = [];
   let grupo = null;
   for (const dia of [...expediente].sort((a, b) => a.dia - b.dia)) {
-    const chave = dia.aberto ? `${dia.abre}-${dia.fecha}` : 'fechado';
+    const chave = dia.aberto ? `${dia.abre}-${dia.fecha}` : "fechado";
     if (grupo && grupo.chave === chave) {
       grupo.fim = dia.dia;
     } else {
       if (grupo) linhas.push(grupo);
-      grupo = { chave, inicio: dia.dia, fim: dia.dia, aberto: dia.aberto, dados: dia };
+      grupo = {
+        chave,
+        inicio: dia.dia,
+        fim: dia.dia,
+        aberto: dia.aberto,
+        dados: dia,
+      };
     }
   }
   if (grupo) linhas.push(grupo);
@@ -30,7 +50,7 @@ function resumirExpediente(expediente) {
       g.inicio === g.fim
         ? NOMES_DIAS[g.inicio]
         : `${NOMES_DIAS[g.inicio]} a ${NOMES_DIAS[g.fim].toLowerCase()}`;
-    const horas = g.aberto ? `${g.dados.abre} às ${g.dados.fecha}` : 'Fechado';
+    const horas = g.aberto ? `${g.dados.abre} às ${g.dados.fecha}` : "Fechado";
     return { nome, horas };
   });
 }
@@ -43,19 +63,21 @@ export default function PaginaInicial() {
   const barbeiros = listarBarbeiros({ somenteAtivos: true });
   const expediente = resumirExpediente(lerExpediente());
   const nome = config.nome_barbearia || NOME_PADRAO;
-  const linkInstagram = config.instagram ? `https://instagram.com/${config.instagram}` : null;
+  const linkInstagram = config.instagram
+    ? `https://instagram.com/${config.instagram}`
+    : null;
   const linkWhats = config.whatsapp
-    ? `https://wa.me/${config.whatsapp.replace(/\D/g, '').startsWith('55') ? config.whatsapp.replace(/\D/g, '') : `55${config.whatsapp.replace(/\D/g, '')}`}`
+    ? `https://wa.me/${config.whatsapp.replace(/\D/g, "").startsWith("55") ? config.whatsapp.replace(/\D/g, "") : `55${config.whatsapp.replace(/\D/g, "")}`}`
     : null;
   const linkMapa = config.endereco
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(config.endereco)}`
     : null;
 
   const links = [
-    { href: '#servicos', label: 'Serviços' },
-    { href: '#equipe', label: 'Equipe' },
-    ...(produtos.length > 0 ? [{ href: '#produtos', label: 'Produtos' }] : []),
-    { href: '#contato', label: 'Contato' },
+    { href: "#servicos", label: "Serviços" },
+    { href: "#equipe", label: "Equipe" },
+    ...(produtos.length > 0 ? [{ href: "#produtos", label: "Produtos" }] : []),
+    { href: "#contato", label: "Contato" },
   ];
 
   return (
@@ -82,8 +104,8 @@ export default function PaginaInicial() {
               <em>É Resultado</em>
             </h1>
             <p className="capa-texto anim-entrada">
-              Tradição, precisão e estilo. Onde cada detalhe é tratado com a seriedade que você
-              merece.
+              Tradição, precisão e estilo. Onde cada detalhe é tratado com a
+              seriedade que você merece.
             </p>
             <div className="capa-acoes anim-entrada">
               <Link href="/agendar" className="btn btn-ouro">
@@ -116,14 +138,17 @@ export default function PaginaInicial() {
             <div className="secao-cabeca">
               <span className="sobrenome">O que fazemos</span>
               <h2>Nossos serviços</h2>
-              <p>Escolha o serviço na hora de agendar — o preço, a duração e quem atende já vêm junto.</p>
+              <p>
+                Escolha o serviço na hora de agendar — o preço, a duração e quem
+                atende já vêm junto.
+              </p>
             </div>
 
             {servicos.length === 0 ? (
               <div className="vazio">
                 <strong>Nenhum serviço cadastrado ainda</strong>
-                Entre no painel administrativo e cadastre os serviços da casa. Eles aparecem
-                aqui e no agendamento na mesma hora.
+                Entre no painel administrativo e cadastre os serviços da casa.
+                Eles aparecem aqui e no agendamento na mesma hora.
               </div>
             ) : (
               <ServicosSecao servicos={servicos} barbeiros={barbeiros} />
@@ -142,8 +167,8 @@ export default function PaginaInicial() {
             {barbeiros.length === 0 ? (
               <div className="vazio">
                 <strong>Equipe em montagem</strong>
-                Cadastre os profissionais no painel para que os clientes possam escolher com
-                quem querem ser atendidos.
+                Cadastre os profissionais no painel para que os clientes possam
+                escolher com quem querem ser atendidos.
               </div>
             ) : (
               <div className="grade-equipe">
@@ -151,7 +176,11 @@ export default function PaginaInicial() {
                   <article className="cartao-barbeiro" key={barbeiro.id}>
                     {barbeiro.foto ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img className="retrato" src={barbeiro.foto} alt={barbeiro.nome} />
+                      <img
+                        className="retrato"
+                        src={barbeiro.foto}
+                        alt={barbeiro.nome}
+                      />
                     ) : (
                       <div className="retrato" aria-hidden="true">
                         {iniciais(barbeiro.nome)}
@@ -161,7 +190,8 @@ export default function PaginaInicial() {
                     <p className="funcao">{barbeiro.funcao}</p>
                     <p>{barbeiro.bio}</p>
                     <Link href="/agendar" className="cartao-barbeiro-cta">
-                      Agendar com {barbeiro.nome.split(' ')[0]} <Seta width={13} height={13} />
+                      Agendar com {barbeiro.nome.split(" ")[0]}{" "}
+                      <Seta width={13} height={13} />
                     </Link>
                   </article>
                 ))}
@@ -177,7 +207,10 @@ export default function PaginaInicial() {
               <div className="secao-cabeca">
                 <span className="sobrenome">O que vendemos</span>
                 <h2>Nossos produtos</h2>
-                <p>Pomadas, óleos e cuidados que também levam a assinatura da casa.</p>
+                <p>
+                  Pomadas, óleos e cuidados que também levam a assinatura da
+                  casa.
+                </p>
               </div>
 
               <div className="grade">
@@ -185,7 +218,11 @@ export default function PaginaInicial() {
                   <article className="cartao-servico" key={produto.id}>
                     {produto.imagem ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
-                      <img className="cartao-servico-imagem" src={produto.imagem} alt="" />
+                      <img
+                        className="cartao-servico-imagem"
+                        src={produto.imagem}
+                        alt=""
+                      />
                     ) : null}
                     {produto.marca ? (
                       <span className="sobrenome" style={{ marginBottom: 0 }}>
@@ -194,7 +231,9 @@ export default function PaginaInicial() {
                     ) : null}
                     <h3>{produto.nome}</h3>
                     <div className="cartao-rodape">
-                      <span className="preco">{moeda(produto.preco_centavos)}</span>
+                      <span className="preco">
+                        {moeda(produto.preco_centavos)}
+                      </span>
                     </div>
                   </article>
                 ))}
@@ -221,7 +260,11 @@ export default function PaginaInicial() {
                     <div>
                       <h4>Endereço</h4>
                       {linkMapa ? (
-                        <a href={linkMapa} target="_blank" rel="noopener noreferrer">
+                        <a
+                          href={linkMapa}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           {config.endereco}
                         </a>
                       ) : (
@@ -250,7 +293,11 @@ export default function PaginaInicial() {
                     </span>
                     <div>
                       <h4>Instagram</h4>
-                      <a href={linkInstagram} target="_blank" rel="noopener noreferrer">
+                      <a
+                        href={linkInstagram}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         @{config.instagram}
                       </a>
                     </div>
@@ -259,12 +306,22 @@ export default function PaginaInicial() {
               </div>
 
               <div className="contato-cta">
-                <span className="sobrenome" style={{ color: 'var(--dourado-claro)' }}>
+                <span
+                  className="sobrenome"
+                  style={{ color: "var(--dourado-claro)" }}
+                >
                   Prefere marcar agora?
                 </span>
                 <h3>Seu horário em menos de um minuto.</h3>
-                <p>Escolha o serviço, o profissional e o horário — sem ligar, sem cadastro.</p>
-                <Link href="/agendar" className="btn btn-ouro" style={{ marginTop: 6 }}>
+                <p>
+                  Escolha o serviço, o profissional e o horário — sem ligar, sem
+                  cadastro.
+                </p>
+                <Link
+                  href="/agendar"
+                  className="btn btn-ouro"
+                  style={{ marginTop: 6 }}
+                >
                   Agendar horário <Seta />
                 </Link>
                 {linkWhats ? (
@@ -289,8 +346,8 @@ export default function PaginaInicial() {
               <span className="sobrenome">Reserve seu horário</span>
               <h2>Seu próximo corte está a seis cliques.</h2>
               <p>
-                Escolha serviço, profissional, dia e hora. Depois é só o nome e o WhatsApp —
-                a confirmação chega por mensagem.
+                Escolha serviço, profissional, dia e hora. Depois é só o nome e
+                o WhatsApp — a confirmação chega por mensagem.
               </p>
             </div>
             <Link href="/agendar" className="btn btn-ouro">
@@ -307,14 +364,18 @@ export default function PaginaInicial() {
               <div className="marca" style={{ marginBottom: 14 }}>
                 {config.logo_url ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
-                  <img className="marca-logo" src={config.logo_url} alt={nome} />
+                  <img
+                    className="marca-logo"
+                    src={config.logo_url}
+                    alt={nome}
+                  />
                 ) : (
                   <span className="marca-poste" aria-hidden="true" />
                 )}
                 <span className="marca-nome">{nome}</span>
               </div>
               {config.slogan ? (
-                <p style={{ margin: 0, maxWidth: '34ch' }}>{config.slogan}</p>
+                <p style={{ margin: 0, maxWidth: "34ch" }}>{config.slogan}</p>
               ) : null}
             </div>
 
@@ -323,7 +384,11 @@ export default function PaginaInicial() {
               <ul>
                 {expediente.map((linha) => (
                   <li key={linha.nome}>
-                    <Relogio width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+                    <Relogio
+                      width={13}
+                      height={13}
+                      style={{ opacity: 0.6, flexShrink: 0 }}
+                    />
                     {linha.nome}: {linha.horas}
                   </li>
                 ))}
@@ -335,26 +400,46 @@ export default function PaginaInicial() {
               <ul>
                 {config.endereco ? (
                   <li>
-                    <Local width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+                    <Local
+                      width={13}
+                      height={13}
+                      style={{ opacity: 0.6, flexShrink: 0 }}
+                    />
                     {config.endereco}
                   </li>
                 ) : null}
                 {config.whatsapp ? (
                   <li>
-                    <WhatsApp width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+                    <WhatsApp
+                      width={13}
+                      height={13}
+                      style={{ opacity: 0.6, flexShrink: 0 }}
+                    />
                     {config.whatsapp}
                   </li>
                 ) : null}
                 {linkInstagram ? (
                   <li>
-                    <Instagram width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
-                    <a href={linkInstagram} target="_blank" rel="noopener noreferrer">
+                    <Instagram
+                      width={13}
+                      height={13}
+                      style={{ opacity: 0.6, flexShrink: 0 }}
+                    />
+                    <a
+                      href={linkInstagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       @{config.instagram}
                     </a>
                   </li>
                 ) : null}
               </ul>
-              <Link href="/agendar" className="btn btn-ouro btn-mini" style={{ marginTop: 14 }}>
+              <Link
+                href="/agendar"
+                className="btn btn-ouro btn-mini"
+                style={{ marginTop: 14 }}
+              >
                 Agendar horário
               </Link>
             </div>

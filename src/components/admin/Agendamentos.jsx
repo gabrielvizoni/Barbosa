@@ -1,58 +1,84 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { api, Etiqueta, Modal, ModalConfirmacao, SeletorData, SeletorLista, Vazio } from './base';
-import { dataBr, linkConfirmacaoCliente, mascararTelefone, moeda } from '@/lib/format';
-import { usePainelConfig } from './ConfigContext';
-import { Check, Lapis, Lixeira, Mais, Relogio, Xis, Zap } from '@/components/Icones';
-import AgendaPorProfissional from './AgendaVisual';
+import { useCallback, useEffect, useState } from "react";
+import {
+  api,
+  Etiqueta,
+  Modal,
+  ModalConfirmacao,
+  SeletorData,
+  SeletorLista,
+  Vazio,
+} from "./base";
+import {
+  dataBr,
+  linkConfirmacaoCliente,
+  mascararTelefone,
+  moeda,
+} from "@/lib/format";
+import { usePainelConfig } from "./ConfigContext";
+import {
+  Check,
+  Lapis,
+  Lixeira,
+  Mais,
+  Relogio,
+  Xis,
+  Zap,
+} from "@/components/Icones";
+import AgendaPorProfissional from "./AgendaVisual";
 
 const STATUS = [
-  { id: '', rotulo: 'Todos os status' },
-  { id: 'pendente', rotulo: 'Pendentes' },
-  { id: 'confirmado', rotulo: 'Confirmados' },
-  { id: 'concluido', rotulo: 'Concluídos' },
-  { id: 'cancelado', rotulo: 'Cancelados' },
+  { id: "", rotulo: "Todos os status" },
+  { id: "pendente", rotulo: "Pendentes" },
+  { id: "confirmado", rotulo: "Confirmados" },
+  { id: "concluido", rotulo: "Concluídos" },
+  { id: "cancelado", rotulo: "Cancelados" },
 ];
 
 // Espelha src/lib/agendamentos.js — só para decidir quais botões mostrar.
 // Quem garante a regra de verdade é o backend; a UI aqui é só conveniência.
 const TRANSICOES_LEGAIS = {
-  pendente: ['confirmado', 'cancelado'],
-  confirmado: ['concluido', 'cancelado'],
+  pendente: ["confirmado", "cancelado"],
+  confirmado: ["concluido", "cancelado"],
   concluido: [],
-  cancelado: ['pendente', 'confirmado'],
+  cancelado: ["pendente", "confirmado"],
 };
 
 const VAZIO = {
-  cliente_nome: '',
-  cliente_telefone: '',
-  barbeiro_id: '',
-  servico_id: '',
-  data: '',
-  inicio: '',
-  observacoes: '',
+  cliente_nome: "",
+  cliente_telefone: "",
+  barbeiro_id: "",
+  servico_id: "",
+  data: "",
+  inicio: "",
+  observacoes: "",
 };
 
-const VAZIO_REMARCAR = { barbeiro_id: '', servico_id: '', data: '', inicio: '' };
+const VAZIO_REMARCAR = {
+  barbeiro_id: "",
+  servico_id: "",
+  data: "",
+  inicio: "",
+};
 
 export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const { nome } = usePainelConfig();
-  const [visao, setVisao] = useState('dia');
+  const [visao, setVisao] = useState("dia");
   const [itens, setItens] = useState([]);
   const [total, setTotal] = useState(0);
   const [tamanhoPagina, setTamanhoPagina] = useState(100);
   const [pagina, setPagina] = useState(0);
   const [barbeiros, setBarbeiros] = useState([]);
   const [servicos, setServicos] = useState([]);
-  const [busca, setBusca] = useState('');
-  const [status, setStatus] = useState('');
-  const [barbeiro, setBarbeiro] = useState('');
-  const [data, setData] = useState('');
+  const [busca, setBusca] = useState("");
+  const [status, setStatus] = useState("");
+  const [barbeiro, setBarbeiro] = useState("");
+  const [data, setData] = useState("");
 
   const [aberto, setAberto] = useState(false);
   const [novo, setNovo] = useState(VAZIO);
-  const [erroEncaixe, setErroEncaixe] = useState('');
+  const [erroEncaixe, setErroEncaixe] = useState("");
   const [horarios, setHorarios] = useState([]);
   const [horarioManual, setHorarioManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -62,13 +88,19 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
   const [remarcando, setRemarcando] = useState(null); // agendamento em remarcação, ou null
   const [formRemarcar, setFormRemarcar] = useState(VAZIO_REMARCAR);
-  const [erroRemarcar, setErroRemarcar] = useState('');
+  const [erroRemarcar, setErroRemarcar] = useState("");
   const [horariosRemarcar, setHorariosRemarcar] = useState([]);
   const [horarioManualRemarcar, setHorarioManualRemarcar] = useState(false);
   const [salvandoRemarcar, setSalvandoRemarcar] = useState(false);
 
   const carregar = useCallback(() => {
-    const query = new URLSearchParams({ busca, status, barbeiro, data, pagina }).toString();
+    const query = new URLSearchParams({
+      busca,
+      status,
+      barbeiro,
+      data,
+      pagina,
+    }).toString();
     api(`agendamentos?${query}`)
       .then((r) => {
         setItens(r.itens);
@@ -89,15 +121,20 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   }, [carregar]);
 
   useEffect(() => {
-    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(tratarErro);
-    api('servicos').then((r) => setServicos(r.itens.filter((s) => s.ativo))).catch(tratarErro);
+    api("barbeiros")
+      .then((r) => setBarbeiros(r.itens.filter((b) => b.ativo)))
+      .catch(tratarErro);
+    api("servicos")
+      .then((r) => setServicos(r.itens.filter((s) => s.ativo)))
+      .catch(tratarErro);
   }, []);
 
   // Ao ter serviço, profissional e data escolhidos, mostra o que está livre.
   useEffect(() => {
-    if (!novo.barbeiro_id || !novo.servico_id || !novo.data) return setHorarios([]);
-    api('agendamentos', {
-      method: 'PUT',
+    if (!novo.barbeiro_id || !novo.servico_id || !novo.data)
+      return setHorarios([]);
+    api("agendamentos", {
+      method: "PUT",
       body: {
         barbeiro_id: novo.barbeiro_id,
         servico_id: novo.servico_id,
@@ -110,11 +147,15 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
   // Mesma ideia, para o modal de remarcação.
   useEffect(() => {
-    if (!formRemarcar.barbeiro_id || !formRemarcar.servico_id || !formRemarcar.data) {
+    if (
+      !formRemarcar.barbeiro_id ||
+      !formRemarcar.servico_id ||
+      !formRemarcar.data
+    ) {
       return setHorariosRemarcar([]);
     }
-    api('agendamentos', {
-      method: 'PUT',
+    api("agendamentos", {
+      method: "PUT",
       body: {
         barbeiro_id: formRemarcar.barbeiro_id,
         servico_id: formRemarcar.servico_id,
@@ -129,10 +170,13 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
     if (processando) return;
     setProcessando(id);
     try {
-      await api(`agendamentos/${id}`, { method: 'PATCH', body: { status: novoStatus } });
+      await api(`agendamentos/${id}`, {
+        method: "PATCH",
+        body: { status: novoStatus },
+      });
       carregar();
       aoMudar?.();
-      avisar('Status atualizado.');
+      avisar("Status atualizado.");
     } catch (erro) {
       tratarErro(erro);
     } finally {
@@ -145,11 +189,11 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
     if (processando) return;
     setProcessando(id);
     try {
-      await api(`agendamentos/${id}`, { method: 'DELETE' });
+      await api(`agendamentos/${id}`, { method: "DELETE" });
       setExcluindo(null);
       carregar();
       aoMudar?.();
-      avisar('Agendamento excluído.');
+      avisar("Agendamento excluído.");
     } catch (erro) {
       tratarErro(erro);
     } finally {
@@ -159,37 +203,37 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
   function abrirEncaixe() {
     setNovo(VAZIO);
-    setErroEncaixe('');
+    setErroEncaixe("");
     setHorarioManual(false);
     setAberto(true);
   }
 
   async function salvarEncaixe() {
-    setErroEncaixe('');
+    setErroEncaixe("");
     if (novo.cliente_nome.trim().length < 2) {
-      return setErroEncaixe('Escreva o nome do cliente.');
+      return setErroEncaixe("Escreva o nome do cliente.");
     }
     if (!novo.servico_id) {
-      return setErroEncaixe('Escolha o serviço.');
+      return setErroEncaixe("Escolha o serviço.");
     }
     if (!novo.barbeiro_id) {
-      return setErroEncaixe('Escolha o profissional.');
+      return setErroEncaixe("Escolha o profissional.");
     }
     if (!novo.data) {
-      return setErroEncaixe('Escolha a data.');
+      return setErroEncaixe("Escolha a data.");
     }
     if (!novo.inicio) {
-      return setErroEncaixe('Escolha o horário.');
+      return setErroEncaixe("Escolha o horário.");
     }
 
     setSalvando(true);
     try {
-      await api('agendamentos', { method: 'POST', body: novo });
+      await api("agendamentos", { method: "POST", body: novo });
       setAberto(false);
       setNovo(VAZIO);
       carregar();
       aoMudar?.();
-      avisar('Encaixe registrado.');
+      avisar("Encaixe registrado.");
     } catch (erro) {
       if (erro.status === 401) return tratarErro(erro);
       setErroEncaixe(erro.message);
@@ -200,12 +244,12 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
   function abrirRemarcar(a) {
     setFormRemarcar({
-      barbeiro_id: String(a.barbeiro_id ?? ''),
-      servico_id: String(a.servico_id ?? ''),
+      barbeiro_id: String(a.barbeiro_id ?? ""),
+      servico_id: String(a.servico_id ?? ""),
       data: a.data,
       inicio: a.inicio,
     });
-    setErroRemarcar('');
+    setErroRemarcar("");
     // Começa no campo manual, já preenchido com o horário atual: a lista de
     // sugestões (mesma regra do site) não inclui o horário que o próprio
     // agendamento já ocupa, então digitar de novo seria só atrito à toa.
@@ -214,16 +258,17 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   }
 
   async function salvarRemarcar() {
-    setErroRemarcar('');
-    if (!formRemarcar.servico_id) return setErroRemarcar('Escolha o serviço.');
-    if (!formRemarcar.barbeiro_id) return setErroRemarcar('Escolha o profissional.');
-    if (!formRemarcar.data) return setErroRemarcar('Escolha a data.');
-    if (!formRemarcar.inicio) return setErroRemarcar('Escolha o horário.');
+    setErroRemarcar("");
+    if (!formRemarcar.servico_id) return setErroRemarcar("Escolha o serviço.");
+    if (!formRemarcar.barbeiro_id)
+      return setErroRemarcar("Escolha o profissional.");
+    if (!formRemarcar.data) return setErroRemarcar("Escolha a data.");
+    if (!formRemarcar.inicio) return setErroRemarcar("Escolha o horário.");
 
     setSalvandoRemarcar(true);
     try {
       await api(`agendamentos/${remarcando.id}`, {
-        method: 'PATCH',
+        method: "PATCH",
         body: {
           data: formRemarcar.data,
           inicio: formRemarcar.inicio,
@@ -234,7 +279,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       setRemarcando(null);
       carregar();
       aoMudar?.();
-      avisar('Agendamento remarcado.');
+      avisar("Agendamento remarcado.");
     } catch (erro) {
       if (erro.status === 401) return tratarErro(erro);
       setErroRemarcar(erro.message);
@@ -249,8 +294,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
         <div>
           <h1>Agenda</h1>
           <p>
-            Veja o dia por profissional ou a lista completa. Confirme, conclua ou cancele —
-            e registre quem chegou sem marcar.
+            Veja o dia por profissional ou a lista completa. Confirme, conclua
+            ou cancele — e registre quem chegou sem marcar.
           </p>
         </div>
         <button className="btn btn-ouro" onClick={abrirEncaixe}>
@@ -259,18 +304,21 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
       </div>
 
       <div className="agenda-filtros" style={{ marginBottom: 20 }}>
-        <button className={`pilula ${visao === 'dia' ? 'ativa' : ''}`} onClick={() => setVisao('dia')}>
+        <button
+          className={`pilula ${visao === "dia" ? "ativa" : ""}`}
+          onClick={() => setVisao("dia")}
+        >
           Agenda do dia
         </button>
         <button
-          className={`pilula ${visao === 'lista' ? 'ativa' : ''}`}
-          onClick={() => setVisao('lista')}
+          className={`pilula ${visao === "lista" ? "ativa" : ""}`}
+          onClick={() => setVisao("lista")}
         >
           Lista completa
         </button>
       </div>
 
-      {visao === 'dia' ? (
+      {visao === "dia" ? (
         <AgendaPorProfissional barbeiros={barbeiros} tratarErro={tratarErro} />
       ) : (
         <section className="bloco">
@@ -291,8 +339,11 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               value={barbeiro}
               onChange={setBarbeiro}
               options={[
-                { value: '', rotulo: 'Todos os profissionais' },
-                ...barbeiros.map((b) => ({ value: String(b.id), rotulo: b.nome })),
+                { value: "", rotulo: "Todos os profissionais" },
+                ...barbeiros.map((b) => ({
+                  value: String(b.id),
+                  rotulo: b.nome,
+                })),
               ]}
             />
             <SeletorData value={data} onChange={setData} />
@@ -328,7 +379,12 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                       <td>
                         <strong>{a.cliente_nome}</strong>
                         {a.observacoes ? (
-                          <div style={{ fontSize: 12.5, color: 'var(--tinta-suave)' }}>
+                          <div
+                            style={{
+                              fontSize: 12.5,
+                              color: "var(--tinta-suave)",
+                            }}
+                          >
                             {a.observacoes}
                           </div>
                         ) : null}
@@ -355,37 +411,42 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                               <Zap width={15} height={15} />
                             </a>
                           ) : null}
-                          {TRANSICOES_LEGAIS[a.status]?.includes('pendente') ? (
+                          {TRANSICOES_LEGAIS[a.status]?.includes("pendente") ? (
                             <button
                               className="icone-btn"
-                              onClick={() => mudarStatus(a.id, 'pendente')}
+                              onClick={() => mudarStatus(a.id, "pendente")}
                               title="Reabrir"
                               disabled={processando === a.id}
                             >
                               <Relogio width={15} height={15} />
                             </button>
                           ) : null}
-                          {TRANSICOES_LEGAIS[a.status]?.includes('confirmado') ? (
+                          {TRANSICOES_LEGAIS[a.status]?.includes(
+                            "confirmado",
+                          ) ? (
                             <button
                               className="icone-btn positivo"
-                              onClick={() => mudarStatus(a.id, 'confirmado')}
+                              onClick={() => mudarStatus(a.id, "confirmado")}
                               title="Confirmar"
                               disabled={processando === a.id}
                             >
                               <Check width={15} height={15} />
                             </button>
                           ) : null}
-                          {TRANSICOES_LEGAIS[a.status]?.includes('concluido') ? (
+                          {TRANSICOES_LEGAIS[a.status]?.includes(
+                            "concluido",
+                          ) ? (
                             <button
                               className="icone-btn positivo"
-                              onClick={() => mudarStatus(a.id, 'concluido')}
+                              onClick={() => mudarStatus(a.id, "concluido")}
                               title="Marcar como concluído"
                               disabled={processando === a.id}
                             >
                               <Check width={15} height={15} />
                             </button>
                           ) : null}
-                          {a.status === 'pendente' || a.status === 'confirmado' ? (
+                          {a.status === "pendente" ||
+                          a.status === "confirmado" ? (
                             <button
                               className="icone-btn"
                               onClick={() => abrirRemarcar(a)}
@@ -395,10 +456,12 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                               <Lapis width={15} height={15} />
                             </button>
                           ) : null}
-                          {TRANSICOES_LEGAIS[a.status]?.includes('cancelado') ? (
+                          {TRANSICOES_LEGAIS[a.status]?.includes(
+                            "cancelado",
+                          ) ? (
                             <button
                               className="icone-btn perigo"
-                              onClick={() => mudarStatus(a.id, 'cancelado')}
+                              onClick={() => mudarStatus(a.id, "cancelado")}
                               title="Cancelar"
                               disabled={processando === a.id}
                             >
@@ -425,19 +488,19 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           {total > tamanhoPagina ? (
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
                 marginTop: 14,
                 fontSize: 13.5,
-                color: 'var(--tinta-suave)',
+                color: "var(--tinta-suave)",
               }}
             >
               <span>
-                Mostrando {pagina * tamanhoPagina + 1}–{Math.min(total, (pagina + 1) * tamanhoPagina)}{' '}
-                de {total}
+                Mostrando {pagina * tamanhoPagina + 1}–
+                {Math.min(total, (pagina + 1) * tamanhoPagina)} de {total}
               </span>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: "flex", gap: 8 }}>
                 <button
                   className="btn btn-contorno"
                   onClick={() => setPagina((p) => Math.max(0, p - 1))}
@@ -464,16 +527,25 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           aoFechar={() => setAberto(false)}
           rodape={
             <>
-              <button className="btn btn-contorno" onClick={() => setAberto(false)}>
+              <button
+                className="btn btn-contorno"
+                onClick={() => setAberto(false)}
+              >
                 Cancelar
               </button>
-              <button className="btn btn-ouro" onClick={salvarEncaixe} disabled={salvando}>
-                {salvando ? 'Salvando…' : 'Registrar'}
+              <button
+                className="btn btn-ouro"
+                onClick={salvarEncaixe}
+                disabled={salvando}
+              >
+                {salvando ? "Salvando…" : "Registrar"}
               </button>
             </>
           }
         >
-          {erroEncaixe ? <div className="aviso aviso-erro">{erroEncaixe}</div> : null}
+          {erroEncaixe ? (
+            <div className="aviso aviso-erro">{erroEncaixe}</div>
+          ) : null}
 
           <div className="linha-campos">
             <label className="campo">
@@ -481,7 +553,9 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               <input
                 className="entrada"
                 value={novo.cliente_nome}
-                onChange={(e) => setNovo({ ...novo, cliente_nome: e.target.value })}
+                onChange={(e) =>
+                  setNovo({ ...novo, cliente_nome: e.target.value })
+                }
               />
             </label>
             <label className="campo">
@@ -490,7 +564,10 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 className="entrada mono"
                 value={novo.cliente_telefone}
                 onChange={(e) =>
-                  setNovo({ ...novo, cliente_telefone: mascararTelefone(e.target.value) })
+                  setNovo({
+                    ...novo,
+                    cliente_telefone: mascararTelefone(e.target.value),
+                  })
                 }
                 placeholder="(44) 99999-0000"
               />
@@ -503,7 +580,9 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               <select
                 className="entrada"
                 value={novo.servico_id}
-                onChange={(e) => setNovo({ ...novo, servico_id: e.target.value, inicio: '' })}
+                onChange={(e) =>
+                  setNovo({ ...novo, servico_id: e.target.value, inicio: "" })
+                }
               >
                 <option value="">Escolha…</option>
                 {servicos.map((s) => (
@@ -518,7 +597,9 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               <select
                 className="entrada"
                 value={novo.barbeiro_id}
-                onChange={(e) => setNovo({ ...novo, barbeiro_id: e.target.value, inicio: '' })}
+                onChange={(e) =>
+                  setNovo({ ...novo, barbeiro_id: e.target.value, inicio: "" })
+                }
               >
                 <option value="">Escolha…</option>
                 {barbeiros.map((b) => (
@@ -535,7 +616,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
             <SeletorData
               className="seletor-data-bloco"
               value={novo.data}
-              onChange={(data) => setNovo({ ...novo, data, inicio: '' })}
+              onChange={(data) => setNovo({ ...novo, data, inicio: "" })}
             />
           </label>
 
@@ -552,7 +633,10 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                     onClick={() => setNovo({ ...novo, inicio: h })}
                     style={
                       novo.inicio === h
-                        ? { borderColor: 'var(--verde-500)', background: 'rgba(47,98,72,.1)' }
+                        ? {
+                            borderColor: "var(--verde-500)",
+                            background: "rgba(47,98,72,.1)",
+                          }
                         : undefined
                     }
                   >
@@ -561,10 +645,16 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 ))}
               </div>
             ) : (
-              <p style={{ margin: '2px 0 0', fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontSize: 13.5,
+                  color: "var(--tinta-suave)",
+                }}
+              >
                 {novo.barbeiro_id && novo.servico_id && novo.data
-                  ? 'Nenhum horário livre nesse dia — escolha outro dia ou digite um horário manualmente.'
-                  : 'Escolha o serviço, o profissional e a data pra ver os horários livres.'}
+                  ? "Nenhum horário livre nesse dia — escolha outro dia ou digite um horário manualmente."
+                  : "Escolha o serviço, o profissional e a data pra ver os horários livres."}
               </p>
             )}
 
@@ -594,13 +684,15 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
             <input
               className="entrada"
               value={novo.observacoes}
-              onChange={(e) => setNovo({ ...novo, observacoes: e.target.value })}
+              onChange={(e) =>
+                setNovo({ ...novo, observacoes: e.target.value })
+              }
             />
           </label>
 
           <div className="aviso" style={{ marginBottom: 0 }}>
-            O encaixe entra já confirmado e pode ficar fora do expediente — só não pode
-            colidir com outro atendimento do mesmo profissional.
+            O encaixe entra já confirmado e pode ficar fora do expediente — só
+            não pode colidir com outro atendimento do mesmo profissional.
           </div>
         </Modal>
       ) : null}
@@ -610,11 +702,14 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           titulo="Excluir agendamento"
           mensagem={
             <>
-              Excluir o agendamento de <strong>{excluindo.cliente_nome}</strong> em{' '}
-              {dataBr(excluindo.data)} às {excluindo.inicio}? Não dá para desfazer.
+              Excluir o agendamento de <strong>{excluindo.cliente_nome}</strong>{" "}
+              em {dataBr(excluindo.data)} às {excluindo.inicio}? Não dá para
+              desfazer.
             </>
           }
-          confirmarLabel={processando === excluindo.id ? 'Excluindo…' : 'Excluir'}
+          confirmarLabel={
+            processando === excluindo.id ? "Excluindo…" : "Excluir"
+          }
           perigo
           exigirTexto={excluindo.cliente_nome}
           confirmando={processando === excluindo.id}
@@ -629,16 +724,25 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           aoFechar={() => setRemarcando(null)}
           rodape={
             <>
-              <button className="btn btn-contorno" onClick={() => setRemarcando(null)}>
+              <button
+                className="btn btn-contorno"
+                onClick={() => setRemarcando(null)}
+              >
                 Cancelar
               </button>
-              <button className="btn btn-ouro" onClick={salvarRemarcar} disabled={salvandoRemarcar}>
-                {salvandoRemarcar ? 'Salvando…' : 'Remarcar'}
+              <button
+                className="btn btn-ouro"
+                onClick={salvarRemarcar}
+                disabled={salvandoRemarcar}
+              >
+                {salvandoRemarcar ? "Salvando…" : "Remarcar"}
               </button>
             </>
           }
         >
-          {erroRemarcar ? <div className="aviso aviso-erro">{erroRemarcar}</div> : null}
+          {erroRemarcar ? (
+            <div className="aviso aviso-erro">{erroRemarcar}</div>
+          ) : null}
 
           <div className="linha-campos">
             <label className="campo">
@@ -647,7 +751,11 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 className="entrada"
                 value={formRemarcar.servico_id}
                 onChange={(e) =>
-                  setFormRemarcar({ ...formRemarcar, servico_id: e.target.value, inicio: '' })
+                  setFormRemarcar({
+                    ...formRemarcar,
+                    servico_id: e.target.value,
+                    inicio: "",
+                  })
                 }
               >
                 <option value="">Escolha…</option>
@@ -664,7 +772,11 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 className="entrada"
                 value={formRemarcar.barbeiro_id}
                 onChange={(e) =>
-                  setFormRemarcar({ ...formRemarcar, barbeiro_id: e.target.value, inicio: '' })
+                  setFormRemarcar({
+                    ...formRemarcar,
+                    barbeiro_id: e.target.value,
+                    inicio: "",
+                  })
                 }
               >
                 <option value="">Escolha…</option>
@@ -682,7 +794,9 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
             <SeletorData
               className="seletor-data-bloco"
               value={formRemarcar.data}
-              onChange={(data) => setFormRemarcar({ ...formRemarcar, data, inicio: '' })}
+              onChange={(data) =>
+                setFormRemarcar({ ...formRemarcar, data, inicio: "" })
+              }
             />
           </label>
 
@@ -696,10 +810,15 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                     key={h}
                     type="button"
                     className="caixa mono"
-                    onClick={() => setFormRemarcar({ ...formRemarcar, inicio: h })}
+                    onClick={() =>
+                      setFormRemarcar({ ...formRemarcar, inicio: h })
+                    }
                     style={
                       formRemarcar.inicio === h
-                        ? { borderColor: 'var(--verde-500)', background: 'rgba(47,98,72,.1)' }
+                        ? {
+                            borderColor: "var(--verde-500)",
+                            background: "rgba(47,98,72,.1)",
+                          }
                         : undefined
                     }
                   >
@@ -708,9 +827,15 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 ))}
               </div>
             ) : (
-              <p style={{ margin: '2px 0 0', fontSize: 13.5, color: 'var(--tinta-suave)' }}>
-                Nenhuma sugestão pronta pra esse dia — o horário atual já está preenchido
-                abaixo, ou digite outro.
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontSize: 13.5,
+                  color: "var(--tinta-suave)",
+                }}
+              >
+                Nenhuma sugestão pronta pra esse dia — o horário atual já está
+                preenchido abaixo, ou digite outro.
               </p>
             )}
 
@@ -720,7 +845,9 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 className="entrada mono"
                 style={{ marginTop: 10, maxWidth: 160 }}
                 value={formRemarcar.inicio}
-                onChange={(e) => setFormRemarcar({ ...formRemarcar, inicio: e.target.value })}
+                onChange={(e) =>
+                  setFormRemarcar({ ...formRemarcar, inicio: e.target.value })
+                }
                 autoFocus
               />
             ) : (
@@ -736,8 +863,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
           </div>
 
           <div className="aviso" style={{ marginBottom: 0 }}>
-            A remarcação pode ficar fora do expediente — só não pode colidir com outro
-            atendimento do mesmo profissional.
+            A remarcação pode ficar fora do expediente — só não pode colidir com
+            outro atendimento do mesmo profissional.
           </div>
         </Modal>
       ) : null}

@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { animate, createScope, onScroll, stagger, utils } from 'animejs';
+import { useEffect } from "react";
+import { animate, createScope, onScroll, stagger, utils } from "animejs";
 
 /**
  * Dá vida ao site: entrada suave da capa, cartões que revelam ao rolar a
@@ -10,7 +10,8 @@ import { animate, createScope, onScroll, stagger, utils } from 'animejs';
  */
 export default function Animacoes() {
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return undefined;
 
     // Usado nas animações "temporárias" (hover, clique) — depois que elas
     // terminam, tira o estilo inline que deixaram para trás, assim o :hover
@@ -24,19 +25,19 @@ export default function Animacoes() {
     // :hover (ex.: o card de serviço sobe ao passar o mouse).
     function aoRevelar(elementos) {
       return () => {
-        for (const el of elementos) el.style.transform = '';
+        for (const el of elementos) el.style.transform = "";
       };
     }
 
     const escopo = createScope().add(() => {
       // Entrada da capa, uma vez, ao carregar a página.
-      const entradas = document.querySelectorAll('.anim-entrada');
+      const entradas = document.querySelectorAll(".anim-entrada");
       animate(entradas, {
         opacity: [0, 1],
         translateY: [22, 0],
         delay: stagger(90, { start: 80 }),
         duration: 700,
-        ease: 'outQuart',
+        ease: "outQuart",
         onComplete: aoRevelar(entradas),
       });
 
@@ -46,15 +47,15 @@ export default function Animacoes() {
       // movimento antes dele já ter acabado. Aqui só dispara quando o topo
       // do alvo alcança 75% da altura da tela, com boa margem ainda
       // visível pra animação rodar à vista.
-      const gatilhoDeScroll = { enter: '75% top', once: true };
+      const gatilhoDeScroll = { enter: "75% top", once: true };
 
       // Título de cada seção revela ao chegar perto dele na rolagem.
-      document.querySelectorAll('.secao-cabeca').forEach((cabeca) => {
+      document.querySelectorAll(".secao-cabeca").forEach((cabeca) => {
         animate(cabeca, {
           opacity: [0, 1],
           translateY: [18, 0],
           duration: 480,
-          ease: 'outQuart',
+          ease: "outQuart",
           onComplete: aoRevelar([cabeca]),
           autoplay: onScroll({ target: cabeca, ...gatilhoDeScroll }),
         });
@@ -66,9 +67,13 @@ export default function Animacoes() {
       // como se fosse uma trilha. A capa fica de fora dessa alternância: ela
       // já tem a própria entrada, ao carregar a página (ver .anim-entrada
       // acima), e continua "normal" — sem esperar rolagem nem vir de lado.
-      const secoesComQuadrados = document.querySelectorAll('main > .secao, main > .chamada');
+      const secoesComQuadrados = document.querySelectorAll(
+        "main > .secao, main > .chamada",
+      );
       secoesComQuadrados.forEach((secao, indice) => {
-        const contentor = secao.querySelector('.grade, .grade-equipe, .contato-grade, .chamada-interna');
+        const contentor = secao.querySelector(
+          ".grade, .grade-equipe, .contato-grade, .chamada-interna",
+        );
         const quadrados = contentor ? Array.from(contentor.children) : [];
         if (!quadrados.length) return;
 
@@ -78,65 +83,89 @@ export default function Animacoes() {
           translateX: daDireita ? [56, 0] : [-56, 0],
           delay: stagger(60),
           duration: 480,
-          ease: 'outQuart',
+          ease: "outQuart",
           onComplete: aoRevelar(quadrados),
           autoplay: onScroll({ target: secao, ...gatilhoDeScroll }),
         });
       });
 
       // Zoom suave na foto ao passar o mouse.
-      document.querySelectorAll('.cartao-servico-imagem, .retrato').forEach((foto) => {
-        foto.addEventListener('mouseenter', () => {
-          animate(foto, { scale: 1.06, duration: 450, ease: 'outQuart' });
+      document
+        .querySelectorAll(".cartao-servico-imagem, .retrato")
+        .forEach((foto) => {
+          foto.addEventListener("mouseenter", () => {
+            animate(foto, { scale: 1.06, duration: 450, ease: "outQuart" });
+          });
+          foto.addEventListener("mouseleave", () => {
+            animate(foto, {
+              scale: 1,
+              duration: 450,
+              ease: "outQuart",
+              onComplete: aoTerminar,
+            });
+          });
         });
-        foto.addEventListener('mouseleave', () => {
-          animate(foto, { scale: 1, duration: 450, ease: 'outQuart', onComplete: aoTerminar });
-        });
-      });
     });
 
     // Resposta ao clicar em qualquer botão: afunda e volta com uma leve
     // molinha. Fica em document (delegado) porque o Next troca de página
     // sem recarregar — por isso é removido manualmente no cleanup.
     function aoPressionar(evento) {
-      const botao = evento.target.closest('.btn');
+      const botao = evento.target.closest(".btn");
       if (!botao) return;
-      animate(botao, { scale: 0.95, duration: 120, ease: 'outQuad' });
+      animate(botao, { scale: 0.95, duration: 120, ease: "outQuad" });
       const soltar = () =>
-        animate(botao, { scale: 1, duration: 320, ease: 'outBack', onComplete: aoTerminar });
-      window.addEventListener('pointerup', soltar, { once: true });
-      window.addEventListener('pointercancel', soltar, { once: true });
+        animate(botao, {
+          scale: 1,
+          duration: 320,
+          ease: "outBack",
+          onComplete: aoTerminar,
+        });
+      window.addEventListener("pointerup", soltar, { once: true });
+      window.addEventListener("pointercancel", soltar, { once: true });
     }
-    document.addEventListener('pointerdown', aoPressionar);
+    document.addEventListener("pointerdown", aoPressionar);
 
     // Clique num link de âncora (Serviços, Equipe, Contato...): em vez do
     // pulo seco do navegador, rola suavemente até a seção — descontando a
     // altura do cabeçalho fixo, senão o título fica escondido atrás dele —
     // e dá um pequeno salto no próprio link, como resposta ao toque.
     function aoClicarLink(evento) {
-      if (evento.button !== 0 || evento.metaKey || evento.ctrlKey || evento.shiftKey || evento.altKey) {
+      if (
+        evento.button !== 0 ||
+        evento.metaKey ||
+        evento.ctrlKey ||
+        evento.shiftKey ||
+        evento.altKey
+      ) {
         return;
       }
       const link = evento.target.closest('a[href^="#"]');
       if (!link) return;
-      const id = link.getAttribute('href').slice(1);
+      const id = link.getAttribute("href").slice(1);
       const alvo = id && document.getElementById(id);
       if (!alvo) return;
 
       evento.preventDefault();
 
-      const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reduzido = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
       if (!reduzido) {
         animate(link, {
           keyframes: [{ translateY: -4 }, { translateY: 0 }],
           duration: 420,
-          ease: 'outBack',
+          ease: "outBack",
           onComplete: aoTerminar,
         });
       }
 
-      const folga = (document.querySelector('.cabecalho')?.offsetHeight || 0) + 16;
-      const destino = Math.max(0, alvo.getBoundingClientRect().top + window.scrollY - folga);
+      const folga =
+        (document.querySelector(".cabecalho")?.offsetHeight || 0) + 16;
+      const destino = Math.max(
+        0,
+        alvo.getBoundingClientRect().top + window.scrollY - folga,
+      );
 
       if (reduzido) {
         window.scrollTo(0, destino);
@@ -148,15 +177,15 @@ export default function Animacoes() {
       animate(posicao, {
         y: destino,
         duration: Math.min(900, Math.max(380, distancia * 0.6)),
-        ease: 'inOutQuad',
+        ease: "inOutQuad",
         onUpdate: () => window.scrollTo(0, posicao.y),
       });
     }
-    document.addEventListener('click', aoClicarLink);
+    document.addEventListener("click", aoClicarLink);
 
     return () => {
-      document.removeEventListener('pointerdown', aoPressionar);
-      document.removeEventListener('click', aoClicarLink);
+      document.removeEventListener("pointerdown", aoPressionar);
+      document.removeEventListener("click", aoClicarLink);
       escopo.revert();
     };
   }, []);

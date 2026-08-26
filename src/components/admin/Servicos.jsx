@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { api, CampoImagem, Modal, Vazio } from './base';
-import { moeda, paraCentavos, paraReais } from '@/lib/format';
-import { Lapis, Lixeira, Mais } from '@/components/Icones';
+import { useCallback, useEffect, useState } from "react";
+import { api, CampoImagem, Modal, ModalConfirmacao, Vazio } from "./base";
+import { moeda, paraCentavos, paraReais } from "@/lib/format";
+import { Lapis, Lixeira, Mais } from "@/components/Icones";
 
 const VAZIO = {
-  nome: '',
-  descricao: '',
-  categoria: 'Corte',
-  preco: '',
+  nome: "",
+  descricao: "",
+  categoria: "Corte",
+  preco: "",
   duracao_min: 30,
-  imagem: '',
+  imagem: "",
   ativo: 1,
   barbeiros: [],
 };
@@ -21,10 +21,15 @@ export default function Servicos({ avisar, tratarErro }) {
   const [barbeiros, setBarbeiros] = useState([]);
   const [editando, setEditando] = useState(null);
   const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState(null);
 
   const carregar = useCallback(() => {
-    api('servicos').then((r) => setItens(r.itens)).catch(tratarErro);
-    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(tratarErro);
+    api("servicos")
+      .then((r) => setItens(r.itens))
+      .catch(tratarErro);
+    api("barbeiros")
+      .then((r) => setBarbeiros(r.itens.filter((b) => b.ativo)))
+      .catch(tratarErro);
   }, [tratarErro]);
 
   useEffect(carregar, [carregar]);
@@ -39,9 +44,12 @@ export default function Servicos({ avisar, tratarErro }) {
   }
 
   async function salvar() {
-    if (!editando.nome.trim()) return avisar('Dê um nome ao serviço.', 'erro');
+    if (!editando.nome.trim()) return avisar("Dê um nome ao serviço.", "erro");
     if (editando.barbeiros.length === 0) {
-      return avisar('Escolha ao menos um profissional para executar o serviço.', 'erro');
+      return avisar(
+        "Escolha ao menos um profissional para executar o serviço.",
+        "erro",
+      );
     }
 
     const corpo = {
@@ -58,13 +66,16 @@ export default function Servicos({ avisar, tratarErro }) {
     setSalvando(true);
     try {
       if (editando.id) {
-        await api(`servicos/${editando.id}`, { method: 'PATCH', body: corpo });
+        await api(`servicos/${editando.id}`, { method: "PATCH", body: corpo });
       } else {
-        await api('servicos', { method: 'POST', body: { ...corpo, ordem: itens.length + 1 } });
+        await api("servicos", {
+          method: "POST",
+          body: { ...corpo, ordem: itens.length + 1 },
+        });
       }
       setEditando(null);
       carregar();
-      avisar('Serviço salvo.');
+      avisar("Serviço salvo.");
     } catch (erro) {
       tratarErro(erro);
     } finally {
@@ -74,19 +85,23 @@ export default function Servicos({ avisar, tratarErro }) {
 
   async function alternarAtivo(s) {
     try {
-      await api(`servicos/${s.id}`, { method: 'PATCH', body: { ativo: s.ativo ? 0 : 1 } });
+      await api(`servicos/${s.id}`, {
+        method: "PATCH",
+        body: { ativo: s.ativo ? 0 : 1 },
+      });
       carregar();
     } catch (erro) {
       tratarErro(erro);
     }
   }
 
-  async function excluir(s) {
-    if (!confirm(`Excluir o serviço ${s.nome}?`)) return;
+  async function confirmarExcluir() {
+    const s = excluindo;
     try {
-      const r = await api(`servicos/${s.id}`, { method: 'DELETE' });
+      const r = await api(`servicos/${s.id}`, { method: "DELETE" });
+      setExcluindo(null);
       carregar();
-      avisar(r.mensagem || 'Serviço excluído.');
+      avisar(r.mensagem || "Serviço excluído.");
     } catch (erro) {
       tratarErro(erro);
     }
@@ -104,7 +119,10 @@ export default function Servicos({ avisar, tratarErro }) {
       <div className="conteudo-topo">
         <div>
           <h1>Serviços</h1>
-          <p>O que o cliente vê na primeira tela do agendamento. O preço e a duração vêm daqui.</p>
+          <p>
+            O que o cliente vê na primeira tela do agendamento. O preço e a
+            duração vêm daqui.
+          </p>
         </div>
         <button className="btn btn-ouro" onClick={abrirNovo}>
           <Mais /> Novo serviço
@@ -113,16 +131,17 @@ export default function Servicos({ avisar, tratarErro }) {
 
       {itens.length > 0 && itens.some((s) => !s.descricao.trim()) ? (
         <div className="aviso" style={{ marginBottom: 16 }}>
-          {itens.filter((s) => !s.descricao.trim()).length} de {itens.length} serviços estão sem
-          descrição — é o texto que o cliente vê ao escolher, na tela de agendamento.
+          {itens.filter((s) => !s.descricao.trim()).length} de {itens.length}{" "}
+          serviços estão sem descrição — é o texto que o cliente vê ao escolher,
+          na tela de agendamento.
         </div>
       ) : null}
 
       <section className="bloco">
         {itens.length === 0 ? (
           <Vazio titulo="Nenhum serviço cadastrado">
-            Enquanto não houver serviço, o agendamento fica fechado. Cadastre o primeiro — corte,
-            barba, o que a casa faz.
+            Enquanto não houver serviço, o agendamento fica fechado. Cadastre o
+            primeiro — corte, barba, o que a casa faz.
           </Vazio>
         ) : (
           <div className="tabela-rolagem">
@@ -145,55 +164,75 @@ export default function Servicos({ avisar, tratarErro }) {
                     <td>
                       {s.imagem ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img className="avatar-mini" src={s.imagem} alt="" />
+                        <img
+                          className="avatar-mini"
+                          src={s.imagem}
+                          alt=""
+                          width={42}
+                          height={42}
+                          loading="lazy"
+                        />
                       ) : null}
                     </td>
                     <td>
                       <strong>{s.nome}</strong>
                       {s.descricao.trim() ? (
-                        <div style={{ fontSize: 12.5, color: 'var(--tinta-suave)' }}>
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            color: "var(--tinta-suave)",
+                          }}
+                        >
                           {s.descricao}
                         </div>
                       ) : (
                         <div style={{ marginTop: 3 }}>
-                          <span className="etiqueta etiqueta-pendente">Sem descrição</span>
+                          <span className="etiqueta etiqueta-pendente">
+                            Sem descrição
+                          </span>
                         </div>
                       )}
                     </td>
                     <td>
-                      <span className="etiqueta etiqueta-neutra">{s.categoria}</span>
+                      <span className="etiqueta etiqueta-neutra">
+                        {s.categoria}
+                      </span>
                     </td>
                     <td style={{ fontSize: 13.5 }}>
                       {s.barbeiros.length === 0
-                        ? '— ninguém'
+                        ? "— ninguém"
                         : barbeiros
                             .filter((b) => s.barbeiros.includes(b.id))
-                            .map((b) => b.nome.split(' ')[0])
-                            .join(', ')}
+                            .map((b) => b.nome.split(" ")[0])
+                            .join(", ")}
                     </td>
                     <td className="mono">{s.duracao_min} min</td>
                     <td className="mono">{moeda(s.preco_centavos)}</td>
                     <td>
                       <span
-                        className={`etiqueta ${s.ativo ? 'etiqueta-confirmado' : 'etiqueta-neutra'}`}
+                        className={`etiqueta ${s.ativo ? "etiqueta-confirmado" : "etiqueta-neutra"}`}
                       >
-                        {s.ativo ? 'No ar' : 'Fora'}
+                        {s.ativo ? "No ar" : "Fora"}
                       </span>
                     </td>
                     <td>
                       <div className="acoes-linha">
-                        <button className="icone-btn" onClick={() => abrirEdicao(s)} title="Editar">
+                        <button
+                          className="icone-btn"
+                          onClick={() => abrirEdicao(s)}
+                          title="Editar"
+                        >
                           <Lapis width={15} height={15} />
                         </button>
                         <button
                           className="btn btn-contorno btn-mini"
                           onClick={() => alternarAtivo(s)}
                         >
-                          {s.ativo ? 'Tirar' : 'Voltar'}
+                          {s.ativo ? "Tirar" : "Voltar"}
                         </button>
                         <button
                           className="icone-btn perigo"
-                          onClick={() => excluir(s)}
+                          onClick={() => setExcluindo(s)}
                           title="Excluir"
                         >
                           <Lixeira width={15} height={15} />
@@ -208,17 +247,39 @@ export default function Servicos({ avisar, tratarErro }) {
         )}
       </section>
 
+      {excluindo ? (
+        <ModalConfirmacao
+          titulo="Excluir serviço"
+          mensagem={
+            <>
+              Excluir o serviço <strong>{excluindo.nome}</strong>?
+            </>
+          }
+          confirmarLabel="Excluir"
+          perigo
+          aoConfirmar={confirmarExcluir}
+          aoFechar={() => setExcluindo(null)}
+        />
+      ) : null}
+
       {editando ? (
         <Modal
-          titulo={editando.id ? 'Editar serviço' : 'Novo serviço'}
+          titulo={editando.id ? "Editar serviço" : "Novo serviço"}
           aoFechar={() => setEditando(null)}
           rodape={
             <>
-              <button className="btn btn-contorno" onClick={() => setEditando(null)}>
+              <button
+                className="btn btn-contorno"
+                onClick={() => setEditando(null)}
+              >
                 Cancelar
               </button>
-              <button className="btn btn-ouro" onClick={salvar} disabled={salvando}>
-                {salvando ? 'Salvando…' : 'Salvar'}
+              <button
+                className="btn btn-ouro"
+                onClick={salvar}
+                disabled={salvando}
+              >
+                {salvando ? "Salvando…" : "Salvar"}
               </button>
             </>
           }
@@ -228,7 +289,9 @@ export default function Servicos({ avisar, tratarErro }) {
             <input
               className="entrada"
               value={editando.nome}
-              onChange={(e) => setEditando({ ...editando, nome: e.target.value })}
+              onChange={(e) =>
+                setEditando({ ...editando, nome: e.target.value })
+              }
               placeholder="Ex: Corte clássico"
               autoFocus
             />
@@ -239,7 +302,9 @@ export default function Servicos({ avisar, tratarErro }) {
             <input
               className="entrada"
               value={editando.descricao}
-              onChange={(e) => setEditando({ ...editando, descricao: e.target.value })}
+              onChange={(e) =>
+                setEditando({ ...editando, descricao: e.target.value })
+              }
               placeholder="Uma linha que aparece embaixo do nome."
             />
           </label>
@@ -250,7 +315,9 @@ export default function Servicos({ avisar, tratarErro }) {
               <input
                 className="entrada"
                 value={editando.categoria}
-                onChange={(e) => setEditando({ ...editando, categoria: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, categoria: e.target.value })
+                }
                 placeholder="Corte, Barba, Tratamento…"
               />
             </label>
@@ -262,7 +329,9 @@ export default function Servicos({ avisar, tratarErro }) {
                 step="0.01"
                 min="0"
                 value={editando.preco}
-                onChange={(e) => setEditando({ ...editando, preco: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, preco: e.target.value })
+                }
                 placeholder="45,00"
               />
             </label>
@@ -274,7 +343,9 @@ export default function Servicos({ avisar, tratarErro }) {
                 step="5"
                 min="5"
                 value={editando.duracao_min}
-                onChange={(e) => setEditando({ ...editando, duracao_min: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, duracao_min: e.target.value })
+                }
               />
             </label>
           </div>
@@ -291,7 +362,13 @@ export default function Servicos({ avisar, tratarErro }) {
             <span>Quem executa</span>
             <div className="caixas">
               {barbeiros.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 14, color: 'var(--tinta-suave)' }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 14,
+                    color: "var(--tinta-suave)",
+                  }}
+                >
                   Cadastre um profissional antes.
                 </p>
               ) : (
@@ -313,7 +390,9 @@ export default function Servicos({ avisar, tratarErro }) {
             <input
               type="checkbox"
               checked={!!editando.ativo}
-              onChange={(e) => setEditando({ ...editando, ativo: e.target.checked ? 1 : 0 })}
+              onChange={(e) =>
+                setEditando({ ...editando, ativo: e.target.checked ? 1 : 0 })
+              }
             />
             Disponível para agendamento
           </label>

@@ -1,25 +1,35 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { api, CampoImagem, Modal, Vazio } from './base';
-import { moeda, paraCentavos, paraReais } from '@/lib/format';
-import { Lapis, Lixeira, Mais } from '@/components/Icones';
+import { useCallback, useEffect, useState } from "react";
+import { api, CampoImagem, Modal, ModalConfirmacao, Vazio } from "./base";
+import { moeda, paraCentavos, paraReais } from "@/lib/format";
+import { Lapis, Lixeira, Mais } from "@/components/Icones";
 
-const VAZIO = { nome: '', marca: '', preco: '', estoque: 0, imagem: '', ativo: 1 };
+const VAZIO = {
+  nome: "",
+  marca: "",
+  preco: "",
+  estoque: 0,
+  imagem: "",
+  ativo: 1,
+};
 
 export default function Produtos({ avisar, tratarErro }) {
   const [itens, setItens] = useState([]);
   const [editando, setEditando] = useState(null);
   const [salvando, setSalvando] = useState(false);
+  const [excluindo, setExcluindo] = useState(null);
 
   const carregar = useCallback(() => {
-    api('produtos').then((r) => setItens(r.itens)).catch(tratarErro);
+    api("produtos")
+      .then((r) => setItens(r.itens))
+      .catch(tratarErro);
   }, [tratarErro]);
 
   useEffect(carregar, [carregar]);
 
   async function salvar() {
-    if (!editando.nome.trim()) return avisar('Dê um nome ao produto.', 'erro');
+    if (!editando.nome.trim()) return avisar("Dê um nome ao produto.", "erro");
 
     const corpo = {
       nome: editando.nome,
@@ -33,13 +43,13 @@ export default function Produtos({ avisar, tratarErro }) {
     setSalvando(true);
     try {
       if (editando.id) {
-        await api(`produtos/${editando.id}`, { method: 'PATCH', body: corpo });
+        await api(`produtos/${editando.id}`, { method: "PATCH", body: corpo });
       } else {
-        await api('produtos', { method: 'POST', body: corpo });
+        await api("produtos", { method: "POST", body: corpo });
       }
       setEditando(null);
       carregar();
-      avisar('Produto salvo.');
+      avisar("Produto salvo.");
     } catch (erro) {
       tratarErro(erro);
     } finally {
@@ -47,12 +57,13 @@ export default function Produtos({ avisar, tratarErro }) {
     }
   }
 
-  async function excluir(p) {
-    if (!confirm(`Excluir ${p.nome}?`)) return;
+  async function confirmarExcluir() {
+    const p = excluindo;
     try {
-      await api(`produtos/${p.id}`, { method: 'DELETE' });
+      await api(`produtos/${p.id}`, { method: "DELETE" });
+      setExcluindo(null);
       carregar();
-      avisar('Produto excluído.');
+      avisar("Produto excluído.");
     } catch (erro) {
       tratarErro(erro);
     }
@@ -75,39 +86,74 @@ export default function Produtos({ avisar, tratarErro }) {
 
       {itens.length === 0 ? (
         <Vazio titulo="Nenhum produto cadastrado">
-          Pomada, óleo, shampoo — cadastre o que você vende para acompanhar o estoque por aqui.
+          Pomada, óleo, shampoo — cadastre o que você vende para acompanhar o
+          estoque por aqui.
         </Vazio>
       ) : (
-        <div className="cartoes" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))' }}>
+        <div
+          className="cartoes"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px,1fr))",
+          }}
+        >
           {itens.map((p) => (
             <article className="cartao" key={p.id}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    minWidth: 0,
+                  }}
+                >
                   {p.imagem ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img className="avatar-mini" src={p.imagem} alt="" />
+                    <img
+                      className="avatar-mini"
+                      src={p.imagem}
+                      alt=""
+                      width={42}
+                      height={42}
+                      loading="lazy"
+                    />
                   ) : null}
                   <div style={{ minWidth: 0 }}>
                     <strong style={{ fontSize: 17 }}>{p.nome}</strong>
-                    <div style={{ fontSize: 13, color: 'var(--tinta-suave)' }}>{p.marca}</div>
+                    <div style={{ fontSize: 13, color: "var(--tinta-suave)" }}>
+                      {p.marca}
+                    </div>
                   </div>
                 </div>
-                <span className={`etiqueta ${p.ativo ? 'etiqueta-confirmado' : 'etiqueta-neutra'}`}>
-                  {p.ativo ? 'À venda' : 'Fora'}
+                <span
+                  className={`etiqueta ${p.ativo ? "etiqueta-confirmado" : "etiqueta-neutra"}`}
+                >
+                  {p.ativo ? "À venda" : "Fora"}
                 </span>
               </div>
 
               <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'baseline',
-                  justifyContent: 'space-between',
-                  margin: '14px 0',
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  margin: "14px 0",
                 }}
               >
                 <span
                   className="mono"
-                  style={{ fontSize: 20, color: 'var(--dourado-escuro)', fontWeight: 500 }}
+                  style={{
+                    fontSize: 20,
+                    color: "var(--dourado-escuro)",
+                    fontWeight: 500,
+                  }}
                 >
                   {moeda(p.preco_centavos)}
                 </span>
@@ -115,7 +161,8 @@ export default function Produtos({ avisar, tratarErro }) {
                   className="mono"
                   style={{
                     fontSize: 12.5,
-                    color: p.estoque <= 3 ? 'var(--erro)' : 'var(--tinta-suave)',
+                    color:
+                      p.estoque <= 3 ? "var(--erro)" : "var(--tinta-suave)",
                   }}
                 >
                   {p.estoque} em estoque
@@ -125,11 +172,17 @@ export default function Produtos({ avisar, tratarErro }) {
               <div className="acoes-linha">
                 <button
                   className="btn btn-contorno btn-mini"
-                  onClick={() => setEditando({ ...p, preco: paraReais(p.preco_centavos) })}
+                  onClick={() =>
+                    setEditando({ ...p, preco: paraReais(p.preco_centavos) })
+                  }
                 >
                   <Lapis width={14} height={14} /> Editar
                 </button>
-                <button className="icone-btn perigo" onClick={() => excluir(p)} title="Excluir">
+                <button
+                  className="icone-btn perigo"
+                  onClick={() => setExcluindo(p)}
+                  title="Excluir"
+                >
                   <Lixeira width={15} height={15} />
                 </button>
               </div>
@@ -138,17 +191,39 @@ export default function Produtos({ avisar, tratarErro }) {
         </div>
       )}
 
+      {excluindo ? (
+        <ModalConfirmacao
+          titulo="Excluir produto"
+          mensagem={
+            <>
+              Excluir <strong>{excluindo.nome}</strong>?
+            </>
+          }
+          confirmarLabel="Excluir"
+          perigo
+          aoConfirmar={confirmarExcluir}
+          aoFechar={() => setExcluindo(null)}
+        />
+      ) : null}
+
       {editando ? (
         <Modal
-          titulo={editando.id ? 'Editar produto' : 'Novo produto'}
+          titulo={editando.id ? "Editar produto" : "Novo produto"}
           aoFechar={() => setEditando(null)}
           rodape={
             <>
-              <button className="btn btn-contorno" onClick={() => setEditando(null)}>
+              <button
+                className="btn btn-contorno"
+                onClick={() => setEditando(null)}
+              >
                 Cancelar
               </button>
-              <button className="btn btn-ouro" onClick={salvar} disabled={salvando}>
-                {salvando ? 'Salvando…' : 'Salvar'}
+              <button
+                className="btn btn-ouro"
+                onClick={salvar}
+                disabled={salvando}
+              >
+                {salvando ? "Salvando…" : "Salvar"}
               </button>
             </>
           }
@@ -159,7 +234,9 @@ export default function Produtos({ avisar, tratarErro }) {
               <input
                 className="entrada"
                 value={editando.nome}
-                onChange={(e) => setEditando({ ...editando, nome: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, nome: e.target.value })
+                }
                 autoFocus
               />
             </label>
@@ -168,7 +245,9 @@ export default function Produtos({ avisar, tratarErro }) {
               <input
                 className="entrada"
                 value={editando.marca}
-                onChange={(e) => setEditando({ ...editando, marca: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, marca: e.target.value })
+                }
               />
             </label>
           </div>
@@ -182,7 +261,9 @@ export default function Produtos({ avisar, tratarErro }) {
                 step="0.01"
                 min="0"
                 value={editando.preco}
-                onChange={(e) => setEditando({ ...editando, preco: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, preco: e.target.value })
+                }
               />
             </label>
             <label className="campo">
@@ -192,7 +273,9 @@ export default function Produtos({ avisar, tratarErro }) {
                 type="number"
                 min="0"
                 value={editando.estoque}
-                onChange={(e) => setEditando({ ...editando, estoque: e.target.value })}
+                onChange={(e) =>
+                  setEditando({ ...editando, estoque: e.target.value })
+                }
               />
             </label>
           </div>
@@ -209,7 +292,9 @@ export default function Produtos({ avisar, tratarErro }) {
             <input
               type="checkbox"
               checked={!!editando.ativo}
-              onChange={(e) => setEditando({ ...editando, ativo: e.target.checked ? 1 : 0 })}
+              onChange={(e) =>
+                setEditando({ ...editando, ativo: e.target.checked ? 1 : 0 })
+              }
             />
             À venda
           </label>

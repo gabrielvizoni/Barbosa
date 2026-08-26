@@ -1,10 +1,15 @@
-import { exigirSessao } from '@/lib/auth';
-import { getDb, definirBarbeirosDoServico, listarBloqueios, listarServicos } from '@/lib/db';
-import { primeiroErro, validar } from '@/lib/validacao';
-import { lerCorpoJson } from '@/lib/requisicao';
-import { comLog } from '@/lib/log';
+import { exigirSessao } from "@/lib/auth";
+import {
+  getDb,
+  definirBarbeirosDoServico,
+  listarBloqueios,
+  listarServicos,
+} from "@/lib/db";
+import { primeiroErro, validar } from "@/lib/validacao";
+import { lerCorpoJson } from "@/lib/requisicao";
+import { comLog } from "@/lib/log";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 /**
  * Um único endereço serve os quatro cadastros do painel.
@@ -12,37 +17,37 @@ export const dynamic = 'force-dynamic';
  */
 export const RECURSOS = {
   barbeiros: {
-    tabela: 'barbeiros',
-    colunas: ['nome', 'funcao', 'bio', 'foto', 'ativo', 'ordem'],
-    numericas: ['ativo', 'ordem'],
-    ordem: 'ordem, id',
+    tabela: "barbeiros",
+    colunas: ["nome", "funcao", "bio", "foto", "ativo", "ordem"],
+    numericas: ["ativo", "ordem"],
+    ordem: "ordem, id",
   },
   servicos: {
-    tabela: 'servicos',
+    tabela: "servicos",
     colunas: [
-      'nome',
-      'descricao',
-      'categoria',
-      'preco_centavos',
-      'duracao_min',
-      'imagem',
-      'ativo',
-      'ordem',
+      "nome",
+      "descricao",
+      "categoria",
+      "preco_centavos",
+      "duracao_min",
+      "imagem",
+      "ativo",
+      "ordem",
     ],
-    numericas: ['preco_centavos', 'duracao_min', 'ativo', 'ordem'],
-    ordem: 'ordem, id',
+    numericas: ["preco_centavos", "duracao_min", "ativo", "ordem"],
+    ordem: "ordem, id",
   },
   produtos: {
-    tabela: 'produtos',
-    colunas: ['nome', 'marca', 'preco_centavos', 'estoque', 'imagem', 'ativo'],
-    numericas: ['preco_centavos', 'estoque', 'ativo'],
-    ordem: 'id DESC',
+    tabela: "produtos",
+    colunas: ["nome", "marca", "preco_centavos", "estoque", "imagem", "ativo"],
+    numericas: ["preco_centavos", "estoque", "ativo"],
+    ordem: "id DESC",
   },
   bloqueios: {
-    tabela: 'bloqueios',
-    colunas: ['barbeiro_id', 'data', 'inicio', 'fim', 'motivo'],
-    numericas: ['barbeiro_id'],
-    ordem: 'data DESC, inicio',
+    tabela: "bloqueios",
+    colunas: ["barbeiro_id", "data", "inicio", "fim", "motivo"],
+    numericas: ["barbeiro_id"],
+    ordem: "data DESC, inicio",
   },
 };
 
@@ -63,89 +68,114 @@ export function filtrarCampos(recurso, corpo) {
     if (!(coluna in corpo)) continue;
     let valor = corpo[coluna];
     if (recurso.numericas.includes(coluna)) {
-      if (valor === null || valor === '') {
-        valor = coluna === 'barbeiro_id' ? null : 0;
-      } else if (typeof valor === 'boolean') {
+      if (valor === null || valor === "") {
+        valor = coluna === "barbeiro_id" ? null : 0;
+      } else if (typeof valor === "boolean") {
         valor = valor ? 1 : 0;
       } else {
         valor = Number(valor);
         if (!Number.isFinite(valor)) valor = 0;
       }
     } else {
-      valor = String(valor ?? '').trim();
+      valor = String(valor ?? "").trim();
     }
     campos[coluna] = valor;
   }
   return campos;
 }
 
-export const GET = comLog('GET /api/admin/[recurso]', async (request, { params }) => {
-  const negado = exigirSessao(request);
-  if (negado) return negado;
+export const GET = comLog(
+  "GET /api/admin/[recurso]",
+  async (request, { params }) => {
+    const negado = exigirSessao(request);
+    if (negado) return negado;
 
-  const recurso = obterRecurso(params.recurso);
-  if (!recurso) return Response.json({ erro: 'Cadastro não encontrado.' }, { status: 404 });
+    const recurso = obterRecurso(params.recurso);
+    if (!recurso)
+      return Response.json(
+        { erro: "Cadastro não encontrado." },
+        { status: 404 },
+      );
 
-  if (params.recurso === 'servicos') return Response.json({ itens: listarServicos() });
-  if (params.recurso === 'bloqueios') return Response.json({ itens: listarBloqueios() });
+    if (params.recurso === "servicos")
+      return Response.json({ itens: listarServicos() });
+    if (params.recurso === "bloqueios")
+      return Response.json({ itens: listarBloqueios() });
 
-  const itens = getDb()
-    .prepare(`SELECT * FROM ${recurso.tabela} ORDER BY ${recurso.ordem}`)
-    .all();
-  return Response.json({ itens });
-});
+    const itens = getDb()
+      .prepare(`SELECT * FROM ${recurso.tabela} ORDER BY ${recurso.ordem}`)
+      .all();
+    return Response.json({ itens });
+  },
+);
 
-export const POST = comLog('POST /api/admin/[recurso]', async (request, { params }) => {
-  const negado = exigirSessao(request);
-  if (negado) return negado;
+export const POST = comLog(
+  "POST /api/admin/[recurso]",
+  async (request, { params }) => {
+    const negado = exigirSessao(request);
+    if (negado) return negado;
 
-  const recurso = obterRecurso(params.recurso);
-  if (!recurso) return Response.json({ erro: 'Cadastro não encontrado.' }, { status: 404 });
+    const recurso = obterRecurso(params.recurso);
+    if (!recurso)
+      return Response.json(
+        { erro: "Cadastro não encontrado." },
+        { status: 404 },
+      );
 
-  const corpo = await lerCorpoJson(request);
-  if (!corpo) {
-    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
-  }
-  const campos = filtrarCampos(recurso, corpo);
+    const corpo = await lerCorpoJson(request);
+    if (!corpo) {
+      return Response.json({ erro: "JSON inválido." }, { status: 400 });
+    }
+    const campos = filtrarCampos(recurso, corpo);
 
-  const { ok, erros } = validar(params.recurso, campos, { criando: true });
-  if (!ok) {
-    return Response.json({ erro: primeiroErro(erros), erros }, { status: 400 });
-  }
+    const { ok, erros } = validar(params.recurso, campos, { criando: true });
+    if (!ok) {
+      return Response.json(
+        { erro: primeiroErro(erros), erros },
+        { status: 400 },
+      );
+    }
 
-  const colunas = Object.keys(campos);
-  if (colunas.length === 0) {
-    return Response.json({ erro: 'Nada para salvar.' }, { status: 400 });
-  }
+    const colunas = Object.keys(campos);
+    if (colunas.length === 0) {
+      return Response.json({ erro: "Nada para salvar." }, { status: 400 });
+    }
 
-  const resultado = getDb()
-    .prepare(
-      `INSERT INTO ${recurso.tabela} (${colunas.join(', ')})
-       VALUES (${colunas.map(() => '?').join(', ')})`
-    )
-    .run(...colunas.map((c) => campos[c]));
-
-  const id = Number(resultado.lastInsertRowid);
-  if (params.recurso === 'servicos' && Array.isArray(corpo.barbeiros)) {
-    definirBarbeirosDoServico(id, corpo.barbeiros);
-  }
-
-  // Bloquear não cancela quem já tinha marcado nesse intervalo — os
-  // agendamentos continuam de pé. O painel precisa saber quantos (e quais)
-  // para a equipe avisar os clientes, em vez de só um texto de aviso
-  // genérico no modal (item 4 da Etapa 8 da auditoria).
-  let atropelados;
-  if (params.recurso === 'bloqueios') {
-    atropelados = getDb()
+    const resultado = getDb()
       .prepare(
-        `SELECT id, cliente_nome, cliente_telefone, data, inicio
+        `INSERT INTO ${recurso.tabela} (${colunas.join(", ")})
+       VALUES (${colunas.map(() => "?").join(", ")})`,
+      )
+      .run(...colunas.map((c) => campos[c]));
+
+    const id = Number(resultado.lastInsertRowid);
+    if (params.recurso === "servicos" && Array.isArray(corpo.barbeiros)) {
+      definirBarbeirosDoServico(id, corpo.barbeiros);
+    }
+
+    // Bloquear não cancela quem já tinha marcado nesse intervalo — os
+    // agendamentos continuam de pé. O painel precisa saber quantos (e quais)
+    // para a equipe avisar os clientes, em vez de só um texto de aviso
+    // genérico no modal (item 4 da Etapa 8 da auditoria).
+    let atropelados;
+    if (params.recurso === "bloqueios") {
+      atropelados = getDb()
+        .prepare(
+          `SELECT id, cliente_nome, cliente_telefone, data, inicio
          FROM agendamentos
          WHERE status <> 'cancelado' AND excluido_em IS NULL
            AND data = ? AND (? IS NULL OR barbeiro_id = ?)
-           AND inicio < ? AND fim > ?`
-      )
-      .all(campos.data, campos.barbeiro_id, campos.barbeiro_id, campos.fim, campos.inicio);
-  }
+           AND inicio < ? AND fim > ?`,
+        )
+        .all(
+          campos.data,
+          campos.barbeiro_id,
+          campos.barbeiro_id,
+          campos.fim,
+          campos.inicio,
+        );
+    }
 
-  return Response.json({ id, atropelados }, { status: 201 });
-});
+    return Response.json({ id, atropelados }, { status: 201 });
+  },
+);

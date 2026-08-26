@@ -76,13 +76,13 @@ inclusive claro/escuro dos gráficos SVG desenhados à mão para o painel financ
 
 ## Stack
 
-| Camada | Escolha | Por quê |
-|---|---|---|
-| Framework | **Next.js 14** (App Router) | Server components para dados, rotas de API para as ações do painel, tudo num só projeto. |
-| UI | **React 18**, CSS puro | Sem dependência de biblioteca de componentes — cada peça de UI (modal, seletor de data, calendário) foi construída sob medida para o caso de uso. |
-| Banco | **SQLite** via `better-sqlite3` | Um arquivo, zero infraestrutura de banco para operar. Toda consulta usa *prepared statements* — sem ORM, sem query builder. |
-| Animação | **anime.js** | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`. |
-| Autenticação | Zero dependências | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante. |
+| Camada       | Escolha                         | Por quê                                                                                                                                           |
+| ------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework    | **Next.js 14** (App Router)     | Server components para dados, rotas de API para as ações do painel, tudo num só projeto.                                                          |
+| UI           | **React 18**, CSS puro          | Sem dependência de biblioteca de componentes — cada peça de UI (modal, seletor de data, calendário) foi construída sob medida para o caso de uso. |
+| Banco        | **SQLite** via `better-sqlite3` | Um arquivo, zero infraestrutura de banco para operar. Toda consulta usa _prepared statements_ — sem ORM, sem query builder.                       |
+| Animação     | **anime.js**                    | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`.                                                                               |
+| Autenticação | Zero dependências               | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante.                                                                             |
 
 ---
 
@@ -111,12 +111,12 @@ painel. Enquanto não houver nenhum serviço, o agendamento fica fechado.
 
 Abra o `.env` e defina:
 
-| Variável | Para que serve |
-|---|---|
-| `ADMIN_PASSWORD` | Senha **só do primeiro acesso**. Depois que a senha for trocada dentro do painel, esta deixa de valer (veja "Senha do painel" abaixo). |
+| Variável         | Para que serve                                                                                                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ADMIN_PASSWORD` | Senha **só do primeiro acesso**. Depois que a senha for trocada dentro do painel, esta deixa de valer (veja "Senha do painel" abaixo).                                                                                                                 |
 | `SESSION_SECRET` | Assina o cookie de sessão. Gere um valor aleatório (comando abaixo). **Obrigatório em produção** — com `NODE_ENV=production` e sem essa variável, o painel fica indisponível de propósito (em vez de assinar sessões com um valor fraco e previsível). |
-| `DATABASE_PATH` | Onde o banco fica salvo. Em produção, aponte para um disco que não se apaga. |
-| `TZ` | `America/Sao_Paulo` — é o fuso usado para calcular os horários livres. |
+| `DATABASE_PATH`  | Onde o banco fica salvo. Em produção, aponte para um disco que não se apaga.                                                                                                                                                                           |
+| `TZ`             | `America/Sao_Paulo` — é o fuso usado para calcular os horários livres.                                                                                                                                                                                 |
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -223,14 +223,14 @@ trabalha e o que acabou de chegar.
 **Agenda** — alterna entre a visão do dia por profissional (hora a hora, com telefone e
 observação do cliente à vista) e a lista completa, com busca por nome ou telefone e filtros
 por status, profissional e data. Dá para confirmar, concluir, cancelar, excluir, chamar o
-cliente no WhatsApp e registrar quem chegou sem marcar (botão *Encaixar cliente*).
+cliente no WhatsApp e registrar quem chegou sem marcar (botão _Encaixar cliente_).
 
 **Profissionais, Serviços, Produtos** — cadastro completo: incluir, editar e excluir. Em
 Serviços você define preço, duração e **quem executa cada um** — é isso que monta a segunda
 tela do agendamento.
 
 **Horários e folgas** — o expediente de cada dia da semana e os bloqueios. Se precisar sair,
-os botões *Saí por 1 hora*, *Saí por 2 horas* e *Fechar o resto do dia* fecham a agenda a
+os botões _Saí por 1 hora_, _Saí por 2 horas_ e _Fechar o resto do dia_ fecham a agenda a
 partir daquele minuto, com um clique. Os horários somem do site na hora.
 
 **Financeiro** — faturamento já recebido e a receber no mês, comparado com outro mês à sua
