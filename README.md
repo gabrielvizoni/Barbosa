@@ -93,14 +93,17 @@ Precisa do [Node.js 18 ou mais novo](https://nodejs.org).
 ```bash
 npm install
 cp .env.example .env      # depois abra o .env e troque a senha
+npm run migrate           # cria/atualiza data/barbosa.db
 npm run dev
 ```
 
 Abra `http://localhost:3000`. O painel fica em `http://localhost:3000/admin`.
 
-Na primeira execução o banco é criado sozinho em `data/barbosa.db`, já com Heitor Lampa e
-Ana Donegá cadastrados. **Os serviços começam vazios** — cadastre-os no painel, em Serviços.
-Enquanto não houver nenhum serviço, o agendamento fica fechado.
+`npm run migrate` aplica as migrations versionadas de `src/lib/migrations.js` — é obrigatório
+antes da primeira execução, e de novo sempre que uma migration nova for adicionada; sem isso
+`getDb()` se recusa a subir. O banco criado vem **vazio**: zero profissionais, zero serviços,
+zero produtos — é um sistema white-label, cadastre sua própria equipe e seus serviços no
+painel. Enquanto não houver nenhum serviço, o agendamento fica fechado.
 
 ---
 
@@ -170,6 +173,7 @@ Build de produção:
 
 ```bash
 npm run build
+npm run migrate
 npm start
 ```
 
@@ -199,11 +203,14 @@ src/
     Icones.jsx                  Ícones em SVG
     admin/                      Telas do painel (inclui o seletor de data/lista próprios)
   lib/
-    db.js                       Banco e estrutura das tabelas
+    db.js                       Conexão e funções de leitura/escrita do banco
+    migrations.js               Migrations versionadas do schema
     slots.js                    Cálculo dos horários livres
     auth.js                     Sessão do painel
     limitador.js                Controle de tentativas (rate limit)
     format.js                   Moeda, telefone, datas, link do WhatsApp
+scripts/
+  migrate.js                    `npm run migrate` — aplica as migrations pendentes
 ```
 
 ---

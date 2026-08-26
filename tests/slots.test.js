@@ -33,10 +33,15 @@ test('dia sem expediente devolve lista vazia', () => {
   assert.deepEqual(livres, []);
 });
 
-test('fecha <= abre devolve lista vazia', () => {
-  definirExpediente(1, { aberto: 1, abre: '10:00', fecha: '10:00' }, conn);
-  const livres = horariosLivres({ barbeiroId: barbeiro1, duracaoMin: 30, data: SEGUNDA });
-  assert.deepEqual(livres, []);
+// horariosLivres() ainda tem `if (fecha <= abre) return []` como defesa extra,
+// mas desde a Etapa 2 o próprio banco tem CHECK (fecha > abre) em expediente
+// — não dá mais para gravar essa linha para testar o caminho pela leitura.
+// A rejeição na escrita está coberta em tests/db.test.js.
+test('CHECK (fecha > abre) impede gravar um expediente inválido', () => {
+  assert.throws(
+    () => definirExpediente(1, { aberto: 1, abre: '10:00', fecha: '10:00' }, conn),
+    /CHECK constraint failed/
+  );
 });
 
 test('dia livre devolve a grade completa conforme intervalo_min', () => {

@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { __resetCookies, __setCookie } from './fake-next-headers.mjs';
-import { bancoDeTeste } from './ajuda.js'; // também garante DATABASE_PATH=':memory:' antes de qualquer getDb()
+import { bancoDeTeste } from './ajuda.js';
 import { construirToken, NOME_COOKIE } from '../src/lib/auth.js';
 import { salvarConfig } from '../src/lib/db.js';
 
@@ -59,6 +59,7 @@ const ROTAS_PUBLICAS_INTENCIONAIS = [
 ];
 
 beforeEach(() => {
+  bancoDeTeste(); // exigirSessao() já toca o banco (usandoSenhaInicial()) antes de checar a sessão
   __resetCookies();
 });
 

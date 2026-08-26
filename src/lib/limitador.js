@@ -6,11 +6,18 @@ import { getDb } from './db';
  * dentro da janela decide se a próxima tentativa passa ou não.
  */
 
-/** Limpa tentativas antigas (mantém a tabela pequena) e conta quantas ainda valem. */
+// Limpeza amostrada: 1 em cada 100 chamadas, não a cada verificação — um
+// DELETE a cada tentativa de login/agendamento seria custo desnecessário
+// numa tabela que só serve como janela deslizante de alguns minutos/dias.
+const CHANCE_DE_LIMPAR = 0.01;
+
+/** Limpa tentativas antigas (mantém a tabela pequena, com chance amostrada) e conta quantas ainda valem. */
 function contarTentativas(chave, janelaMinutos) {
   const conn = getDb();
-  // Limpeza leve: nunca guarda mais que um dia de histórico, de qualquer chave.
-  conn.prepare("DELETE FROM limitador WHERE criado_em < datetime('now', '-1 day')").run();
+  // Nunca guarda mais que um dia de histórico, de qualquer chave.
+  if (Math.random() < CHANCE_DE_LIMPAR) {
+    conn.prepare("DELETE FROM limitador WHERE criado_em < datetime('now', '-1 day')").run();
+  }
   return conn
     .prepare(
       `SELECT COUNT(*) AS n FROM limitador WHERE chave = ? AND criado_em >= datetime('now', ?)`
