@@ -1,15 +1,25 @@
 // Helpers compartilhados pela bateria de testes.
 //
 // Cada arquivo de teste roda em um processo próprio (comportamento padrão do
-// `node --test`), e DATABASE_PATH=':memory:' (definida em
-// tests/register-hooks.mjs, carregada antes de qualquer módulo de teste) dá
-// a cada arquivo um banco SQLite isolado, criado do zero com o mesmo
-// schema/seed de produção (migrate() roda normalmente) — sem precisar mexer
-// em src/lib/db.js.
-import { getDb } from '../src/lib/db.js';
+// `node --test`), com seu próprio arquivo de banco temporário (ver
+// tests/register-hooks.mjs). getDb() não aplica mais migrations sozinho —
+// só verifica a versão e recusa subir se não bater — então bancoDeTeste()
+// aplica as migrations numa conexão própria antes da primeira chamada a
+// getDb() do processo, exatamente como `npm run migrate` faria antes de
+// subir o servidor de verdade.
+import { getDb, abrirConexao } from '../src/lib/db.js';
+import { aplicarMigrations } from '../src/lib/migrations.js';
 
-/** Abre (ou reaproveita) o banco de teste em memória do processo atual. */
+let migrado = false;
+
+/** Garante as migrations aplicadas e devolve o banco de teste do processo atual. */
 export function bancoDeTeste() {
+  if (!migrado) {
+    const conexaoDeMigracao = abrirConexao();
+    aplicarMigrations(conexaoDeMigracao);
+    conexaoDeMigracao.close();
+    migrado = true;
+  }
   return getDb();
 }
 

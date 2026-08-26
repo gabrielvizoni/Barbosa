@@ -11,6 +11,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "migrate": "node scripts/migrate.js",
     "test": "node --import ./tests/register-hooks.mjs --test \"tests/*.test.js\""
   },
   "dependencies": {
