@@ -245,7 +245,7 @@ já entra confirmado ou fica pendente.
 
 ## Paleta e tipografia
 
-Marrom `#4b2e1c` (primária), verde escuro `#1b3b2c` (secundária), dourado `#c6a02c`
+verde escuro `#1b3b2c` (primária), Marrom `#4b2e1c` (secundária), dourado `#c6a02c`
 (terciária), sobre creme `#f4ecdc`. Títulos em Playfair Display, texto em Karla, números e
 etiquetas em IBM Plex Mono.
 
