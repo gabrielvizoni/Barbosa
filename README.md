@@ -93,7 +93,7 @@ Precisa do [Node.js 18 ou mais novo](https://nodejs.org).
 ```bash
 npm install
 cp .env.example .env      # depois abra o .env e troque a senha
-npm run migrate           # cria/atualiza data/barbosa.db
+npm run migrate           # cria/atualiza data/app.db
 npm run dev
 ```
 
@@ -145,7 +145,7 @@ desconecta qualquer outro aparelho com o painel aberto; quem trocou continua log
 Apague o hash do banco e a senha do `.env` volta a valer, dando um novo primeiro acesso:
 
 ```bash
-sqlite3 data/barbosa.db "DELETE FROM config WHERE chave = 'senha_hash';"
+sqlite3 data/app.db "DELETE FROM config WHERE chave = 'senha_hash';"
 ```
 
 Nenhum outro dado é afetado — agendamentos, serviços e histórico continuam intactos.
@@ -159,7 +159,7 @@ persistente** — e o mesmo disco precisa cobrir tanto `data/` (o banco) quanto
 `public/uploads/` (as imagens enviadas pelo painel). Funcionam bem:
 
 - **Railway**, **Render** ou **Fly.io** — adicione um volume e aponte `DATABASE_PATH` para
-  dentro dele (ex.: `/data/barbosa.db`), garantindo que `public/uploads/` também esteja
+  dentro dele (ex.: `/data/app.db`), garantindo que `public/uploads/` também esteja
   nesse volume (ou em outro volume igualmente persistente).
 - **VPS** (Hostinger, DigitalOcean, Contabo) com `npm run build && npm start` atrás de um
   Nginx, ou rodando com PM2.
@@ -179,7 +179,7 @@ npm start
 
 ### Backup
 
-Copie `data/barbosa.db` periodicamente e você tem o backup dos dados: agendamentos,
+Copie `data/app.db` periodicamente e você tem o backup dos dados: agendamentos,
 serviços, produtos, equipe e configurações. As imagens enviadas pelo painel (logo, fotos
 de profissionais/serviços/produtos) ficam em `public/uploads/` — copie essa pasta junto
 para o backup incluir também as fotos.

@@ -67,7 +67,7 @@ export function verificarAmbiente() {
     }
   }
 
-  const dirBanco = path.dirname(process.env.DATABASE_PATH || './data/barbosa.db');
+  const dirBanco = path.dirname(process.env.DATABASE_PATH || './data/app.db');
   if (!diretorioGravavel(dirBanco)) {
     problemas.push(`Diretório do banco (${dirBanco}) não é gravável.`);
   }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, Vazio } from './base';
 import { moeda } from '@/lib/format';
 import { mesAtualLocal } from '@/lib/datas-cliente';
-import { useFuso } from './FusoContext';
+import { usePainelConfig } from './ConfigContext';
 
 const MESES = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -169,7 +169,7 @@ function GraficoBarras({ dados, formatar }) {
 }
 
 export default function Financeiro({ tratarErro }) {
-  const fuso = useFuso();
+  const { fuso } = usePainelConfig();
   const [mes, setMes] = useState(() => mesAtualLocal(fuso));
   const [comparar, setComparar] = useState(() => mesAnterior(mesAtualLocal(fuso)));
   const [dados, setDados] = useState(null);

@@ -1,3 +1,6 @@
+/** Nome exibido quando a barbearia ainda não configurou o próprio — nunca o nome de um cliente específico. */
+export const NOME_PADRAO = 'Agendamento online';
+
 /** Centavos -> "R$ 45,00" */
 export function moeda(centavos) {
   return (Number(centavos || 0) / 100).toLocaleString('pt-BR', {
@@ -65,7 +68,9 @@ export function linkWhatsapp(numeroBarbearia, agendamento) {
   const completo = numero.startsWith('55') ? numero : `55${numero}`;
 
   const linhas = [
-    `Olá! Acabei de agendar pelo site da ${agendamento.barbearia}.`,
+    agendamento.barbearia
+      ? `Olá! Acabei de agendar pelo site da ${agendamento.barbearia}.`
+      : 'Olá! Acabei de agendar pelo site.',
     '',
     `Nome: ${agendamento.cliente}`,
     `Serviço: ${agendamento.servico}`,
@@ -77,4 +82,22 @@ export function linkWhatsapp(numeroBarbearia, agendamento) {
   linhas.push('', 'Pode confirmar pra mim?');
 
   return `https://wa.me/${completo}?text=${encodeURIComponent(linhas.join('\n'))}`;
+}
+
+/**
+ * Mesma ideia de linkWhatsapp(), na direção oposta: o link que o BARBEIRO
+ * usa para mandar a confirmação para o cliente, a partir da tela de
+ * Agendamentos do painel. `nomeBarbearia` vem da configuração (nunca
+ * hardcoded) — sem número de telefone do cliente, devolve null.
+ */
+export function linkConfirmacaoCliente(nomeBarbearia, agendamento) {
+  const numero = somenteDigitos(agendamento.cliente_telefone);
+  if (!numero) return null;
+  const completo = numero.startsWith('55') ? numero : `55${numero}`;
+
+  const primeiroNome = agendamento.cliente_nome.split(' ')[0];
+  const local = nomeBarbearia ? ` na ${nomeBarbearia}` : '';
+  const texto = `Olá, ${primeiroNome}! Confirmando seu horário${local}: ${agendamento.servico_nome} com ${agendamento.barbeiro_nome}, dia ${dataBr(agendamento.data)} às ${agendamento.inicio}. Até lá!`;
+
+  return `https://wa.me/${completo}?text=${encodeURIComponent(texto)}`;
 }

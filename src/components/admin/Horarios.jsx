@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, Modal, Vazio } from './base';
 import { dataBr } from '@/lib/format';
 import { hojeLocal } from '@/lib/datas-cliente';
-import { useFuso } from './FusoContext';
+import { usePainelConfig } from './ConfigContext';
 import { Lixeira, Mais, Pausa } from '@/components/Icones';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -40,7 +40,7 @@ function bloqueioVazio(fuso) {
 }
 
 export default function Horarios({ avisar, tratarErro }) {
-  const fuso = useFuso();
+  const { fuso } = usePainelConfig();
   const [expediente, setExpediente] = useState([]);
   const [bloqueios, setBloqueios] = useState([]);
   const [barbeiros, setBarbeiros] = useState([]);

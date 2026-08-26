@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/components/admin/base';
-import { FusoProvider } from '@/components/admin/FusoContext';
+import { ConfigProvider } from '@/components/admin/ConfigContext';
+import { NOME_PADRAO } from '@/lib/format';
 import VisaoGeral from '@/components/admin/VisaoGeral';
 import Agendamentos from '@/components/admin/Agendamentos';
 import Profissionais from '@/components/admin/Profissionais';
@@ -44,10 +45,20 @@ export default function PainelAdmin() {
   const [configuracaoInsegura, setConfiguracaoInsegura] = useState(false);
   const [senhaInicial, setSenhaInicial] = useState(false);
   const [fuso, setFuso] = useState('America/Sao_Paulo');
+  const [nome, setNome] = useState('');
 
   const [secaoAtiva, setSecaoAtiva] = useState('visao');
   const [pendentes, setPendentes] = useState(0);
   const [recado, setRecado] = useState(null);
+
+  // /api/public não exige sessão — é a única forma de mostrar o nome da
+  // barbearia já na tela de login, antes de qualquer autenticação.
+  useEffect(() => {
+    fetch('/api/public')
+      .then((r) => r.json())
+      .then((r) => setNome(r.barbearia?.nome || ''))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/admin/sessao')
@@ -133,7 +144,7 @@ export default function PainelAdmin() {
         <div className="portao-caixa">
           <div className="portao-topo">
             <span className="sobrenome">Painel administrativo</span>
-            <h1>The Barbosa</h1>
+            <h1>{nome || NOME_PADRAO}</h1>
           </div>
           <div className="portao-corpo">
             <div className="aviso aviso-erro">
@@ -153,7 +164,7 @@ export default function PainelAdmin() {
         <div className="portao-caixa">
           <div className="portao-topo">
             <span className="sobrenome">Painel administrativo</span>
-            <h1>The Barbosa</h1>
+            <h1>{nome || NOME_PADRAO}</h1>
           </div>
           <form className="portao-corpo" onSubmit={entrar}>
             {erroLogin ? <div className="aviso aviso-erro">{erroLogin}</div> : null}
@@ -191,7 +202,7 @@ export default function PainelAdmin() {
       <nav className="lateral">
         <div className="lateral-topo">
           <span className="sobrenome">Painel</span>
-          <strong>The Barbosa</strong>
+          <strong>{nome || NOME_PADRAO}</strong>
         </div>
 
         {senhaInicial ? (
@@ -235,14 +246,14 @@ export default function PainelAdmin() {
       </nav>
 
       <main className="conteudo">
-        <FusoProvider fuso={fuso}>
+        <ConfigProvider nome={nome} fuso={fuso}>
           <Tela
             avisar={avisar}
             tratarErro={tratarErro}
             aoMudar={atualizarPendentes}
             aoTrocarSenha={() => setSenhaInicial(false)}
           />
-        </FusoProvider>
+        </ConfigProvider>
       </main>
 
       {recado ? (

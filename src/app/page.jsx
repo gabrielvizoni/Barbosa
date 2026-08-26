@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { lerConfig, lerExpediente, listarBarbeiros, listarProdutos, listarServicos } from '@/lib/db';
-import { moeda, iniciais } from '@/lib/format';
+import { moeda, iniciais, NOME_PADRAO } from '@/lib/format';
 import { Local, Relogio, Seta, WhatsApp, Instagram } from '@/components/Icones';
 import Header from '@/components/Header';
 import ServicosSecao from '@/components/ServicosSecao';
@@ -42,7 +42,7 @@ export default function PaginaInicial() {
   const produtos = listarProdutos({ somenteAtivos: true });
   const barbeiros = listarBarbeiros({ somenteAtivos: true });
   const expediente = resumirExpediente(lerExpediente());
-  const nome = config.nome_barbearia || 'The Barbosa Barbearia';
+  const nome = config.nome_barbearia || NOME_PADRAO;
   const linkInstagram = config.instagram ? `https://instagram.com/${config.instagram}` : null;
   const linkWhats = config.whatsapp
     ? `https://wa.me/${config.whatsapp.replace(/\D/g, '').startsWith('55') ? config.whatsapp.replace(/\D/g, '') : `55${config.whatsapp.replace(/\D/g, '')}`}`
@@ -61,7 +61,7 @@ export default function PaginaInicial() {
   return (
     <>
       <Header
-        nome="The Barbosa"
+        nome={nome}
         logoUrl={config.logo_url}
         links={links}
         cta={
@@ -213,21 +213,23 @@ export default function PaginaInicial() {
 
             <div className="contato-grade">
               <div className="contato-bloco">
-                <div className="contato-item">
-                  <span className="icone">
-                    <Local width={17} height={17} />
-                  </span>
-                  <div>
-                    <h4>Endereço</h4>
-                    {linkMapa ? (
-                      <a href={linkMapa} target="_blank" rel="noopener noreferrer">
-                        {config.endereco}
-                      </a>
-                    ) : (
-                      <p>{config.endereco}</p>
-                    )}
+                {config.endereco ? (
+                  <div className="contato-item">
+                    <span className="icone">
+                      <Local width={17} height={17} />
+                    </span>
+                    <div>
+                      <h4>Endereço</h4>
+                      {linkMapa ? (
+                        <a href={linkMapa} target="_blank" rel="noopener noreferrer">
+                          {config.endereco}
+                        </a>
+                      ) : (
+                        <p>{config.endereco}</p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : null}
                 <div className="contato-item">
                   <span className="icone">
                     <Relogio width={17} height={17} />
@@ -309,9 +311,11 @@ export default function PaginaInicial() {
                 ) : (
                   <span className="marca-poste" aria-hidden="true" />
                 )}
-                <span className="marca-nome">The Barbosa</span>
+                <span className="marca-nome">{nome}</span>
               </div>
-              <p style={{ margin: 0, maxWidth: '34ch' }}>{config.slogan}</p>
+              {config.slogan ? (
+                <p style={{ margin: 0, maxWidth: '34ch' }}>{config.slogan}</p>
+              ) : null}
             </div>
 
             <div>
@@ -329,10 +333,12 @@ export default function PaginaInicial() {
             <div>
               <h4>Onde estamos</h4>
               <ul>
-                <li>
-                  <Local width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
-                  {config.endereco}
-                </li>
+                {config.endereco ? (
+                  <li>
+                    <Local width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
+                    {config.endereco}
+                  </li>
+                ) : null}
                 {config.whatsapp ? (
                   <li>
                     <WhatsApp width={13} height={13} style={{ opacity: 0.6, flexShrink: 0 }} />
