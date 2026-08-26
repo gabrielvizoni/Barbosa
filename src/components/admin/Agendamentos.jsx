@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, Etiqueta, Modal, SeletorData, SeletorLista, Vazio } from './base';
-import { dataBr, mascararTelefone, moeda } from '@/lib/format';
+import { dataBr, linkConfirmacaoCliente, mascararTelefone, moeda } from '@/lib/format';
+import { usePainelConfig } from './ConfigContext';
 import { Check, Lapis, Lixeira, Mais, Relogio, Xis, Zap } from '@/components/Icones';
 import AgendaPorProfissional from './AgendaVisual';
 
@@ -36,6 +37,7 @@ const VAZIO = {
 const VAZIO_REMARCAR = { barbeiro_id: '', servico_id: '', data: '', inicio: '' };
 
 export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
+  const { nome } = usePainelConfig();
   const [visao, setVisao] = useState('dia');
   const [itens, setItens] = useState([]);
   const [barbeiros, setBarbeiros] = useState([]);
@@ -226,13 +228,6 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
     }
   }
 
-  function linkZap(a) {
-    const numero = a.cliente_telefone.replace(/\D/g, '');
-    if (!numero) return null;
-    const texto = `Olá, ${a.cliente_nome.split(' ')[0]}! Confirmando seu horário na The Barbosa: ${a.servico_nome} com ${a.barbeiro_nome}, dia ${dataBr(a.data)} às ${a.inicio}. Até lá!`;
-    return `https://wa.me/55${numero}?text=${encodeURIComponent(texto)}`;
-  }
-
   return (
     <>
       <div className="conteudo-topo">
@@ -334,10 +329,10 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                       </td>
                       <td>
                         <div className="acoes-linha">
-                          {linkZap(a) ? (
+                          {linkConfirmacaoCliente(nome, a) ? (
                             <a
                               className="icone-btn positivo"
-                              href={linkZap(a)}
+                              href={linkConfirmacaoCliente(nome, a)}
                               target="_blank"
                               rel="noopener noreferrer"
                               title="Falar no WhatsApp"

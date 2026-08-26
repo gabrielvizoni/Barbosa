@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, SeletorData, Vazio } from './base';
 import { iniciais, mascararTelefone, moeda } from '@/lib/format';
 import { hojeLocal } from '@/lib/datas-cliente';
-import { useFuso } from './FusoContext';
+import { usePainelConfig } from './ConfigContext';
 
 function paraMinutos(hhmm) {
   const [h, m] = hhmm.split(':').map(Number);
@@ -31,7 +31,7 @@ function faixaDeMeiaHora(agendamentos) {
  * a agenda está montada, sem precisar ler a lista inteira. Usado dentro da
  * tela de Agendamentos, ao lado da visão em lista. */
 export default function AgendaVisual({ barbeiros, tratarErro }) {
-  const fuso = useFuso();
+  const { fuso } = usePainelConfig();
   const [barbeiroId, setBarbeiroId] = useState(null);
   const [data, setData] = useState(() => hojeLocal(fuso));
   const [agendamentos, setAgendamentos] = useState([]);

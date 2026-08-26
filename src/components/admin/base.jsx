@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Calendario, Seta, SetaEsquerda, Xis } from '@/components/Icones';
 import { dataBr } from '@/lib/format';
 import { hojeLocal } from '@/lib/datas-cliente';
-import { useFuso } from './FusoContext';
+import { usePainelConfig } from './ConfigContext';
 
 /** Chama a API do painel e transforma erro de resposta em exceção com mensagem legível. */
 export async function api(caminho, opcoes = {}) {
@@ -164,7 +164,7 @@ const PAINEL_ALTURA = 370;
  * não ficar cortado por modais e outros contêineres com overflow: hidden.
  */
 export function SeletorData({ value, onChange, className = '' }) {
-  const fuso = useFuso();
+  const { fuso } = usePainelConfig();
   const [aberto, setAberto] = useState(false);
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T00:00:00Z`) : new Date();

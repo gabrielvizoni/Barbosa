@@ -4,7 +4,7 @@ import path from 'node:path';
 import { verificarAmbiente } from './config-ambiente.js';
 import { versaoDoBanco, versaoEsperada } from './migrations.js';
 
-const DB_PATH = process.env.DATABASE_PATH || './data/barbosa.db';
+const DB_PATH = process.env.DATABASE_PATH || './data/app.db';
 
 let db;
 

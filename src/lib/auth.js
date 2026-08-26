@@ -6,7 +6,7 @@ import { segredoDeSessaoValido, senhaInicialValida } from './config-ambiente';
 
 const scrypt = promisify(crypto.scrypt);
 
-const NOME_COOKIE = 'barbosa_admin';
+const NOME_COOKIE = 'admin_sessao';
 const DURACAO_SEGUNDOS = 60 * 60 * 12; // 12 horas
 
 /**

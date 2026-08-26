@@ -4,12 +4,16 @@ import Header from '@/components/Header';
 import FluxoAgendamento from './FluxoAgendamento';
 import Animacoes from '@/components/Animacoes';
 import { lerConfig } from '@/lib/db';
+import { NOME_PADRAO } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = {
-  title: 'Agendar horário — The Barbosa Barbearia',
-};
+export async function generateMetadata() {
+  const config = lerConfig();
+  return {
+    title: `Agendar horário — ${config.nome_barbearia || NOME_PADRAO}`,
+  };
+}
 
 export default function PaginaAgendar() {
   const config = lerConfig();
@@ -17,7 +21,7 @@ export default function PaginaAgendar() {
   return (
     <div className="pagina-agendar">
       <Header
-        nome="The Barbosa"
+        nome={config.nome_barbearia || NOME_PADRAO}
         logoUrl={config.logo_url}
         extra={
           <Link href="/" className="menu-desktop">

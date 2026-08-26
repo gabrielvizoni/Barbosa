@@ -147,7 +147,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
             className="entrada"
             value={config.instagram}
             onChange={(e) => mudar('instagram', e.target.value.replace(/^@/, ''))}
-            placeholder="thebarbosabarbearia"
+            placeholder="seuusuario"
           />
         </label>
 

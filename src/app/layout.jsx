@@ -1,10 +1,15 @@
 import './globals.css';
+import { lerConfig } from '@/lib/db';
+import { NOME_PADRAO } from '@/lib/format';
 
-export const metadata = {
-  title: 'The Barbosa Barbearia — agende seu horário',
-  description:
-    'Barbearia clássica em Maringá. Escolha o serviço, o barbeiro e o horário em menos de um minuto.',
-};
+export async function generateMetadata() {
+  const config = lerConfig();
+  const nome = config.nome_barbearia || NOME_PADRAO;
+  return {
+    title: `${nome} — agende seu horário`,
+    description: config.slogan || 'Agende seu horário em poucos cliques, sem precisar ligar.',
+  };
+}
 
 export const viewport = {
   themeColor: '#122a1f',
