@@ -76,8 +76,8 @@ export function filtrarCampos(recurso, corpo) {
   return campos;
 }
 
-export async function GET(_request, { params }) {
-  const negado = exigirSessao();
+export async function GET(request, { params }) {
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const recurso = obterRecurso(params.recurso);
@@ -93,7 +93,7 @@ export async function GET(_request, { params }) {
 }
 
 export async function POST(request, { params }) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const recurso = obterRecurso(params.recurso);

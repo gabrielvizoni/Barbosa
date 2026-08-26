@@ -1,9 +1,9 @@
-import { sessaoConfiguradaComSeguranca, sessaoValida, usandoSenhaInicial } from '@/lib/auth';
+import { autenticacaoConfiguradaComSeguranca, sessaoValida, usandoSenhaInicial } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  if (!sessaoConfiguradaComSeguranca()) {
+  if (!autenticacaoConfiguradaComSeguranca()) {
     return Response.json({ autenticado: false, configuracaoInsegura: true });
   }
   const autenticado = sessaoValida();

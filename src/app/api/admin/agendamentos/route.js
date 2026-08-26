@@ -5,7 +5,7 @@ import { horariosLivres, paraHora, paraMinutos } from '@/lib/slots';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const params = new URL(request.url).searchParams;
@@ -44,7 +44,7 @@ export async function GET(request) {
 
 /** Encaixe manual: o cliente ligou ou apareceu na porta. */
 export async function POST(request) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const corpo = await request.json().catch(() => ({}));
@@ -146,7 +146,7 @@ export async function POST(request) {
 
 /** Horários livres para o encaixe manual — reaproveita a mesma regra do site. */
 export async function PUT(request) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const corpo = await request.json().catch(() => ({}));

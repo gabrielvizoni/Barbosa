@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 const STATUS_VALIDOS = ['pendente', 'confirmado', 'concluido', 'cancelado'];
 
 export async function PATCH(request, { params }) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const id = Number(params.id);
@@ -27,8 +27,8 @@ export async function PATCH(request, { params }) {
   return Response.json({ ok: true });
 }
 
-export async function DELETE(_request, { params }) {
-  const negado = exigirSessao();
+export async function DELETE(request, { params }) {
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const id = Number(params.id);

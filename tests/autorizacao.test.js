@@ -8,8 +8,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { __resetCookies } from './fake-next-headers.mjs';
-import './ajuda.js'; // garante DATABASE_PATH=':memory:' antes de qualquer getDb()
+import { __resetCookies, __setCookie } from './fake-next-headers.mjs';
+import { bancoDeTeste } from './ajuda.js'; // também garante DATABASE_PATH=':memory:' antes de qualquer getDb()
+import { construirToken, NOME_COOKIE } from '../src/lib/auth.js';
+import { salvarConfig } from '../src/lib/db.js';
 
 const METODOS_HTTP = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const PREFIXO = '../src/app/api/admin/';
@@ -104,4 +106,46 @@ test('toda rota sob /api/admin/* está coberta por este arquivo', () => {
     [],
     `rota(s) nova(s) sem cobertura no teste de autorização: ${faltando.join(', ')}`
   );
+});
+
+// Com sessão válida mas ainda na senha inicial (nenhuma senha própria
+// cadastrada), o painel só pode trocar a senha e ler a configuração — todo
+// o resto responde 403, mesmo autenticado.
+function logar() {
+  bancoDeTeste();
+  salvarConfig({ sessao_versao: '1' });
+  __setCookie(NOME_COOKIE, construirToken('1', Date.now() + 60_000));
+}
+
+test('GET /api/admin/resumo responde 403 com sessão válida enquanto a senha ainda é a inicial', async () => {
+  logar();
+  const { GET } = await import(`${PREFIXO}resumo/route.js`);
+  const resposta = await GET(new Request('http://localhost/api/admin/resumo', { method: 'GET' }));
+  assert.equal(resposta.status, 403);
+});
+
+test('GET /api/admin/config continua liberado com sessão válida e senha inicial', async () => {
+  logar();
+  const { GET } = await import(`${PREFIXO}config/route.js`);
+  const resposta = await GET(new Request('http://localhost/api/admin/config', { method: 'GET' }));
+  assert.equal(resposta.status, 200);
+});
+
+test('PUT /api/admin/config responde 403 com sessão válida e senha inicial (só o GET é permitido)', async () => {
+  logar();
+  const { PUT } = await import(`${PREFIXO}config/route.js`);
+  const resposta = await PUT(
+    new Request('http://localhost/api/admin/config', { method: 'PUT', body: '{}' })
+  );
+  assert.equal(resposta.status, 403);
+});
+
+test('POST /api/admin/senha não é bloqueado pela trava da senha inicial', async () => {
+  logar();
+  const { POST } = await import(`${PREFIXO}senha/route.js`);
+  const resposta = await POST(
+    new Request('http://localhost/api/admin/senha', { method: 'POST', body: '{}' })
+  );
+  // Passa pela trava (não é 403) — o corpo vazio ainda falha a validação de senha atual, e tudo bem.
+  assert.notEqual(resposta.status, 403);
 });

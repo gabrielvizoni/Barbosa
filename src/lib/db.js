@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
+import { verificarAmbiente } from './config-ambiente.js';
 
 const DB_PATH = process.env.DATABASE_PATH || './data/barbosa.db';
 
@@ -172,6 +173,17 @@ export function getDb() {
     if (dir && dir !== '.' && !fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     db = new Database(DB_PATH);
     migrate(db);
+
+    // Melhor não subir do que subir inseguro: em produção, um SESSION_SECRET
+    // ou ADMIN_PASSWORD ainda no valor de exemplo do repositório vira uma
+    // porta aberta para qualquer pessoa forjar sessão de admin.
+    if (process.env.NODE_ENV === 'production') {
+      const problemas = verificarAmbiente();
+      if (problemas.length > 0) {
+        const lista = problemas.map((p) => `  - ${p}`).join('\n');
+        throw new Error(`Configuração insegura para produção — corrija antes de continuar:\n${lista}`);
+      }
+    }
   }
   return db;
 }

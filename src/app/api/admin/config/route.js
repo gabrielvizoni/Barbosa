@@ -25,8 +25,8 @@ function configPublica() {
   return config;
 }
 
-export async function GET() {
-  const negado = exigirSessao();
+export async function GET(request) {
+  const negado = exigirSessao(request);
   if (negado) return negado;
   return Response.json({
     config: configPublica(),
@@ -36,7 +36,7 @@ export async function GET() {
 }
 
 export async function PUT(request) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const corpo = await request.json().catch(() => ({}));

@@ -42,9 +42,39 @@ export function registrarTentativa(chave) {
   registrar(chave);
 }
 
-/** Extrai um identificador best-effort do cliente a partir dos headers da requisição. */
+/**
+ * Circuito de emergência para o login: se o total de falhas (somando todo
+ * mundo) passar do limite dentro da janela, bloqueia QUALQUER tentativa de
+ * login pelos próximos `bloqueioSegundos` — rede de segurança contra quem
+ * rotaciona IP pra escapar do limite por chave. Só existe um usuário
+ * administrativo, então travar o login geral por alguns segundos não afeta
+ * ninguém legítimo. Enquanto as falhas continuarem acontecendo dentro da
+ * janela, cada uma re-arma outros `bloqueioSegundos` de bloqueio.
+ */
+export function limiteGlobalAtingido(chave, { janelaMinutos, maximo, bloqueioSegundos }) {
+  if (contarTentativas(chave, janelaMinutos) < maximo) return false;
+  const recente = getDb()
+    .prepare(`SELECT 1 FROM limitador WHERE chave = ? AND criado_em >= datetime('now', ?) LIMIT 1`)
+    .get(chave, `-${bloqueioSegundos} seconds`);
+  return Boolean(recente);
+}
+
+/**
+ * Extrai um identificador best-effort do cliente a partir dos headers da
+ * requisição. X-Forwarded-For/X-Real-IP são enviados pelo próprio cliente —
+ * só podem ser confiados quando existe um proxy reverso na frente
+ * reescrevendo esses headers (TRUST_PROXY=1). Sem isso, o Request padrão do
+ * Next não expõe o IP real da conexão em self-hosting; nesse caso todo mundo
+ * cai na mesma chave, e é o limite global (limiteGlobalAtingido) que segura
+ * a rotação de IP no login. Em produção, TRUST_PROXY=1 deve estar configurado
+ * junto do proxy que termina o HTTPS.
+ */
 export function obterIp(request) {
-  const encaminhado = request.headers.get('x-forwarded-for');
-  if (encaminhado) return encaminhado.split(',')[0].trim();
-  return request.headers.get('x-real-ip') || 'sem-ip';
+  if (process.env.TRUST_PROXY === '1') {
+    const encaminhado = request.headers.get('x-forwarded-for');
+    if (encaminhado) return encaminhado.split(',')[0].trim();
+    const real = request.headers.get('x-real-ip');
+    if (real) return real;
+  }
+  return 'sem-ip';
 }
