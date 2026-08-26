@@ -1,6 +1,7 @@
 import { exigirSessao, usandoSenhaInicial } from '@/lib/auth';
 import { lerConfig, lerExpediente, salvarConfig, salvarExpediente } from '@/lib/db';
 import { validarExpediente } from '@/lib/validacao';
+import { FUSO } from '@/lib/slots';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,7 @@ export async function GET(request) {
     config: configPublica(),
     expediente: lerExpediente(),
     senhaInicial: usandoSenhaInicial(),
+    fuso: FUSO,
   });
 }
 

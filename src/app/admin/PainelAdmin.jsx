@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/components/admin/base';
+import { FusoProvider } from '@/components/admin/FusoContext';
 import VisaoGeral from '@/components/admin/VisaoGeral';
 import Agendamentos from '@/components/admin/Agendamentos';
 import Profissionais from '@/components/admin/Profissionais';
@@ -42,6 +43,7 @@ export default function PainelAdmin() {
   const [entrando, setEntrando] = useState(false);
   const [configuracaoInsegura, setConfiguracaoInsegura] = useState(false);
   const [senhaInicial, setSenhaInicial] = useState(false);
+  const [fuso, setFuso] = useState('America/Sao_Paulo');
 
   const [secaoAtiva, setSecaoAtiva] = useState('visao');
   const [pendentes, setPendentes] = useState(0);
@@ -50,9 +52,19 @@ export default function PainelAdmin() {
   useEffect(() => {
     fetch('/api/admin/sessao')
       .then((r) => r.json())
-      .then((r) => {
+      .then(async (r) => {
         setConfiguracaoInsegura(!!r.configuracaoInsegura);
         setSenhaInicial(!!r.senhaInicial);
+        // Busca o fuso ANTES de liberar a tela: assim nenhuma tela monta com
+        // o default e recalcula "hoje" depois, quando o valor de verdade chega.
+        if (r.autenticado) {
+          try {
+            const cfg = await api('config');
+            setFuso(cfg.fuso || 'America/Sao_Paulo');
+          } catch {
+            // Sem acesso ao fuso real, segue com o default — melhor que travar a entrada.
+          }
+        }
         setEstado(r.autenticado ? 'dentro' : 'fora');
       })
       .catch(() => setEstado('fora'));
@@ -203,7 +215,7 @@ export default function PainelAdmin() {
               >
                 <Icone width={17} height={17} />
                 {rotulo}
-                {id === 'agendamentos' && pendentes > 0 ? (
+                {id === 'agenda' && pendentes > 0 ? (
                   <span className="contador">{pendentes}</span>
                 ) : null}
                 {bloqueado ? (
@@ -223,12 +235,14 @@ export default function PainelAdmin() {
       </nav>
 
       <main className="conteudo">
-        <Tela
-          avisar={avisar}
-          tratarErro={tratarErro}
-          aoMudar={atualizarPendentes}
-          aoTrocarSenha={() => setSenhaInicial(false)}
-        />
+        <FusoProvider fuso={fuso}>
+          <Tela
+            avisar={avisar}
+            tratarErro={tratarErro}
+            aoMudar={atualizarPendentes}
+            aoTrocarSenha={() => setSenhaInicial(false)}
+          />
+        </FusoProvider>
       </main>
 
       {recado ? (

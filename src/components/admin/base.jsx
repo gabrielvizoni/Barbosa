@@ -4,6 +4,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendario, Seta, SetaEsquerda, Xis } from '@/components/Icones';
 import { dataBr } from '@/lib/format';
+import { hojeLocal } from '@/lib/datas-cliente';
+import { useFuso } from './FusoContext';
 
 /** Chama a API do painel e transforma erro de resposta em exceção com mensagem legível. */
 export async function api(caminho, opcoes = {}) {
@@ -134,10 +136,6 @@ const MESES_LONGOS_CALENDARIO = [
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
 ];
 
-function hojeChave() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /** As 6 semanas (42 dias) que cobrem o mês, incluindo as pontas dos meses vizinhos. */
 function gradeDoMes(ano, mes) {
   const inicio = new Date(Date.UTC(ano, mes, 1));
@@ -166,6 +164,7 @@ const PAINEL_ALTURA = 370;
  * não ficar cortado por modais e outros contêineres com overflow: hidden.
  */
 export function SeletorData({ value, onChange, className = '' }) {
+  const fuso = useFuso();
   const [aberto, setAberto] = useState(false);
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T00:00:00Z`) : new Date();
@@ -224,7 +223,7 @@ export function SeletorData({ value, onChange, className = '' }) {
   }
 
   const celulas = gradeDoMes(cursor.ano, cursor.mes);
-  const hoje = hojeChave();
+  const hoje = hojeLocal(fuso);
 
   return (
     <div className={`seletor-data ${className}`} ref={gatilho}>
