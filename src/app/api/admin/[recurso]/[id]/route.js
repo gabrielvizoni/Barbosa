@@ -1,6 +1,7 @@
 import { exigirSessao } from '@/lib/auth';
 import { getDb, definirBarbeirosDoServico } from '@/lib/db';
 import { filtrarCampos, obterRecurso } from '../route';
+import { primeiroErro, validar } from '@/lib/validacao';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,11 @@ export async function PATCH(request, { params }) {
 
   if (colunas.length === 0) {
     return Response.json({ erro: 'Nada para salvar.' }, { status: 400 });
+  }
+
+  const { ok, erros } = validar(params.recurso, campos);
+  if (!ok) {
+    return Response.json({ erro: primeiroErro(erros), erros }, { status: 400 });
   }
 
   const resultado = getDb()

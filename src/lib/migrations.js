@@ -165,11 +165,20 @@ export const migrations = [
     descricao: 'adiciona constraints de integridade',
     up(conn) {
       // SQLite não suporta ALTER TABLE ADD CONSTRAINT: o procedimento
-      // oficial é criar a tabela nova (já com os CHECK), copiar os dados,
-      // dropar a antiga e a nova assume o nome original.
+      // oficial é criar uma tabela nova (já com os CHECK) sob um nome
+      // temporário, copiar os dados, dropar a antiga e só então renomear a
+      // nova para o nome original.
+      //
+      // A ordem importa: por padrão, `ALTER TABLE x RENAME TO y` também
+      // reescreve as FOREIGN KEY de QUALQUER outra tabela que referencie x,
+      // trocando "REFERENCES x" por "REFERENCES y" — se a tabela renomeada
+      // fosse a original (ex.: servicos → servicos_antigo), servico_barbeiro
+      // e agendamentos ficariam com "REFERENCES servicos_antigo" gravado
+      // permanentemente, mesmo depois de servicos_antigo ser dropada.
+      // Renomeando a tabela NOVA (que nada referencia ainda) para o nome
+      // definitivo, esse efeito colateral não tem o que reescrever.
       conn.exec(`
-        ALTER TABLE servicos RENAME TO servicos_antigo;
-        CREATE TABLE servicos (
+        CREATE TABLE servicos_novo (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           nome TEXT NOT NULL,
           descricao TEXT NOT NULL DEFAULT '',
@@ -180,12 +189,12 @@ export const migrations = [
           ordem INTEGER NOT NULL DEFAULT 0,
           imagem TEXT NOT NULL DEFAULT ''
         );
-        INSERT INTO servicos (id, nome, descricao, categoria, preco_centavos, duracao_min, ativo, ordem, imagem)
-          SELECT id, nome, descricao, categoria, preco_centavos, duracao_min, ativo, ordem, imagem FROM servicos_antigo;
-        DROP TABLE servicos_antigo;
+        INSERT INTO servicos_novo (id, nome, descricao, categoria, preco_centavos, duracao_min, ativo, ordem, imagem)
+          SELECT id, nome, descricao, categoria, preco_centavos, duracao_min, ativo, ordem, imagem FROM servicos;
+        DROP TABLE servicos;
+        ALTER TABLE servicos_novo RENAME TO servicos;
 
-        ALTER TABLE produtos RENAME TO produtos_antigo;
-        CREATE TABLE produtos (
+        CREATE TABLE produtos_novo (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           nome TEXT NOT NULL,
           marca TEXT NOT NULL DEFAULT '',
@@ -194,24 +203,24 @@ export const migrations = [
           ativo INTEGER NOT NULL DEFAULT 1,
           imagem TEXT NOT NULL DEFAULT ''
         );
-        INSERT INTO produtos (id, nome, marca, preco_centavos, estoque, ativo, imagem)
-          SELECT id, nome, marca, preco_centavos, estoque, ativo, imagem FROM produtos_antigo;
-        DROP TABLE produtos_antigo;
+        INSERT INTO produtos_novo (id, nome, marca, preco_centavos, estoque, ativo, imagem)
+          SELECT id, nome, marca, preco_centavos, estoque, ativo, imagem FROM produtos;
+        DROP TABLE produtos;
+        ALTER TABLE produtos_novo RENAME TO produtos;
 
-        ALTER TABLE expediente RENAME TO expediente_antigo;
-        CREATE TABLE expediente (
+        CREATE TABLE expediente_novo (
           dia INTEGER PRIMARY KEY CHECK (dia BETWEEN 0 AND 6),
           aberto INTEGER NOT NULL DEFAULT 1,
           abre TEXT NOT NULL DEFAULT '09:00' CHECK (abre GLOB '${GLOB_HORA}'),
           fecha TEXT NOT NULL DEFAULT '20:00' CHECK (fecha GLOB '${GLOB_HORA}'),
           CHECK (fecha > abre)
         );
-        INSERT INTO expediente (dia, aberto, abre, fecha)
-          SELECT dia, aberto, abre, fecha FROM expediente_antigo;
-        DROP TABLE expediente_antigo;
+        INSERT INTO expediente_novo (dia, aberto, abre, fecha)
+          SELECT dia, aberto, abre, fecha FROM expediente;
+        DROP TABLE expediente;
+        ALTER TABLE expediente_novo RENAME TO expediente;
 
-        ALTER TABLE bloqueios RENAME TO bloqueios_antigo;
-        CREATE TABLE bloqueios (
+        CREATE TABLE bloqueios_novo (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           barbeiro_id INTEGER REFERENCES barbeiros(id) ON DELETE CASCADE,
           data TEXT NOT NULL CHECK (data GLOB '${GLOB_DATA}'),
@@ -220,13 +229,13 @@ export const migrations = [
           motivo TEXT NOT NULL DEFAULT '',
           CHECK (fim > inicio)
         );
-        INSERT INTO bloqueios (id, barbeiro_id, data, inicio, fim, motivo)
-          SELECT id, barbeiro_id, data, inicio, fim, motivo FROM bloqueios_antigo;
-        DROP TABLE bloqueios_antigo;
+        INSERT INTO bloqueios_novo (id, barbeiro_id, data, inicio, fim, motivo)
+          SELECT id, barbeiro_id, data, inicio, fim, motivo FROM bloqueios;
+        DROP TABLE bloqueios;
+        ALTER TABLE bloqueios_novo RENAME TO bloqueios;
         CREATE INDEX IF NOT EXISTS idx_bloq_data ON bloqueios(data);
 
-        ALTER TABLE agendamentos RENAME TO agendamentos_antigo;
-        CREATE TABLE agendamentos (
+        CREATE TABLE agendamentos_novo (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           cliente_nome TEXT NOT NULL,
           cliente_telefone TEXT NOT NULL,
@@ -244,9 +253,10 @@ export const migrations = [
           criado_em TEXT NOT NULL DEFAULT (datetime('now')),
           CHECK (fim > inicio)
         );
-        INSERT INTO agendamentos (id, cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome, data, inicio, fim, duracao_min, preco_centavos, observacoes, status, criado_em)
-          SELECT id, cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome, data, inicio, fim, duracao_min, preco_centavos, observacoes, status, criado_em FROM agendamentos_antigo;
-        DROP TABLE agendamentos_antigo;
+        INSERT INTO agendamentos_novo (id, cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome, data, inicio, fim, duracao_min, preco_centavos, observacoes, status, criado_em)
+          SELECT id, cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome, data, inicio, fim, duracao_min, preco_centavos, observacoes, status, criado_em FROM agendamentos;
+        DROP TABLE agendamentos;
+        ALTER TABLE agendamentos_novo RENAME TO agendamentos;
         CREATE INDEX IF NOT EXISTS idx_ag_data ON agendamentos(data);
         CREATE INDEX IF NOT EXISTS idx_ag_barbeiro ON agendamentos(barbeiro_id, data);
       `);

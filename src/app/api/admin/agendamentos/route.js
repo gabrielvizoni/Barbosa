@@ -1,6 +1,7 @@
 import { exigirSessao } from '@/lib/auth';
 import { getDb } from '@/lib/db';
-import { horariosLivres, paraHora, paraMinutos } from '@/lib/slots';
+import { horariosLivres } from '@/lib/slots';
+import { criarAgendamento } from '@/lib/agendamentos';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,100 +49,23 @@ export async function POST(request) {
   if (negado) return negado;
 
   const corpo = await request.json().catch(() => ({}));
-  const conn = getDb();
 
-  const servico = conn.prepare('SELECT * FROM servicos WHERE id = ?').get(Number(corpo.servico_id));
-  const barbeiro = conn.prepare('SELECT * FROM barbeiros WHERE id = ?').get(Number(corpo.barbeiro_id));
-  const nome = String(corpo.cliente_nome ?? '').trim().slice(0, 80);
-  const telefone = String(corpo.cliente_telefone ?? '').replace(/\D/g, '');
-  const data = String(corpo.data ?? '');
-  const inicio = String(corpo.inicio ?? '');
+  const resultado = criarAgendamento({
+    origem: 'painel',
+    clienteNome: corpo.cliente_nome,
+    clienteTelefone: corpo.cliente_telefone,
+    barbeiroId: Number(corpo.barbeiro_id),
+    servicoId: Number(corpo.servico_id),
+    data: String(corpo.data ?? ''),
+    inicio: String(corpo.inicio ?? ''),
+    observacoes: corpo.observacoes,
+  });
 
-  if (!servico || !barbeiro) {
-    return Response.json({ erro: 'Escolha o serviço e o profissional.' }, { status: 400 });
-  }
-  if (!servico.ativo) {
-    return Response.json({ erro: 'Esse serviço está desativado.' }, { status: 400 });
-  }
-  if (!barbeiro.ativo) {
-    return Response.json({ erro: 'Esse profissional está desativado.' }, { status: 400 });
-  }
-  const atende = conn
-    .prepare('SELECT 1 FROM servico_barbeiro WHERE servico_id = ? AND barbeiro_id = ?')
-    .get(servico.id, barbeiro.id);
-  if (!atende) {
-    return Response.json(
-      { erro: `${barbeiro.nome} não está cadastrado para atender ${servico.nome}.` },
-      { status: 400 }
-    );
-  }
-  if (nome.length < 2) {
-    return Response.json({ erro: 'Escreva o nome do cliente.' }, { status: 400 });
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(data) || !/^\d{2}:\d{2}$/.test(inicio)) {
-    return Response.json({ erro: 'Informe a data e o horário.' }, { status: 400 });
+  if (!resultado.ok) {
+    return Response.json({ erro: resultado.erro }, { status: resultado.status });
   }
 
-  // No painel o encaixe fora do expediente é permitido, mas nunca em cima de
-  // outro atendimento ou de um bloqueio (folga/ausência) do mesmo profissional.
-  const fim = paraHora(paraMinutos(inicio) + servico.duracao_min);
-  const conflitoAgendamento = conn
-    .prepare(
-      `SELECT cliente_nome, inicio, fim FROM agendamentos
-       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado'
-         AND inicio < ? AND fim > ?`
-    )
-    .get(data, barbeiro.id, fim, inicio);
-
-  if (conflitoAgendamento) {
-    return Response.json(
-      {
-        erro: `${barbeiro.nome} já atende ${conflitoAgendamento.cliente_nome} das ${conflitoAgendamento.inicio} às ${conflitoAgendamento.fim}.`,
-      },
-      { status: 409 }
-    );
-  }
-
-  const conflitoBloqueio = conn
-    .prepare(
-      `SELECT motivo, inicio, fim FROM bloqueios
-       WHERE data = ? AND (barbeiro_id IS NULL OR barbeiro_id = ?)
-         AND inicio < ? AND fim > ?`
-    )
-    .get(data, barbeiro.id, fim, inicio);
-
-  if (conflitoBloqueio) {
-    return Response.json(
-      {
-        erro: `${barbeiro.nome} está bloqueado (${conflitoBloqueio.motivo || 'ausência'}) das ${conflitoBloqueio.inicio} às ${conflitoBloqueio.fim}.`,
-      },
-      { status: 409 }
-    );
-  }
-
-  const resultado = conn
-    .prepare(
-      `INSERT INTO agendamentos
-        (cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome,
-         data, inicio, fim, duracao_min, preco_centavos, observacoes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmado')`
-    )
-    .run(
-      nome,
-      telefone,
-      barbeiro.id,
-      servico.id,
-      barbeiro.nome,
-      servico.nome,
-      data,
-      inicio,
-      fim,
-      servico.duracao_min,
-      servico.preco_centavos,
-      String(corpo.observacoes ?? '').trim().slice(0, 300)
-    );
-
-  return Response.json({ id: Number(resultado.lastInsertRowid) }, { status: 201 });
+  return Response.json({ id: resultado.id }, { status: 201 });
 }
 
 /** Horários livres para o encaixe manual — reaproveita a mesma regra do site. */
