@@ -10,7 +10,7 @@ const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
 const RE_HORA = /^\d{2}:\d{2}$/;
 
 function textoValido(valor, { max }) {
-  const texto = String(valor ?? '');
+  const texto = String(valor ?? "");
   if (texto.length > max) return `não pode passar de ${max} caracteres.`;
   return null;
 }
@@ -19,35 +19,38 @@ function inteiroEntre(min, max) {
   return (valor) => {
     const numero = Number(valor);
     if (!Number.isFinite(numero) || !Number.isInteger(numero)) {
-      return 'precisa ser um número inteiro.';
+      return "precisa ser um número inteiro.";
     }
-    if (numero < min || numero > max) return `precisa estar entre ${min} e ${max}.`;
+    if (numero < min || numero > max)
+      return `precisa estar entre ${min} e ${max}.`;
     return null;
   };
 }
 
 /** "AAAA-MM-DD" com parse real — 2024-02-30 não é uma data válida, mesmo no formato certo. */
 export function dataValida(valor) {
-  const texto = String(valor ?? '');
-  if (!RE_DATA.test(texto)) return 'precisa estar no formato AAAA-MM-DD.';
-  const [ano, mes, dia] = texto.split('-').map(Number);
+  const texto = String(valor ?? "");
+  if (!RE_DATA.test(texto)) return "precisa estar no formato AAAA-MM-DD.";
+  const [ano, mes, dia] = texto.split("-").map(Number);
   const data = new Date(Date.UTC(ano, mes - 1, dia));
   const valida =
-    data.getUTCFullYear() === ano && data.getUTCMonth() === mes - 1 && data.getUTCDate() === dia;
-  return valida ? null : 'não é uma data válida.';
+    data.getUTCFullYear() === ano &&
+    data.getUTCMonth() === mes - 1 &&
+    data.getUTCDate() === dia;
+  return valida ? null : "não é uma data válida.";
 }
 
 /** "HH:MM", com hora e minuto dentro da faixa (99:99 tem o formato certo, mas não é hora). */
 export function horaValida(valor) {
-  const texto = String(valor ?? '');
-  if (!RE_HORA.test(texto)) return 'precisa estar no formato HH:MM.';
-  const [h, m] = texto.split(':').map(Number);
-  return h <= 23 && m <= 59 ? null : 'não é um horário válido.';
+  const texto = String(valor ?? "");
+  if (!RE_HORA.test(texto)) return "precisa estar no formato HH:MM.";
+  const [h, m] = texto.split(":").map(Number);
+  return h <= 23 && m <= 59 ? null : "não é um horário válido.";
 }
 
 const ESQUEMAS = {
   barbeiros: {
-    obrigatorios: ['nome'],
+    obrigatorios: ["nome"],
     campos: {
       nome: (v) => textoValido(v, { max: 80 }),
       funcao: (v) => textoValido(v, { max: 60 }),
@@ -57,7 +60,7 @@ const ESQUEMAS = {
     },
   },
   servicos: {
-    obrigatorios: ['nome'],
+    obrigatorios: ["nome"],
     campos: {
       nome: (v) => textoValido(v, { max: 80 }),
       descricao: (v) => textoValido(v, { max: 500 }),
@@ -69,7 +72,7 @@ const ESQUEMAS = {
     },
   },
   produtos: {
-    obrigatorios: ['nome'],
+    obrigatorios: ["nome"],
     campos: {
       nome: (v) => textoValido(v, { max: 80 }),
       marca: (v) => textoValido(v, { max: 60 }),
@@ -79,7 +82,7 @@ const ESQUEMAS = {
     },
   },
   bloqueios: {
-    obrigatorios: ['data', 'inicio', 'fim'],
+    obrigatorios: ["data", "inicio", "fim"],
     campos: {
       data: dataValida,
       inicio: horaValida,
@@ -90,7 +93,7 @@ const ESQUEMAS = {
   // Usado por src/lib/agendamentos.js — só o formato de data/hora; a regra de
   // conflito de horário (que depende de barbeiro/expediente) fica lá.
   agendamentos: {
-    obrigatorios: ['data', 'inicio'],
+    obrigatorios: ["data", "inicio"],
     campos: {
       data: dataValida,
       inicio: horaValida,
@@ -111,7 +114,7 @@ export function validar(recurso, campos, { criando = false } = {}) {
 
   if (criando) {
     for (const campo of esquema.obrigatorios || []) {
-      if (!campos[campo]) erros[campo] = 'é obrigatório.';
+      if (!campos[campo]) erros[campo] = "é obrigatório.";
     }
   }
 
@@ -121,8 +124,13 @@ export function validar(recurso, campos, { criando = false } = {}) {
     if (mensagem) erros[campo] = mensagem;
   }
 
-  if (recurso === 'bloqueios' && !erros.inicio && !erros.fim && campos.fim <= campos.inicio) {
-    erros.fim = 'precisa ser depois do início.';
+  if (
+    recurso === "bloqueios" &&
+    !erros.inicio &&
+    !erros.fim &&
+    campos.fim <= campos.inicio
+  ) {
+    erros.fim = "precisa ser depois do início.";
   }
 
   return { ok: Object.keys(erros).length === 0, erros };
@@ -142,6 +150,9 @@ export function primeiroErro(erros) {
 export function validarExpediente(dias) {
   const erros = dias
     .filter((d) => d.fecha <= d.abre)
-    .map((d) => ({ dia: d.dia, mensagem: 'O fechamento precisa ser depois da abertura.' }));
+    .map((d) => ({
+      dia: d.dia,
+      mensagem: "O fechamento precisa ser depois da abertura.",
+    }));
   return { ok: erros.length === 0, erros };
 }

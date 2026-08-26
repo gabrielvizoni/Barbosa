@@ -2,17 +2,18 @@
 // os fluxos que existiam duplicados com regras divergentes: público (cliente
 // marcando pelo site) e painel (barbeiro encaixando na régua). As diferenças
 // legítimas entre eles viram parâmetros (origem), não código separado.
-import { getDb, lerConfig } from './db.js';
-import { agora, horariosLivres, paraHora, paraMinutos } from './slots.js';
-import { somenteDigitos, telefoneValido } from './format.js';
-import { validar } from './validacao.js';
-import { registrarAuditoria, snapshotAgendamento } from './auditoria.js';
+import { getDb, lerConfig } from "./db.js";
+import { agora, horariosLivres, paraHora, paraMinutos } from "./slots.js";
+import { somenteDigitos, telefoneValido } from "./format.js";
+import { validar } from "./validacao.js";
+import { registrarAuditoria, snapshotAgendamento } from "./auditoria.js";
 
 function erro(status, mensagem) {
   return { ok: false, status, erro: mensagem };
 }
 
-const MENSAGEM_CONFLITO_PADRAO = 'Esse horário já está ocupado. Escolha outro, por favor.';
+const MENSAGEM_CONFLITO_PADRAO =
+  "Esse horário já está ocupado. Escolha outro, por favor.";
 
 /** Lançada dentro de uma transação para abortar a gravação com uma mensagem amigável. */
 class ErroAgendamento extends Error {
@@ -25,7 +26,7 @@ class ErroAgendamento extends Error {
 /** Traduz o que veio de dentro da transação (ErroAgendamento ou violação de constraint) em `{ ok, status, erro }`. */
 function tratarErroTransacao(e) {
   if (e instanceof ErroAgendamento) return erro(e.status, e.message);
-  if (String(e?.code ?? '').startsWith('SQLITE_CONSTRAINT')) {
+  if (String(e?.code ?? "").startsWith("SQLITE_CONSTRAINT")) {
     // Rede de segurança: mesmo com a checagem acima já ter revalidado o
     // conflito por dentro da transação, o índice único parcial (Etapa 2) é
     // quem garante isso de verdade — se ele disparar, é conflito, não bug.
@@ -47,29 +48,39 @@ function tratarErroTransacao(e) {
  * mas nunca sobre outro atendimento ou bloqueio. `ignorarId` exclui o
  * próprio agendamento da checagem (remarcação e reabertura de cancelado).
  */
-function verificarConflito(conn, { origem, barbeiro, data, inicio, fim, duracaoMin, ignorarId }) {
-  if (origem === 'publico') {
-    const livres = horariosLivres({ barbeiroId: barbeiro.id, duracaoMin, data });
+function verificarConflito(
+  conn,
+  { origem, barbeiro, data, inicio, fim, duracaoMin, ignorarId },
+) {
+  if (origem === "publico") {
+    const livres = horariosLivres({
+      barbeiroId: barbeiro.id,
+      duracaoMin,
+      data,
+    });
     if (!livres.includes(inicio)) {
-      throw new ErroAgendamento(409, 'Esse horário acabou de ser ocupado. Escolha outro, por favor.');
+      throw new ErroAgendamento(
+        409,
+        "Esse horário acabou de ser ocupado. Escolha outro, por favor.",
+      );
     }
     return;
   }
 
-  const condicaoIgnorar = ignorarId ? 'AND id <> ?' : '';
+  const condicaoIgnorar = ignorarId ? "AND id <> ?" : "";
   const paramsIgnorar = ignorarId ? [ignorarId] : [];
 
   const conflitoAgendamento = conn
     .prepare(
       `SELECT cliente_nome, inicio, fim FROM agendamentos
        WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado' AND excluido_em IS NULL ${condicaoIgnorar}
-         AND inicio < ? AND fim > ?`
+         AND inicio < ? AND fim > ?`,
     )
     .get(data, barbeiro.id, ...paramsIgnorar, fim, inicio);
   if (conflitoAgendamento) {
     throw new ErroAgendamento(
       409,
-      `${barbeiro.nome} já atende ${conflitoAgendamento.cliente_nome} das ${conflitoAgendamento.inicio} às ${conflitoAgendamento.fim}.`
+      `${barbeiro.nome} já atende ${conflitoAgendamento.cliente_nome} das ${conflitoAgendamento.inicio} às ${conflitoAgendamento.fim}.`,
     );
   }
 
@@ -77,13 +88,13 @@ function verificarConflito(conn, { origem, barbeiro, data, inicio, fim, duracaoM
     .prepare(
       `SELECT motivo, inicio, fim FROM bloqueios
        WHERE data = ? AND (barbeiro_id IS NULL OR barbeiro_id = ?)
-         AND inicio < ? AND fim > ?`
+         AND inicio < ? AND fim > ?`,
     )
     .get(data, barbeiro.id, fim, inicio);
   if (conflitoBloqueio) {
     throw new ErroAgendamento(
       409,
-      `${barbeiro.nome} está bloqueado (${conflitoBloqueio.motivo || 'ausência'}) das ${conflitoBloqueio.inicio} às ${conflitoBloqueio.fim}.`
+      `${barbeiro.nome} está bloqueado (${conflitoBloqueio.motivo || "ausência"}) das ${conflitoBloqueio.inicio} às ${conflitoBloqueio.fim}.`,
     );
   }
 }
@@ -107,52 +118,76 @@ export function criarAgendamento({
   servicoId,
   data,
   inicio,
-  observacoes = '',
+  observacoes = "",
 }) {
   const conn = getDb();
 
-  const servico = conn.prepare('SELECT * FROM servicos WHERE id = ?').get(servicoId);
-  const barbeiro = conn.prepare('SELECT * FROM barbeiros WHERE id = ?').get(barbeiroId);
+  const servico = conn
+    .prepare("SELECT * FROM servicos WHERE id = ?")
+    .get(servicoId);
+  const barbeiro = conn
+    .prepare("SELECT * FROM barbeiros WHERE id = ?")
+    .get(barbeiroId);
   if (!servico || !barbeiro) {
-    return erro(404, 'Serviço ou profissional não encontrado.');
+    return erro(404, "Serviço ou profissional não encontrado.");
   }
-  if (!servico.ativo) return erro(400, 'Esse serviço está desativado.');
-  if (!barbeiro.ativo) return erro(400, 'Esse profissional está desativado.');
+  if (!servico.ativo) return erro(400, "Esse serviço está desativado.");
+  if (!barbeiro.ativo) return erro(400, "Esse profissional está desativado.");
 
   const atende = conn
-    .prepare('SELECT 1 FROM servico_barbeiro WHERE servico_id = ? AND barbeiro_id = ?')
+    .prepare(
+      "SELECT 1 FROM servico_barbeiro WHERE servico_id = ? AND barbeiro_id = ?",
+    )
     .get(servico.id, barbeiro.id);
   if (!atende) {
     return erro(400, `${barbeiro.nome} não atende ${servico.nome}.`);
   }
 
-  const nome = String(clienteNome ?? '').trim().slice(0, 80);
-  if (nome.length < 2) return erro(400, 'Escreva o nome do cliente.');
+  const nome = String(clienteNome ?? "")
+    .trim()
+    .slice(0, 80);
+  if (nome.length < 2) return erro(400, "Escreva o nome do cliente.");
 
   const telefone = somenteDigitos(clienteTelefone);
-  if (origem === 'publico' && !telefoneValido(telefone)) {
-    return erro(400, 'Informe um WhatsApp com DDD.');
+  if (origem === "publico" && !telefoneValido(telefone)) {
+    return erro(400, "Informe um WhatsApp com DDD.");
   }
-  if (origem === 'painel' && telefone && !telefoneValido(telefone)) {
-    return erro(400, 'Telefone inválido — informe DDD + número, ou deixe em branco.');
+  if (origem === "painel" && telefone && !telefoneValido(telefone)) {
+    return erro(
+      400,
+      "Telefone inválido — informe DDD + número, ou deixe em branco.",
+    );
   }
 
-  const { ok: dataHoraOk } = validar('agendamentos', { data, inicio });
-  if (!dataHoraOk) return erro(400, 'Informe a data e o horário.');
+  const { ok: dataHoraOk } = validar("agendamentos", { data, inicio });
+  if (!dataHoraOk) return erro(400, "Informe a data e o horário.");
 
   const fim = paraHora(paraMinutos(inicio) + servico.duracao_min);
   const status =
-    origem === 'publico' ? (lerConfig().confirmacao_automatica === '1' ? 'confirmado' : 'pendente') : 'confirmado';
-  const observacoesLimpas = String(observacoes ?? '').trim().slice(0, 300);
+    origem === "publico"
+      ? lerConfig().confirmacao_automatica === "1"
+        ? "confirmado"
+        : "pendente"
+      : "confirmado";
+  const observacoesLimpas = String(observacoes ?? "")
+    .trim()
+    .slice(0, 300);
 
   const executarInsercao = conn.transaction(() => {
-    verificarConflito(conn, { origem, barbeiro, data, inicio, fim, duracaoMin: servico.duracao_min });
+    verificarConflito(conn, {
+      origem,
+      barbeiro,
+      data,
+      inicio,
+      fim,
+      duracaoMin: servico.duracao_min,
+    });
     const resultado = conn
       .prepare(
         `INSERT INTO agendamentos
           (cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome,
            data, inicio, fim, duracao_min, preco_centavos, observacoes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         nome,
@@ -167,11 +202,11 @@ export function criarAgendamento({
         servico.duracao_min,
         servico.preco_centavos,
         observacoesLimpas,
-        status
+        status,
       );
     registrarAuditoria(conn, {
-      acao: 'criar',
-      tabela: 'agendamentos',
+      acao: "criar",
+      tabela: "agendamentos",
       registroId: Number(resultado.lastInsertRowid),
       depois: snapshotAgendamento({
         barbeiro_id: barbeiro.id,
@@ -222,39 +257,56 @@ export function criarAgendamento({
  * snapshot do serviço/profissional no momento da remarcação, seguindo a
  * mesma política já usada na criação.
  */
-export function remarcarAgendamento(id, { data, inicio, barbeiroId, servicoId }) {
+export function remarcarAgendamento(
+  id,
+  { data, inicio, barbeiroId, servicoId },
+) {
   const conn = getDb();
 
-  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL').get(id);
-  if (!atual) return erro(404, 'Agendamento não encontrado.');
-  if (atual.status === 'concluido' || atual.status === 'cancelado') {
+  const atual = conn
+    .prepare("SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL")
+    .get(id);
+  if (!atual) return erro(404, "Agendamento não encontrado.");
+  if (atual.status === "concluido" || atual.status === "cancelado") {
     return erro(400, `Não é possível remarcar um agendamento ${atual.status}.`);
   }
 
-  const novoBarbeiroId = barbeiroId !== undefined ? Number(barbeiroId) : atual.barbeiro_id;
-  const novoServicoId = servicoId !== undefined ? Number(servicoId) : atual.servico_id;
+  const novoBarbeiroId =
+    barbeiroId !== undefined ? Number(barbeiroId) : atual.barbeiro_id;
+  const novoServicoId =
+    servicoId !== undefined ? Number(servicoId) : atual.servico_id;
   const novaData = data !== undefined ? String(data) : atual.data;
   const novoInicio = inicio !== undefined ? String(inicio) : atual.inicio;
 
-  const servico = conn.prepare('SELECT * FROM servicos WHERE id = ?').get(novoServicoId);
-  const barbeiro = conn.prepare('SELECT * FROM barbeiros WHERE id = ?').get(novoBarbeiroId);
-  if (!servico || !barbeiro) return erro(404, 'Serviço ou profissional não encontrado.');
-  if (!servico.ativo) return erro(400, 'Esse serviço está desativado.');
-  if (!barbeiro.ativo) return erro(400, 'Esse profissional está desativado.');
+  const servico = conn
+    .prepare("SELECT * FROM servicos WHERE id = ?")
+    .get(novoServicoId);
+  const barbeiro = conn
+    .prepare("SELECT * FROM barbeiros WHERE id = ?")
+    .get(novoBarbeiroId);
+  if (!servico || !barbeiro)
+    return erro(404, "Serviço ou profissional não encontrado.");
+  if (!servico.ativo) return erro(400, "Esse serviço está desativado.");
+  if (!barbeiro.ativo) return erro(400, "Esse profissional está desativado.");
 
   const atende = conn
-    .prepare('SELECT 1 FROM servico_barbeiro WHERE servico_id = ? AND barbeiro_id = ?')
+    .prepare(
+      "SELECT 1 FROM servico_barbeiro WHERE servico_id = ? AND barbeiro_id = ?",
+    )
     .get(servico.id, barbeiro.id);
   if (!atende) return erro(400, `${barbeiro.nome} não atende ${servico.nome}.`);
 
-  const { ok: dataHoraOk } = validar('agendamentos', { data: novaData, inicio: novoInicio });
-  if (!dataHoraOk) return erro(400, 'Informe a data e o horário.');
+  const { ok: dataHoraOk } = validar("agendamentos", {
+    data: novaData,
+    inicio: novoInicio,
+  });
+  if (!dataHoraOk) return erro(400, "Informe a data e o horário.");
 
   const novoFim = paraHora(paraMinutos(novoInicio) + servico.duracao_min);
 
   const executarUpdate = conn.transaction(() => {
     verificarConflito(conn, {
-      origem: 'painel',
+      origem: "painel",
       barbeiro,
       data: novaData,
       inicio: novoInicio,
@@ -266,7 +318,7 @@ export function remarcarAgendamento(id, { data, inicio, barbeiroId, servicoId })
         `UPDATE agendamentos SET
            barbeiro_id = ?, servico_id = ?, barbeiro_nome = ?, servico_nome = ?,
            data = ?, inicio = ?, fim = ?, duracao_min = ?, preco_centavos = ?
-         WHERE id = ?`
+         WHERE id = ?`,
       )
       .run(
         barbeiro.id,
@@ -278,11 +330,11 @@ export function remarcarAgendamento(id, { data, inicio, barbeiroId, servicoId })
         novoFim,
         servico.duracao_min,
         servico.preco_centavos,
-        id
+        id,
       );
     registrarAuditoria(conn, {
-      acao: 'remarcar',
-      tabela: 'agendamentos',
+      acao: "remarcar",
+      tabela: "agendamentos",
       registroId: id,
       antes: snapshotAgendamento(atual),
       depois: snapshotAgendamento({
@@ -311,10 +363,10 @@ export function remarcarAgendamento(id, { data, inicio, barbeiroId, servicoId })
 // horário, já que ele pode ter sido ocupado por outra pessoa enquanto este
 // agendamento estava cancelado).
 const TRANSICOES_LEGAIS = {
-  pendente: ['confirmado', 'cancelado'],
-  confirmado: ['concluido', 'cancelado'],
+  pendente: ["confirmado", "cancelado"],
+  confirmado: ["concluido", "cancelado"],
   concluido: [],
-  cancelado: ['pendente', 'confirmado'],
+  cancelado: ["pendente", "confirmado"],
 };
 
 const STATUS_VALIDOS = Object.keys(TRANSICOES_LEGAIS);
@@ -327,25 +379,30 @@ const STATUS_VALIDOS = Object.keys(TRANSICOES_LEGAIS);
  */
 export function mudarStatusAgendamento(id, novoStatus) {
   if (!STATUS_VALIDOS.includes(novoStatus)) {
-    return erro(400, 'Status inválido.');
+    return erro(400, "Status inválido.");
   }
 
   const conn = getDb();
-  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL').get(id);
-  if (!atual) return erro(404, 'Agendamento não encontrado.');
+  const atual = conn
+    .prepare("SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL")
+    .get(id);
+  if (!atual) return erro(404, "Agendamento não encontrado.");
 
   if (!(TRANSICOES_LEGAIS[atual.status] || []).includes(novoStatus)) {
-    return erro(400, `Não é possível mudar de "${atual.status}" para "${novoStatus}".`);
+    return erro(
+      400,
+      `Não é possível mudar de "${atual.status}" para "${novoStatus}".`,
+    );
   }
 
-  if (novoStatus === 'concluido' && atual.data > agora().data) {
-    return erro(400, 'Não é possível concluir um agendamento com data futura.');
+  if (novoStatus === "concluido" && atual.data > agora().data) {
+    return erro(400, "Não é possível concluir um agendamento com data futura.");
   }
 
   const executarUpdate = conn.transaction(() => {
-    if (atual.status === 'cancelado') {
+    if (atual.status === "cancelado") {
       verificarConflito(conn, {
-        origem: 'painel',
+        origem: "painel",
         barbeiro: { id: atual.barbeiro_id, nome: atual.barbeiro_nome },
         data: atual.data,
         inicio: atual.inicio,
@@ -353,10 +410,12 @@ export function mudarStatusAgendamento(id, novoStatus) {
         ignorarId: id,
       });
     }
-    conn.prepare('UPDATE agendamentos SET status = ? WHERE id = ?').run(novoStatus, id);
+    conn
+      .prepare("UPDATE agendamentos SET status = ? WHERE id = ?")
+      .run(novoStatus, id);
     registrarAuditoria(conn, {
-      acao: 'status',
-      tabela: 'agendamentos',
+      acao: "status",
+      tabela: "agendamentos",
       registroId: id,
       antes: { status: atual.status },
       depois: { status: novoStatus },
@@ -381,14 +440,20 @@ export function mudarStatusAgendamento(id, novoStatus) {
  */
 export function excluirAgendamento(id) {
   const conn = getDb();
-  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL').get(id);
-  if (!atual) return erro(404, 'Agendamento não encontrado.');
+  const atual = conn
+    .prepare("SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL")
+    .get(id);
+  if (!atual) return erro(404, "Agendamento não encontrado.");
 
   const executarExclusao = conn.transaction(() => {
-    conn.prepare("UPDATE agendamentos SET excluido_em = datetime('now') WHERE id = ?").run(id);
+    conn
+      .prepare(
+        "UPDATE agendamentos SET excluido_em = datetime('now') WHERE id = ?",
+      )
+      .run(id);
     registrarAuditoria(conn, {
-      acao: 'excluir',
-      tabela: 'agendamentos',
+      acao: "excluir",
+      tabela: "agendamentos",
       registroId: id,
       antes: snapshotAgendamento(atual),
     });

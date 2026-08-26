@@ -35,9 +35,9 @@
   --erro: #a6402e;
 
   /* Tipografia */
-  --fonte-display: 'Playfair Display', Georgia, serif;
-  --fonte-corpo: 'Inter', system-ui, -apple-system, sans-serif;
-  --fonte-mono: 'DM Mono', ui-monospace, monospace;
+  --fonte-display: "Playfair Display", Georgia, serif;
+  --fonte-corpo: "Inter", system-ui, -apple-system, sans-serif;
+  --fonte-mono: "DM Mono", ui-monospace, monospace;
 
   /* Métrica */
   --raio: 10px;
@@ -205,7 +205,10 @@ textarea {
   font-weight: 700;
   font-size: 15px;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
   text-align: center;
 }
 
@@ -308,7 +311,9 @@ textarea {
   border: 1px solid var(--linha);
   border-radius: var(--raio);
   background: var(--creme-alto);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .entrada:focus {
@@ -394,7 +399,9 @@ textarea.entrada {
   background: transparent;
   color: var(--tinta);
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .seletor-data-nav button:hover {
@@ -432,7 +439,9 @@ textarea.entrada {
   font-size: 13px;
   cursor: pointer;
   color: var(--tinta);
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .seletor-data-dia:hover {
@@ -701,7 +710,9 @@ textarea.entrada {
   color: var(--creme-alto);
   font-size: 15px;
   opacity: 0.82;
-  transition: opacity 0.15s ease, color 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    color 0.15s ease;
 }
 
 .menu-desktop:hover,
@@ -858,8 +869,12 @@ textarea.entrada {
 
 .capa {
   background:
-    linear-gradient(180deg, rgba(8, 16, 12, 0.4) 0%, rgba(8, 14, 11, 0.62) 100%),
-    url('/imagens/capa-fundo.png') center / cover no-repeat;
+    linear-gradient(
+      180deg,
+      rgba(8, 16, 12, 0.4) 0%,
+      rgba(8, 14, 11, 0.62) 100%
+    ),
+    url("/imagens/capa-fundo.png") center / cover no-repeat;
   color: var(--creme-alto);
   position: relative;
   overflow: hidden;
@@ -953,19 +968,31 @@ textarea.entrada {
 
 .secao-creme {
   background:
-    radial-gradient(circle at 88% 0%, rgba(198, 160, 44, 0.07), transparent 55%),
+    radial-gradient(
+      circle at 88% 0%,
+      rgba(198, 160, 44, 0.07),
+      transparent 55%
+    ),
     var(--creme);
 }
 
 .secao-alta {
   background:
-    radial-gradient(circle at 88% 0%, rgba(198, 160, 44, 0.06), transparent 55%),
+    radial-gradient(
+      circle at 88% 0%,
+      rgba(198, 160, 44, 0.06),
+      transparent 55%
+    ),
     var(--creme-alto);
 }
 
 .secao-marrom {
   background:
-    radial-gradient(circle at 12% 100%, rgba(216, 189, 124, 0.09), transparent 50%),
+    radial-gradient(
+      circle at 12% 100%,
+      rgba(216, 189, 124, 0.09),
+      transparent 50%
+    ),
     linear-gradient(165deg, var(--marrom-700), var(--marrom-900));
   color: var(--creme-alto);
 }
@@ -1018,7 +1045,10 @@ textarea.entrada {
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .filtro-chip:hover {
@@ -1050,7 +1080,10 @@ textarea.entrada {
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: var(--raio-g);
   overflow: hidden;
-  transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease;
 }
 
 .secao-alta .cartao-servico {
@@ -1285,7 +1318,11 @@ textarea.entrada {
 
 .chamada {
   background:
-    radial-gradient(circle at 88% 100%, rgba(216, 189, 124, 0.1), transparent 55%),
+    radial-gradient(
+      circle at 88% 100%,
+      rgba(216, 189, 124, 0.1),
+      transparent 55%
+    ),
     var(--verde-700);
   color: var(--creme-alto);
   padding: 76px 0;
@@ -1483,7 +1520,7 @@ textarea.entrada {
 }
 
 .trilha-passo::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 4px;
@@ -1569,7 +1606,9 @@ textarea.entrada {
   border: 1px solid var(--linha);
   border-radius: var(--raio);
   cursor: pointer;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .opcao:hover {
@@ -1693,7 +1732,9 @@ textarea.entrada {
   background: #fff;
   cursor: pointer;
   text-align: center;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .data-btn:hover {
@@ -1741,7 +1782,9 @@ textarea.entrada {
   font-family: var(--fonte-mono);
   font-size: 15px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .hora-btn:hover {
@@ -1762,7 +1805,7 @@ textarea.entrada {
 }
 
 .comanda::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -2027,7 +2070,9 @@ textarea.entrada {
   cursor: pointer;
   text-align: left;
   font-size: 15px;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .item-menu:hover {
@@ -2255,7 +2300,9 @@ table.tabela tbody tr:hover {
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
 
 .icone-btn:hover {
@@ -2294,7 +2341,9 @@ table.tabela tbody tr:hover {
   background: var(--creme-alto);
   cursor: pointer;
   font-size: 14px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 
 .pilula:hover {

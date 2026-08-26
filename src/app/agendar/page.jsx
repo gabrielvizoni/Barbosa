@@ -1,12 +1,12 @@
-import { Suspense } from 'react';
-import Link from 'next/link';
-import Header from '@/components/Header';
-import FluxoAgendamento from './FluxoAgendamento';
-import Animacoes from '@/components/Animacoes';
-import { lerConfig } from '@/lib/db';
-import { NOME_PADRAO } from '@/lib/format';
+import { Suspense } from "react";
+import Link from "next/link";
+import Header from "@/components/Header";
+import FluxoAgendamento from "./FluxoAgendamento";
+import Animacoes from "@/components/Animacoes";
+import { lerConfig } from "@/lib/db";
+import { NOME_PADRAO } from "@/lib/format";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata() {
   const config = lerConfig();

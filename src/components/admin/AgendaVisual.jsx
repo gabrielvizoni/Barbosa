@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useState } from 'react';
-import { api, SeletorData, Vazio } from './base';
-import { iniciais, mascararTelefone, moeda } from '@/lib/format';
-import { hojeLocal } from '@/lib/datas-cliente';
-import { usePainelConfig } from './ConfigContext';
+import { useCallback, useEffect, useState } from "react";
+import { api, SeletorData, Vazio } from "./base";
+import { iniciais, mascararTelefone, moeda } from "@/lib/format";
+import { hojeLocal } from "@/lib/datas-cliente";
+import { usePainelConfig } from "./ConfigContext";
 
 function paraMinutos(hhmm) {
-  const [h, m] = hhmm.split(':').map(Number);
+  const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }
 
@@ -44,7 +44,9 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
   const carregar = useCallback(() => {
     if (!barbeiroId) return;
     api(`agendamentos?barbeiro=${barbeiroId}&data=${data}`)
-      .then((r) => setAgendamentos(r.itens.filter((a) => a.status !== 'cancelado')))
+      .then((r) =>
+        setAgendamentos(r.itens.filter((a) => a.status !== "cancelado")),
+      )
       .catch(tratarErro);
   }, [barbeiroId, data, tratarErro]);
 
@@ -59,21 +61,32 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
         {barbeiros.map((b) => (
           <button
             key={b.id}
-            className={`pilula ${b.id === barbeiroId ? 'ativa' : ''}`}
+            className={`pilula ${b.id === barbeiroId ? "ativa" : ""}`}
             onClick={() => setBarbeiroId(b.id)}
           >
             {b.foto ? (
               /* eslint-disable-next-line @next/next/no-img-element */
-              <img className="avatar-mini" src={b.foto} alt="" style={{ width: 24, height: 24 }} />
+              <img
+                className="avatar-mini"
+                src={b.foto}
+                alt=""
+                style={{ width: 24, height: 24 }}
+              />
             ) : (
-              <span className="avatar-mini" style={{ width: 24, height: 24, fontSize: 11 }}>
+              <span
+                className="avatar-mini"
+                style={{ width: 24, height: 24, fontSize: 11 }}
+              >
                 {iniciais(b.nome)}
               </span>
             )}
-            {b.nome.split(' ')[0]}
+            {b.nome.split(" ")[0]}
           </button>
         ))}
-        <SeletorData value={data} onChange={(v) => setData(v || hojeLocal(fuso))} />
+        <SeletorData
+          value={data}
+          onChange={(v) => setData(v || hojeLocal(fuso))}
+        />
       </div>
 
       <section className="bloco">
@@ -86,7 +99,13 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
             <div className="bloco-titulo">
               <div>
                 <h2 style={{ marginBottom: 2 }}>{barbeiro.nome}</h2>
-                <p style={{ margin: 0, color: 'var(--tinta-suave)', fontSize: 14 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    color: "var(--tinta-suave)",
+                    fontSize: 14,
+                  }}
+                >
                   {agendamentos.length} atendimento(s) no dia
                 </p>
               </div>
@@ -96,28 +115,37 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
               {slots.map((min) => {
                 const cheia = min % 60 === 0;
                 const daSlot = agendamentos.filter(
-                  (a) => Math.floor(paraMinutos(a.inicio) / 30) * 30 === min
+                  (a) => Math.floor(paraMinutos(a.inicio) / 30) * 30 === min,
                 );
                 return (
-                  <div key={min} style={{ display: 'contents' }}>
-                    <div className={`faixa-hora ${cheia ? '' : 'faixa-hora-meia'}`}>
-                      {cheia ? `${String(Math.floor(min / 60)).padStart(2, '0')}:00` : ''}
+                  <div key={min} style={{ display: "contents" }}>
+                    <div
+                      className={`faixa-hora ${cheia ? "" : "faixa-hora-meia"}`}
+                    >
+                      {cheia
+                        ? `${String(Math.floor(min / 60)).padStart(2, "0")}:00`
+                        : ""}
                     </div>
-                    <div className={`faixa-conteudo ${cheia ? '' : 'faixa-conteudo-meia'}`}>
+                    <div
+                      className={`faixa-conteudo ${cheia ? "" : "faixa-conteudo-meia"}`}
+                    >
                       {daSlot.map((a) => (
                         <div
                           key={a.id}
-                          className={`cartao-agenda ${a.status === 'pendente' ? 'pendente' : ''}`}
+                          className={`cartao-agenda ${a.status === "pendente" ? "pendente" : ""}`}
                         >
                           <strong>{a.cliente_nome}</strong>
                           <span className="detalhe">
-                            {a.inicio}–{a.fim} · {a.servico_nome} · {moeda(a.preco_centavos)}
+                            {a.inicio}–{a.fim} · {a.servico_nome} ·{" "}
+                            {moeda(a.preco_centavos)}
                           </span>
                           <span className="detalhe">
                             {mascararTelefone(a.cliente_telefone)}
                           </span>
                           {a.observacoes ? (
-                            <span className="detalhe">Obs: {a.observacoes}</span>
+                            <span className="detalhe">
+                              Obs: {a.observacoes}
+                            </span>
                           ) : null}
                         </div>
                       ))}
@@ -131,12 +159,12 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
               <p
                 style={{
                   marginTop: 18,
-                  textAlign: 'center',
-                  color: 'var(--tinta-suave)',
+                  textAlign: "center",
+                  color: "var(--tinta-suave)",
                   fontSize: 14.5,
                 }}
               >
-                Dia livre para {barbeiro.nome.split(' ')[0]}.
+                Dia livre para {barbeiro.nome.split(" ")[0]}.
               </p>
             ) : null}
           </>

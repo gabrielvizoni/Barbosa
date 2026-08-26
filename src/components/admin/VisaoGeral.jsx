@@ -1,22 +1,43 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { api, Etiqueta, Vazio } from './base';
-import { moeda, dataBr, iniciais } from '@/lib/format';
-import { Calendario, CheckCirculo, Dinheiro, Grafico, Sino } from '@/components/Icones';
+import { useEffect, useState } from "react";
+import { api, Etiqueta, Vazio } from "./base";
+import { moeda, dataBr, iniciais } from "@/lib/format";
+import {
+  Calendario,
+  CheckCirculo,
+  Dinheiro,
+  Grafico,
+  Sino,
+} from "@/components/Icones";
 
 const DIAS = [
-  'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
-  'quinta-feira', 'sexta-feira', 'sábado',
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
 ];
 const MESES = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
 ];
 
 function porExtenso(data) {
-  if (!data) return '';
-  const [a, m, d] = data.split('-').map(Number);
+  if (!data) return "";
+  const [a, m, d] = data.split("-").map(Number);
   const semana = new Date(Date.UTC(a, m - 1, d)).getUTCDay();
   const nome = DIAS[semana];
   return `${nome[0].toUpperCase()}${nome.slice(1)}, ${d} de ${MESES[m - 1]} de ${a}`;
@@ -26,7 +47,7 @@ export default function VisaoGeral({ tratarErro }) {
   const [resumo, setResumo] = useState(null);
 
   useEffect(() => {
-    api('resumo').then(setResumo).catch(tratarErro);
+    api("resumo").then(setResumo).catch(tratarErro);
   }, [tratarErro]);
 
   if (!resumo) return <p>Carregando…</p>;
@@ -45,15 +66,24 @@ export default function VisaoGeral({ tratarErro }) {
       <div className="cartoes">
         <div className="cartao">
           <div className="rotulo">
-            Hoje <Calendario width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
+            Hoje{" "}
+            <Calendario
+              width={15}
+              height={15}
+              style={{ float: "right", opacity: 0.5 }}
+            />
           </div>
           <div className="numero">{hoje.total}</div>
           <div className="nota">agendamentos</div>
         </div>
         <div className="cartao">
           <div className="rotulo">
-            Realizado hoje{' '}
-            <Grafico width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
+            Realizado hoje{" "}
+            <Grafico
+              width={15}
+              height={15}
+              style={{ float: "right", opacity: 0.5 }}
+            />
           </div>
           <div className="numero" style={{ fontSize: 30 }}>
             {moeda(hoje.realizado)}
@@ -62,7 +92,12 @@ export default function VisaoGeral({ tratarErro }) {
         </div>
         <div className="cartao">
           <div className="rotulo">
-            Previsto hoje <Dinheiro width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
+            Previsto hoje{" "}
+            <Dinheiro
+              width={15}
+              height={15}
+              style={{ float: "right", opacity: 0.5 }}
+            />
           </div>
           <div className="numero" style={{ fontSize: 30 }}>
             {moeda(hoje.previsto)}
@@ -71,15 +106,24 @@ export default function VisaoGeral({ tratarErro }) {
         </div>
         <div className="cartao">
           <div className="rotulo">
-            Confirmados{' '}
-            <CheckCirculo width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
+            Confirmados{" "}
+            <CheckCirculo
+              width={15}
+              height={15}
+              style={{ float: "right", opacity: 0.5 }}
+            />
           </div>
           <div className="numero">{hoje.confirmados}</div>
           <div className="nota">para hoje</div>
         </div>
         <div className="cartao">
           <div className="rotulo">
-            Pendentes <Sino width={15} height={15} style={{ float: 'right', opacity: 0.5 }} />
+            Pendentes{" "}
+            <Sino
+              width={15}
+              height={15}
+              style={{ float: "right", opacity: 0.5 }}
+            />
           </div>
           <div className="numero">{hoje.pendentes}</div>
           <div className="nota">aguardando você</div>
@@ -90,7 +134,8 @@ export default function VisaoGeral({ tratarErro }) {
         <h2>Quem trabalha hoje</h2>
         {hoje.agenda.length === 0 ? (
           <Vazio titulo="Nenhum profissional ativo">
-            Cadastre a equipe em Profissionais para começar a receber agendamentos.
+            Cadastre a equipe em Profissionais para começar a receber
+            agendamentos.
           </Vazio>
         ) : (
           <div>
@@ -98,11 +143,11 @@ export default function VisaoGeral({ tratarErro }) {
               <div
                 key={b.id}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
+                  display: "flex",
+                  alignItems: "center",
                   gap: 14,
-                  padding: '12px 0',
-                  borderBottom: '1px solid rgba(217,201,173,.5)',
+                  padding: "12px 0",
+                  borderBottom: "1px solid rgba(217,201,173,.5)",
                 }}
               >
                 {b.foto ? (
@@ -113,14 +158,17 @@ export default function VisaoGeral({ tratarErro }) {
                 )}
                 <div style={{ flex: 1 }}>
                   <strong>{b.nome}</strong>
-                  <div style={{ fontSize: 13.5, color: 'var(--tinta-suave)' }}>
+                  <div style={{ fontSize: 13.5, color: "var(--tinta-suave)" }}>
                     {b.atendimentos > 0
                       ? `${b.atendimentos} atendimento(s)`
-                      : 'Sem agendamentos hoje'}
+                      : "Sem agendamentos hoje"}
                   </div>
                 </div>
                 {b.atendimentos > 0 ? (
-                  <span className="mono" style={{ fontSize: 13, color: 'var(--tinta-suave)' }}>
+                  <span
+                    className="mono"
+                    style={{ fontSize: 13, color: "var(--tinta-suave)" }}
+                  >
                     {b.primeiro} – {b.ultimo}
                   </span>
                 ) : null}

@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Menu, Xis } from '@/components/Icones';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Menu, Xis } from "@/components/Icones";
 
 /**
  * Cabeçalho compartilhado entre o site público e o fluxo de agendamento.
@@ -15,9 +15,9 @@ export default function Header({ nome, logoUrl, links = [], cta, extra }) {
 
   useEffect(() => {
     if (!aberto) return undefined;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = "";
     };
   }, [aberto]);
 
@@ -78,7 +78,11 @@ export default function Header({ nome, logoUrl, links = [], cta, extra }) {
               </button>
             </div>
             {links.map((link) => (
-              <a key={link.href} href={link.href} onClick={() => setAberto(false)}>
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setAberto(false)}
+              >
                 {link.label}
               </a>
             ))}

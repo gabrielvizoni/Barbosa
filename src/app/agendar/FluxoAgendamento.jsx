@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { animate, utils } from 'animejs';
+import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { animate, utils } from "animejs";
 import {
   moeda,
   dataBr,
@@ -11,27 +11,50 @@ import {
   mascararTelefone,
   telefoneValido,
   linkWhatsapp,
-} from '@/lib/format';
-import { hojeLocal } from '@/lib/datas-cliente';
-import { CheckCirculo, SetaEsquerda, WhatsApp } from '@/components/Icones';
+} from "@/lib/format";
+import { hojeLocal } from "@/lib/datas-cliente";
+import { CheckCirculo, SetaEsquerda, WhatsApp } from "@/components/Icones";
 
-const PASSOS = ['Serviço', 'Profissional', 'Data', 'Horário', 'Seus dados'];
+const PASSOS = ["Serviço", "Profissional", "Data", "Horário", "Seus dados"];
 
 /* --- Formatação de datas no navegador (sem depender do fuso do servidor) --- */
 /* Cabeçalho do calendário: sempre seg. a dom., nessa ordem — mesmo que
  * domingo não tenha expediente, a coluna continua existindo. */
-const DIAS_SEMANA_CABECALHO = ['seg.', 'ter.', 'qua.', 'qui.', 'sex.', 'sáb.', 'dom.'];
+const DIAS_SEMANA_CABECALHO = [
+  "seg.",
+  "ter.",
+  "qua.",
+  "qui.",
+  "sex.",
+  "sáb.",
+  "dom.",
+];
 const DIAS_LONGOS = [
-  'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
-  'quinta-feira', 'sexta-feira', 'sábado',
+  "domingo",
+  "segunda-feira",
+  "terça-feira",
+  "quarta-feira",
+  "quinta-feira",
+  "sexta-feira",
+  "sábado",
 ];
 const MESES_LONGOS = [
-  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+  "janeiro",
+  "fevereiro",
+  "março",
+  "abril",
+  "maio",
+  "junho",
+  "julho",
+  "agosto",
+  "setembro",
+  "outubro",
+  "novembro",
+  "dezembro",
 ];
 
 function partes(data) {
-  const [a, m, d] = data.split('-').map(Number);
+  const [a, m, d] = data.split("-").map(Number);
   const semana = new Date(Date.UTC(a, m - 1, d)).getUTCDay();
   return { ano: a, mes: m, dia: d, semana };
 }
@@ -119,7 +142,7 @@ function ComandaLateral({ servico, barbeiro, data, hora }) {
 export default function FluxoAgendamento() {
   const searchParams = useSearchParams();
   const barbeiroPreferidoId = useMemo(() => {
-    const v = searchParams.get('barbeiro');
+    const v = searchParams.get("barbeiro");
     return v ? Number(v) : null;
   }, [searchParams]);
 
@@ -136,11 +159,11 @@ export default function FluxoAgendamento() {
   const [horarios, setHorarios] = useState([]);
   const [buscandoHorarios, setBuscandoHorarios] = useState(false);
 
-  const [nome, setNome] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [observacoes, setObservacoes] = useState('');
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [observacoes, setObservacoes] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState('');
+  const [erro, setErro] = useState("");
   const [confirmado, setConfirmado] = useState(null);
 
   const painelRef = useRef(null);
@@ -148,12 +171,12 @@ export default function FluxoAgendamento() {
   // Uma leve entrada a cada passo do agendamento, pra marcar a troca de tela.
   useEffect(() => {
     if (!painelRef.current) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     animate(painelRef.current, {
       opacity: [0, 1],
       translateY: [10, 0],
       duration: 380,
-      ease: 'outQuart',
+      ease: "outQuart",
       onComplete: (self) => utils.cleanInlineStyles(self),
     });
   }, [passo]);
@@ -161,9 +184,9 @@ export default function FluxoAgendamento() {
   function carregarDados() {
     setCarregando(true);
     setFalhaCarregamento(false);
-    fetch('/api/public')
+    fetch("/api/public")
       .then((r) => {
-        if (!r.ok) throw new Error('resposta não ok');
+        if (!r.ok) throw new Error("resposta não ok");
         return r.json();
       })
       .then(setDados)
@@ -178,10 +201,12 @@ export default function FluxoAgendamento() {
     if (passo !== 3 || !servico || !barbeiro || !data) return;
     setBuscandoHorarios(true);
     setHorarios([]);
-    fetch(`/api/horarios?barbeiro=${barbeiro.id}&servico=${servico.id}&data=${data}`)
+    fetch(
+      `/api/horarios?barbeiro=${barbeiro.id}&servico=${servico.id}&data=${data}`,
+    )
       .then((r) => r.json())
       .then((r) => setHorarios(r.horarios || []))
-      .catch(() => setErro('Não consegui buscar os horários. Tente de novo.'))
+      .catch(() => setErro("Não consegui buscar os horários. Tente de novo."))
       .finally(() => setBuscandoHorarios(false));
   }, [passo, servico, barbeiro, data]);
 
@@ -192,14 +217,14 @@ export default function FluxoAgendamento() {
 
   /* Um calendário de verdade por mês — seg. a dom., domingo incluso mesmo
    * fechado — em vez de só empilhar os dias que têm horário livre. */
-  const hojeChave = hojeLocal(dados?.fuso || 'America/Sao_Paulo');
+  const hojeChave = hojeLocal(dados?.fuso || "America/Sao_Paulo");
 
   const gruposData = useMemo(() => {
     if (!dados?.dias?.length) return [];
     const disponiveis = new Set(dados.dias);
     const ultimaData = dados.dias[dados.dias.length - 1];
-    const [anoIni, mesIni] = hojeChave.split('-').map(Number);
-    const [anoFim, mesFim] = ultimaData.split('-').map(Number);
+    const [anoIni, mesIni] = hojeChave.split("-").map(Number);
+    const [anoFim, mesFim] = ultimaData.split("-").map(Number);
     const indiceFinal = anoFim * 12 + (mesFim - 1);
 
     const grupos = [];
@@ -210,7 +235,13 @@ export default function FluxoAgendamento() {
         chave: `${ano}-${mesIndice}`,
         ano,
         mesIndice,
-        celulas: gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis, hojeChave),
+        celulas: gradeCalendarioMes(
+          ano,
+          mesIndice,
+          ultimaData,
+          disponiveis,
+          hojeChave,
+        ),
       });
       mesIndice += 1;
       if (mesIndice > 11) {
@@ -222,7 +253,7 @@ export default function FluxoAgendamento() {
   }, [dados, hojeChave]);
 
   function voltar() {
-    setErro('');
+    setErro("");
     setPasso((p) => Math.max(0, p - 1));
   }
 
@@ -232,7 +263,9 @@ export default function FluxoAgendamento() {
     setBarbeiro(null);
     setData(null);
     setHora(null);
-    const disponiveis = dados.barbeiros.filter((b) => s.barbeiros.includes(b.id));
+    const disponiveis = dados.barbeiros.filter((b) =>
+      s.barbeiros.includes(b.id),
+    );
 
     // Com um único profissional, não faz sentido pedir uma escolha: pula o passo.
     if (disponiveis.length === 1) {
@@ -270,15 +303,16 @@ export default function FluxoAgendamento() {
   }
 
   async function confirmar() {
-    setErro('');
-    if (nome.trim().length < 2) return setErro('Escreva seu nome completo.');
-    if (!telefoneValido(telefone)) return setErro('Informe um WhatsApp com DDD.');
+    setErro("");
+    if (nome.trim().length < 2) return setErro("Escreva seu nome completo.");
+    if (!telefoneValido(telefone))
+      return setErro("Informe um WhatsApp com DDD.");
 
     setEnviando(true);
     try {
-      const resposta = await fetch('/api/agendamentos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const resposta = await fetch("/api/agendamentos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cliente_nome: nome,
           cliente_telefone: telefone,
@@ -292,13 +326,13 @@ export default function FluxoAgendamento() {
       const corpo = await resposta.json();
 
       if (!resposta.ok) {
-        setErro(corpo.erro || 'Não consegui concluir o agendamento.');
+        setErro(corpo.erro || "Não consegui concluir o agendamento.");
         if (resposta.status === 409) setPasso(3); // horário tomado: volta para escolher outro
         return;
       }
       setConfirmado(corpo.agendamento);
     } catch {
-      setErro('Falha de conexão. Confira sua internet e tente novamente.');
+      setErro("Falha de conexão. Confira sua internet e tente novamente.");
     } finally {
       setEnviando(false);
     }
@@ -321,7 +355,8 @@ export default function FluxoAgendamento() {
       <div className="painel">
         <div className="painel-corpo">
           <div className="aviso aviso-erro" style={{ marginBottom: 16 }}>
-            Não consegui carregar os dados agora. Confira sua internet e tente de novo.
+            Não consegui carregar os dados agora. Confira sua internet e tente
+            de novo.
           </div>
           <button className="btn btn-ouro" onClick={carregarDados}>
             Tentar novamente
@@ -334,19 +369,19 @@ export default function FluxoAgendamento() {
   if (confirmado) {
     const link = linkWhatsapp(dados?.barbearia?.whatsapp, confirmado);
     return (
-      <div className="painel" style={{ maxWidth: 640, margin: '0 auto' }}>
+      <div className="painel" style={{ maxWidth: 640, margin: "0 auto" }}>
         <div className="sucesso-topo">
           <div className="selo">
             <CheckCirculo width={32} height={32} />
           </div>
           <h2>Horário reservado</h2>
           <p>
-            Até logo, <strong>{confirmado.cliente.split(' ')[0]}</strong>.
+            Até logo, <strong>{confirmado.cliente.split(" ")[0]}</strong>.
           </p>
           <p className="painel-ajuda" style={{ marginTop: 4 }}>
-            {confirmado.status === 'confirmado'
-              ? 'Seu horário já está confirmado pela barbearia.'
-              : 'Seu horário está guardado — a barbearia ainda vai confirmar.'}
+            {confirmado.status === "confirmado"
+              ? "Seu horário já está confirmado pela barbearia."
+              : "Seu horário está guardado — a barbearia ainda vai confirmar."}
           </p>
         </div>
         <div className="painel-corpo">
@@ -380,23 +415,34 @@ export default function FluxoAgendamento() {
 
           {link ? (
             <>
-              <a href={link} target="_blank" rel="noopener noreferrer" className="btn btn-zap btn-bloco">
-                <WhatsApp width={16} height={16} /> Enviar confirmação no WhatsApp
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-zap btn-bloco"
+              >
+                <WhatsApp width={16} height={16} /> Enviar confirmação no
+                WhatsApp
               </a>
               <p
                 className="painel-ajuda"
-                style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 13.5 }}
+                style={{
+                  textAlign: "center",
+                  margin: "12px 0 0",
+                  fontSize: 13.5,
+                }}
               >
                 A mensagem já vai escrita — é só apertar enviar.
               </p>
             </>
           ) : (
             <div className="aviso">
-              Seu horário está guardado. Chegue com cinco minutos de antecedência.
+              Seu horário está guardado. Chegue com cinco minutos de
+              antecedência.
             </div>
           )}
 
-          <Link href="/" className="voltar" style={{ textAlign: 'center' }}>
+          <Link href="/" className="voltar" style={{ textAlign: "center" }}>
             Voltar ao site
           </Link>
         </div>
@@ -410,8 +456,8 @@ export default function FluxoAgendamento() {
         <div className="painel-corpo">
           <div className="vazio">
             <strong>Agenda ainda não está aberta</strong>
-            Os serviços estão sendo cadastrados. Se quiser marcar agora, fale com a barbearia
-            direto pelo WhatsApp.
+            Os serviços estão sendo cadastrados. Se quiser marcar agora, fale
+            com a barbearia direto pelo WhatsApp.
           </div>
         </div>
       </div>
@@ -426,7 +472,7 @@ export default function FluxoAgendamento() {
             <li
               key={rotulo}
               className={`trilha-passo ${
-                indice === passo ? 'ativo' : indice < passo ? 'feito' : ''
+                indice === passo ? "ativo" : indice < passo ? "feito" : ""
               }`}
             >
               <span>{rotulo}</span>
@@ -449,13 +495,21 @@ export default function FluxoAgendamento() {
                 <p className="painel-ajuda">O que você quer fazer hoje?</p>
                 <div className="opcoes">
                   {dados.servicos.map((s) => (
-                    <button key={s.id} className="opcao" onClick={() => escolherServico(s)}>
+                    <button
+                      key={s.id}
+                      className="opcao"
+                      onClick={() => escolherServico(s)}
+                    >
                       <div className="opcao-texto">
                         <div className="opcao-nome">{s.nome}</div>
-                        {s.descricao ? <div className="opcao-sub">{s.descricao}</div> : null}
+                        {s.descricao ? (
+                          <div className="opcao-sub">{s.descricao}</div>
+                        ) : null}
                       </div>
                       <div className="opcao-valor">
-                        <div className="opcao-preco">{moeda(s.preco_centavos)}</div>
+                        <div className="opcao-preco">
+                          {moeda(s.preco_centavos)}
+                        </div>
                         <div className="opcao-duracao">{s.duracao_min} min</div>
                       </div>
                     </button>
@@ -472,7 +526,11 @@ export default function FluxoAgendamento() {
                 </p>
                 <div className="opcoes">
                   {barbeirosDoServico.map((b) => (
-                    <button key={b.id} className="opcao" onClick={() => escolherBarbeiro(b)}>
+                    <button
+                      key={b.id}
+                      className="opcao"
+                      onClick={() => escolherBarbeiro(b)}
+                    >
                       {b.foto ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img className="avatar-mini" src={b.foto} alt="" />
@@ -514,11 +572,15 @@ export default function FluxoAgendamento() {
                       <div className="grade-datas">
                         {grupo.celulas.map((c) =>
                           !c.visivel ? (
-                            <div key={c.chave} className="data-vazia" aria-hidden="true" />
+                            <div
+                              key={c.chave}
+                              className="data-vazia"
+                              aria-hidden="true"
+                            />
                           ) : c.disponivel ? (
                             <button
                               key={c.chave}
-                              className={`data-btn ${c.chave === hojeChave ? 'hoje' : ''}`}
+                              className={`data-btn ${c.chave === hojeChave ? "hoje" : ""}`}
                               onClick={() => escolherData(c.chave)}
                             >
                               <span className="numero">{c.dia}</span>
@@ -526,12 +588,12 @@ export default function FluxoAgendamento() {
                           ) : (
                             <div
                               key={c.chave}
-                              className={`data-btn fechado ${c.chave === hojeChave ? 'hoje' : ''}`}
+                              className={`data-btn fechado ${c.chave === hojeChave ? "hoje" : ""}`}
                               aria-disabled="true"
                             >
                               <span className="numero">{c.dia}</span>
                             </div>
-                          )
+                          ),
                         )}
                       </div>
                     </div>
@@ -547,20 +609,25 @@ export default function FluxoAgendamento() {
             {passo === 3 && (
               <>
                 <p className="painel-ajuda">
-                  {dataLonga(data)} · {servico.nome} ({servico.duracao_min} min) com {barbeiro.nome}
+                  {dataLonga(data)} · {servico.nome} ({servico.duracao_min} min)
+                  com {barbeiro.nome}
                 </p>
 
                 {buscandoHorarios ? (
                   <p className="painel-ajuda">Buscando horários livres…</p>
                 ) : horarios.length === 0 ? (
                   <div className="vazio">
-                    <strong>Nenhum horário livre nesse dia</strong>
-                    A agenda de {barbeiro.nome} está cheia. Volte e escolha outro dia.
+                    <strong>Nenhum horário livre nesse dia</strong>A agenda de{" "}
+                    {barbeiro.nome} está cheia. Volte e escolha outro dia.
                   </div>
                 ) : (
                   <div className="grade-horarios">
                     {horarios.map((h) => (
-                      <button key={h} className="hora-btn" onClick={() => escolherHora(h)}>
+                      <button
+                        key={h}
+                        className="hora-btn"
+                        onClick={() => escolherHora(h)}
+                      >
                         {h}
                       </button>
                     ))}
@@ -621,7 +688,9 @@ export default function FluxoAgendamento() {
                   <input
                     className="entrada mono"
                     value={telefone}
-                    onChange={(e) => setTelefone(mascararTelefone(e.target.value))}
+                    onChange={(e) =>
+                      setTelefone(mascararTelefone(e.target.value))
+                    }
                     placeholder="(44) 99999-0000"
                     inputMode="numeric"
                     autoComplete="tel"
@@ -638,8 +707,12 @@ export default function FluxoAgendamento() {
                   />
                 </label>
 
-                <button className="btn btn-ouro btn-bloco" onClick={confirmar} disabled={enviando}>
-                  {enviando ? 'Reservando…' : 'Confirmar agendamento'}
+                <button
+                  className="btn btn-ouro btn-bloco"
+                  onClick={confirmar}
+                  disabled={enviando}
+                >
+                  {enviando ? "Reservando…" : "Confirmar agendamento"}
                 </button>
 
                 <button className="voltar" onClick={voltar}>
@@ -652,7 +725,12 @@ export default function FluxoAgendamento() {
       </div>
 
       <aside className="comanda-lateral" aria-label="Resumo do agendamento">
-        <ComandaLateral servico={servico} barbeiro={barbeiro} data={data} hora={hora} />
+        <ComandaLateral
+          servico={servico}
+          barbeiro={barbeiro}
+          data={data}
+          hora={hora}
+        />
       </aside>
     </div>
   );

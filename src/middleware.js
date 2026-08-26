@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 // A CSP mora aqui, e não em next.config.mjs, porque script-src precisa de um
 // nonce novo a cada requisição: o próprio Next injeta scripts inline com o
@@ -29,20 +29,23 @@ export function middleware(request) {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-  ].join('; ');
+  ].join("; ");
 
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set("x-nonce", nonce);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
-  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set("Content-Security-Policy", csp);
   // O painel (/admin) é clickjackável hoje — nada impede alguém de embutir a
   // página num iframe e sobrepor botões invisíveis.
-  response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=63072000; includeSubDomains; preload",
+  );
 
   return response;
 }
@@ -51,6 +54,6 @@ export const config = {
   matcher: [
     // Tudo, exceto os arquivos estáticos do Next e o favicon — não têm HTML
     // pra proteger, e reescrever a resposta deles à toa custa performance.
-    '/((?!_next/static|_next/image|favicon.ico).*)',
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };

@@ -1,4 +1,4 @@
-import { getDb } from './db';
+import { getDb } from "./db";
 
 /**
  * Controle de taxa simples baseado no próprio SQLite — sem Redis nem serviço
@@ -16,23 +16,31 @@ function contarTentativas(chave, janelaMinutos) {
   const conn = getDb();
   // Nunca guarda mais que um dia de histórico, de qualquer chave.
   if (Math.random() < CHANCE_DE_LIMPAR) {
-    conn.prepare("DELETE FROM limitador WHERE criado_em < datetime('now', '-1 day')").run();
+    conn
+      .prepare(
+        "DELETE FROM limitador WHERE criado_em < datetime('now', '-1 day')",
+      )
+      .run();
   }
   return conn
     .prepare(
-      `SELECT COUNT(*) AS n FROM limitador WHERE chave = ? AND criado_em >= datetime('now', ?)`
+      `SELECT COUNT(*) AS n FROM limitador WHERE chave = ? AND criado_em >= datetime('now', ?)`,
     )
     .get(chave, `-${janelaMinutos} minutes`).n;
 }
 
 /** Registra mais uma tentativa para a chave. */
 function registrar(chave) {
-  getDb().prepare("INSERT INTO limitador (chave, criado_em) VALUES (?, datetime('now'))").run(chave);
+  getDb()
+    .prepare(
+      "INSERT INTO limitador (chave, criado_em) VALUES (?, datetime('now'))",
+    )
+    .run(chave);
 }
 
 /** Apaga as tentativas de uma chave (usado após sucesso, para não deixar "quase bloqueado"). */
 export function limparTentativas(chave) {
-  getDb().prepare('DELETE FROM limitador WHERE chave = ?').run(chave);
+  getDb().prepare("DELETE FROM limitador WHERE chave = ?").run(chave);
 }
 
 /**
@@ -58,10 +66,15 @@ export function registrarTentativa(chave) {
  * ninguém legítimo. Enquanto as falhas continuarem acontecendo dentro da
  * janela, cada uma re-arma outros `bloqueioSegundos` de bloqueio.
  */
-export function limiteGlobalAtingido(chave, { janelaMinutos, maximo, bloqueioSegundos }) {
+export function limiteGlobalAtingido(
+  chave,
+  { janelaMinutos, maximo, bloqueioSegundos },
+) {
   if (contarTentativas(chave, janelaMinutos) < maximo) return false;
   const recente = getDb()
-    .prepare(`SELECT 1 FROM limitador WHERE chave = ? AND criado_em >= datetime('now', ?) LIMIT 1`)
+    .prepare(
+      `SELECT 1 FROM limitador WHERE chave = ? AND criado_em >= datetime('now', ?) LIMIT 1`,
+    )
     .get(chave, `-${bloqueioSegundos} seconds`);
   return Boolean(recente);
 }
@@ -77,11 +90,11 @@ export function limiteGlobalAtingido(chave, { janelaMinutos, maximo, bloqueioSeg
  * junto do proxy que termina o HTTPS.
  */
 export function obterIp(request) {
-  if (process.env.TRUST_PROXY === '1') {
-    const encaminhado = request.headers.get('x-forwarded-for');
-    if (encaminhado) return encaminhado.split(',')[0].trim();
-    const real = request.headers.get('x-real-ip');
+  if (process.env.TRUST_PROXY === "1") {
+    const encaminhado = request.headers.get("x-forwarded-for");
+    if (encaminhado) return encaminhado.split(",")[0].trim();
+    const real = request.headers.get("x-real-ip");
     if (real) return real;
   }
-  return 'sem-ip';
+  return "sem-ip";
 }

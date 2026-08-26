@@ -11,17 +11,20 @@ function escrever(nivel, rota, msg, contexto = {}) {
 }
 
 export function registrarInfo(rota, msg, contexto) {
-  escrever('info', rota, msg, contexto);
+  escrever("info", rota, msg, contexto);
 }
 
 export function registrarAviso(rota, msg, contexto) {
-  escrever('aviso', rota, msg, contexto);
+  escrever("aviso", rota, msg, contexto);
 }
 
 /** `erroOriginal` vira só a mensagem (nunca o stack trace, que fica só no processo). */
 export function registrarErro(rota, msg, erroOriginal, contexto) {
-  const erro = erroOriginal instanceof Error ? erroOriginal.message : String(erroOriginal ?? '');
-  escrever('erro', rota, msg, { ...contexto, erro });
+  const erro =
+    erroOriginal instanceof Error
+      ? erroOriginal.message
+      : String(erroOriginal ?? "");
+  escrever("erro", rota, msg, { ...contexto, erro });
 }
 
 /**
@@ -34,10 +37,10 @@ export function comLog(rota, handler) {
     try {
       return await handler(...args);
     } catch (erroOriginal) {
-      registrarErro(rota, 'erro não tratado', erroOriginal);
+      registrarErro(rota, "erro não tratado", erroOriginal);
       return Response.json(
-        { erro: 'Algo deu errado. Tente de novo em instantes.' },
-        { status: 500 }
+        { erro: "Algo deu errado. Tente de novo em instantes." },
+        { status: 500 },
       );
     }
   };

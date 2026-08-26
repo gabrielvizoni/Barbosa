@@ -1,11 +1,15 @@
-import { exigirSessao } from '@/lib/auth';
-import { excluirAgendamento, mudarStatusAgendamento, remarcarAgendamento } from '@/lib/agendamentos';
-import { lerCorpoJson } from '@/lib/requisicao';
-import { comLog, registrarInfo } from '@/lib/log';
+import { exigirSessao } from "@/lib/auth";
+import {
+  excluirAgendamento,
+  mudarStatusAgendamento,
+  remarcarAgendamento,
+} from "@/lib/agendamentos";
+import { lerCorpoJson } from "@/lib/requisicao";
+import { comLog, registrarInfo } from "@/lib/log";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-const ROTA_PATCH = 'PATCH /api/admin/agendamentos/[id]';
+const ROTA_PATCH = "PATCH /api/admin/agendamentos/[id]";
 
 /**
  * Um único endereço para as duas mutações que um agendamento aceita depois
@@ -19,12 +23,15 @@ export const PATCH = comLog(ROTA_PATCH, async (request, { params }) => {
 
   const id = Number(params.id);
   if (!id) {
-    return Response.json({ erro: 'Agendamento não encontrado.' }, { status: 404 });
+    return Response.json(
+      { erro: "Agendamento não encontrado." },
+      { status: 404 },
+    );
   }
 
   const corpo = await lerCorpoJson(request);
   if (!corpo) {
-    return Response.json({ erro: 'JSON inválido.' }, { status: 400 });
+    return Response.json({ erro: "JSON inválido." }, { status: 400 });
   }
 
   let resultado;
@@ -44,35 +51,51 @@ export const PATCH = comLog(ROTA_PATCH, async (request, { params }) => {
       barbeiroId: corpo.barbeiro_id,
       servicoId: corpo.servico_id,
     });
-    msgLog = 'agendamento remarcado';
+    msgLog = "agendamento remarcado";
   } else {
-    return Response.json({ erro: 'Nada para atualizar.' }, { status: 400 });
+    return Response.json({ erro: "Nada para atualizar." }, { status: 400 });
   }
 
   if (!resultado.ok) {
-    return Response.json({ erro: resultado.erro }, { status: resultado.status });
+    return Response.json(
+      { erro: resultado.erro },
+      { status: resultado.status },
+    );
   }
 
   registrarInfo(ROTA_PATCH, msgLog, { agendamentoId: id });
   return Response.json({ ok: true });
 });
 
-export const DELETE = comLog('DELETE /api/admin/agendamentos/[id]', async (request, { params }) => {
-  const negado = exigirSessao(request);
-  if (negado) return negado;
+export const DELETE = comLog(
+  "DELETE /api/admin/agendamentos/[id]",
+  async (request, { params }) => {
+    const negado = exigirSessao(request);
+    if (negado) return negado;
 
-  const id = Number(params.id);
-  if (!id) {
-    return Response.json({ erro: 'Agendamento não encontrado.' }, { status: 404 });
-  }
+    const id = Number(params.id);
+    if (!id) {
+      return Response.json(
+        { erro: "Agendamento não encontrado." },
+        { status: 404 },
+      );
+    }
 
-  const resultado = excluirAgendamento(id);
-  if (!resultado.ok) {
-    return Response.json({ erro: resultado.erro }, { status: resultado.status });
-  }
+    const resultado = excluirAgendamento(id);
+    if (!resultado.ok) {
+      return Response.json(
+        { erro: resultado.erro },
+        { status: resultado.status },
+      );
+    }
 
-  registrarInfo('DELETE /api/admin/agendamentos/[id]', 'agendamento excluído', {
-    agendamentoId: id,
-  });
-  return Response.json({ ok: true });
-});
+    registrarInfo(
+      "DELETE /api/admin/agendamentos/[id]",
+      "agendamento excluído",
+      {
+        agendamentoId: id,
+      },
+    );
+    return Response.json({ ok: true });
+  },
+);

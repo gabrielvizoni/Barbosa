@@ -4,12 +4,21 @@
 // (status, data, horário, ids, preço): nunca nome ou telefone do cliente.
 
 /** Grava uma linha de auditoria. Chame de DENTRO da mesma transação da mutação que registra. */
-export function registrarAuditoria(conn, { acao, tabela, registroId = null, antes = null, depois = null }) {
+export function registrarAuditoria(
+  conn,
+  { acao, tabela, registroId = null, antes = null, depois = null },
+) {
   conn
     .prepare(
-      `INSERT INTO auditoria (acao, tabela, registro_id, antes, depois) VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO auditoria (acao, tabela, registro_id, antes, depois) VALUES (?, ?, ?, ?, ?)`,
     )
-    .run(acao, tabela, registroId, antes ? JSON.stringify(antes) : null, depois ? JSON.stringify(depois) : null);
+    .run(
+      acao,
+      tabela,
+      registroId,
+      antes ? JSON.stringify(antes) : null,
+      depois ? JSON.stringify(depois) : null,
+    );
 }
 
 /** Retrato de um agendamento sem nenhum dado do cliente, para o par antes/depois da auditoria. */

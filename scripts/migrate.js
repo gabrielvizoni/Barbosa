@@ -3,8 +3,12 @@
 // migration nova for adicionada a src/lib/migrations.js.
 //
 //   npm run migrate
-import { abrirConexao } from '../src/lib/db.js';
-import { aplicarMigrations, versaoDoBanco, versaoEsperada } from '../src/lib/migrations.js';
+import { abrirConexao } from "../src/lib/db.js";
+import {
+  aplicarMigrations,
+  versaoDoBanco,
+  versaoEsperada,
+} from "../src/lib/migrations.js";
 
 const conn = abrirConexao();
 const antes = versaoDoBanco(conn);

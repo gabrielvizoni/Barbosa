@@ -16,13 +16,15 @@
  * dar para testar o horário de virada sem depender do relógio real.
  */
 export function hojeLocal(fuso, momento = new Date()) {
-  const fmt = new Intl.DateTimeFormat('en-CA', {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: fuso,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
   });
-  const partes = Object.fromEntries(fmt.formatToParts(momento).map((p) => [p.type, p.value]));
+  const partes = Object.fromEntries(
+    fmt.formatToParts(momento).map((p) => [p.type, p.value]),
+  );
   return `${partes.year}-${partes.month}-${partes.day}`;
 }
 

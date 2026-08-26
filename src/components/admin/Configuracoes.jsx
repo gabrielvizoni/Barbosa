@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { api, CampoImagem } from './base';
-import { mascararTelefone, somenteDigitos } from '@/lib/format';
+import { useEffect, useState } from "react";
+import { api, CampoImagem } from "./base";
+import { mascararTelefone, somenteDigitos } from "@/lib/format";
 
-const SENHAS_VAZIAS = { atual: '', nova: '', confirmacao: '' };
+const SENHAS_VAZIAS = { atual: "", nova: "", confirmacao: "" };
 const SENHA_MINIMA = 6;
 
 export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
@@ -13,11 +13,11 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
 
   const [senhas, setSenhas] = useState(SENHAS_VAZIAS);
   const [senhaInicial, setSenhaInicial] = useState(false);
-  const [erroSenha, setErroSenha] = useState('');
+  const [erroSenha, setErroSenha] = useState("");
   const [trocando, setTrocando] = useState(false);
 
   useEffect(() => {
-    api('config')
+    api("config")
       .then((r) => {
         setConfig(r.config);
         setSenhaInicial(!!r.senhaInicial);
@@ -26,24 +26,26 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
   }, [tratarErro]);
 
   async function trocarSenha() {
-    setErroSenha('');
+    setErroSenha("");
     if (!senhas.atual || !senhas.nova) {
-      return setErroSenha('Preencha a senha atual e a nova.');
+      return setErroSenha("Preencha a senha atual e a nova.");
     }
     if (senhas.nova.length < SENHA_MINIMA) {
-      return setErroSenha(`A senha nova precisa ter pelo menos ${SENHA_MINIMA} caracteres.`);
+      return setErroSenha(
+        `A senha nova precisa ter pelo menos ${SENHA_MINIMA} caracteres.`,
+      );
     }
     if (senhas.nova !== senhas.confirmacao) {
-      return setErroSenha('A confirmação não bate com a senha nova.');
+      return setErroSenha("A confirmação não bate com a senha nova.");
     }
     if (senhas.nova === senhas.atual) {
-      return setErroSenha('A senha nova é igual à atual.');
+      return setErroSenha("A senha nova é igual à atual.");
     }
 
     setTrocando(true);
     try {
-      await api('senha', {
-        method: 'POST',
+      await api("senha", {
+        method: "POST",
         body: {
           senhaAtual: senhas.atual,
           novaSenha: senhas.nova,
@@ -53,7 +55,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
       setSenhas(SENHAS_VAZIAS);
       setSenhaInicial(false);
       aoTrocarSenha?.();
-      avisar('Senha trocada. Use a nova no próximo acesso.');
+      avisar("Senha trocada. Use a nova no próximo acesso.");
     } catch (erro) {
       if (erro.status === 401) return tratarErro(erro);
       setErroSenha(erro.message);
@@ -71,11 +73,13 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
   async function salvar() {
     setSalvando(true);
     try {
-      await api('config', {
-        method: 'PUT',
-        body: { config: { ...config, whatsapp: somenteDigitos(config.whatsapp) } },
+      await api("config", {
+        method: "PUT",
+        body: {
+          config: { ...config, whatsapp: somenteDigitos(config.whatsapp) },
+        },
       });
-      avisar('Configurações salvas.');
+      avisar("Configurações salvas.");
     } catch (erro) {
       tratarErro(erro);
     } finally {
@@ -98,7 +102,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
         <CampoImagem
           label="Logo da barbearia (opcional)"
           valor={config.logo_url}
-          aoMudar={(url) => mudar('logo_url', url)}
+          aoMudar={(url) => mudar("logo_url", url)}
           pasta="logo"
           avisar={avisar}
         />
@@ -108,7 +112,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
           <input
             className="entrada"
             value={config.nome_barbearia}
-            onChange={(e) => mudar('nome_barbearia', e.target.value)}
+            onChange={(e) => mudar("nome_barbearia", e.target.value)}
           />
         </label>
 
@@ -117,7 +121,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
           <textarea
             className="entrada"
             value={config.slogan}
-            onChange={(e) => mudar('slogan', e.target.value)}
+            onChange={(e) => mudar("slogan", e.target.value)}
           />
         </label>
 
@@ -127,7 +131,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
             <input
               className="entrada mono"
               value={mascararTelefone(config.whatsapp)}
-              onChange={(e) => mudar('whatsapp', e.target.value)}
+              onChange={(e) => mudar("whatsapp", e.target.value)}
               placeholder="(44) 99999-0000"
             />
           </label>
@@ -136,7 +140,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
             <input
               className="entrada"
               value={config.endereco}
-              onChange={(e) => mudar('endereco', e.target.value)}
+              onChange={(e) => mudar("endereco", e.target.value)}
             />
           </label>
         </div>
@@ -146,14 +150,16 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
           <input
             className="entrada"
             value={config.instagram}
-            onChange={(e) => mudar('instagram', e.target.value.replace(/^@/, ''))}
+            onChange={(e) =>
+              mudar("instagram", e.target.value.replace(/^@/, ""))
+            }
             placeholder="seuusuario"
           />
         </label>
 
         <div className="aviso">
-          Sem esse número, o botão de confirmação no WhatsApp não aparece para o cliente no fim do
-          agendamento.
+          Sem esse número, o botão de confirmação no WhatsApp não aparece para o
+          cliente no fim do agendamento.
         </div>
       </section>
 
@@ -166,7 +172,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
             <select
               className="entrada"
               value={config.intervalo_min}
-              onChange={(e) => mudar('intervalo_min', e.target.value)}
+              onChange={(e) => mudar("intervalo_min", e.target.value)}
             >
               <option value="15">15 minutos</option>
               <option value="20">20 minutos</option>
@@ -180,7 +186,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
             <select
               className="entrada"
               value={config.antecedencia_min}
-              onChange={(e) => mudar('antecedencia_min', e.target.value)}
+              onChange={(e) => mudar("antecedencia_min", e.target.value)}
             >
               <option value="0">Sem antecedência</option>
               <option value="30">30 minutos</option>
@@ -195,7 +201,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
             <select
               className="entrada"
               value={config.dias_futuros}
-              onChange={(e) => mudar('dias_futuros', e.target.value)}
+              onChange={(e) => mudar("dias_futuros", e.target.value)}
             >
               <option value="7">7 dias</option>
               <option value="15">15 dias</option>
@@ -209,20 +215,24 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
         <label className="caixa">
           <input
             type="checkbox"
-            checked={config.confirmacao_automatica === '1'}
-            onChange={(e) => mudar('confirmacao_automatica', e.target.checked ? '1' : '0')}
+            checked={config.confirmacao_automatica === "1"}
+            onChange={(e) =>
+              mudar("confirmacao_automatica", e.target.checked ? "1" : "0")
+            }
           />
           Marcar como confirmado assim que o cliente agenda
         </label>
 
-        <p style={{ fontSize: 13.5, color: 'var(--tinta-suave)', marginTop: 10 }}>
-          Desmarcado, todo agendamento entra como pendente e espera você confirmar na tela de
-          Agendamentos.
+        <p
+          style={{ fontSize: 13.5, color: "var(--tinta-suave)", marginTop: 10 }}
+        >
+          Desmarcado, todo agendamento entra como pendente e espera você
+          confirmar na tela de Agendamentos.
         </p>
       </section>
 
       <button className="btn btn-ouro" onClick={salvar} disabled={salvando}>
-        {salvando ? 'Salvando…' : 'Salvar configurações'}
+        {salvando ? "Salvando…" : "Salvar configurações"}
       </button>
 
       <section className="bloco" style={{ marginTop: 24 }}>
@@ -230,8 +240,8 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
 
         {senhaInicial ? (
           <div className="aviso">
-            Você ainda está usando a senha inicial, a mesma que veio na instalação. Defina uma
-            senha sua agora.
+            Você ainda está usando a senha inicial, a mesma que veio na
+            instalação. Defina uma senha sua agora.
           </div>
         ) : null}
 
@@ -264,19 +274,32 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
               className="entrada"
               type="password"
               value={senhas.confirmacao}
-              onChange={(e) => setSenhas({ ...senhas, confirmacao: e.target.value })}
+              onChange={(e) =>
+                setSenhas({ ...senhas, confirmacao: e.target.value })
+              }
               autoComplete="new-password"
             />
           </label>
         </div>
 
-        <button className="btn btn-verde" onClick={trocarSenha} disabled={trocando}>
-          {trocando ? 'Trocando…' : 'Trocar senha'}
+        <button
+          className="btn btn-verde"
+          onClick={trocarSenha}
+          disabled={trocando}
+        >
+          {trocando ? "Trocando…" : "Trocar senha"}
         </button>
 
-        <p style={{ fontSize: 13.5, color: 'var(--tinta-suave)', marginTop: 12, marginBottom: 0 }}>
-          Mínimo de 6 caracteres. Ao trocar, qualquer outro aparelho que esteja com o painel
-          aberto é desconectado — só este continua logado.
+        <p
+          style={{
+            fontSize: 13.5,
+            color: "var(--tinta-suave)",
+            marginTop: 12,
+            marginBottom: 0,
+          }}
+        >
+          Mínimo de 6 caracteres. Ao trocar, qualquer outro aparelho que esteja
+          com o painel aberto é desconectado — só este continua logado.
         </p>
       </section>
     </>
