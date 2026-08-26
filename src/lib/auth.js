@@ -92,11 +92,24 @@ export function trocarSenha(nova) {
    Sessão
    ------------------------------------------------------------------------- */
 
+/**
+ * Monta o valor assinado do cookie de sessão a partir da versão e do
+ * instante de expiração — extraído à parte de criarSessao() para poder ser
+ * exercitado em teste sem depender do contexto de requisição do Next
+ * (next/headers só funciona dentro de uma rota/Server Component de verdade).
+ */
+export function construirToken(versao, expiraEm) {
+  const carga = `admin.${versao}.${expiraEm}`;
+  return `${carga}.${assinar(carga)}`;
+}
+
+/** Nome do cookie de sessão — exportado só para uso nos testes. */
+export { NOME_COOKIE };
+
 export function criarSessao() {
   const versao = lerConfig().sessao_versao || '1';
   const expiraEm = Date.now() + DURACAO_SEGUNDOS * 1000;
-  const carga = `admin.${versao}.${expiraEm}`;
-  cookies().set(NOME_COOKIE, `${carga}.${assinar(carga)}`, {
+  cookies().set(NOME_COOKIE, construirToken(versao, expiraEm), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -109,8 +122,8 @@ export function encerrarSessao() {
   cookies().set(NOME_COOKIE, '', { path: '/', maxAge: 0 });
 }
 
-export function sessaoValida() {
-  const token = cookies().get(NOME_COOKIE)?.value;
+/** Mesma verificação de sessaoValida(), mas recebendo o token diretamente. */
+export function tokenValido(token) {
   if (!token) return false;
 
   const partes = token.split('.');
@@ -124,6 +137,10 @@ export function sessaoValida() {
 
   // Uma troca de senha invalida os cookies emitidos antes dela.
   return versao === (lerConfig().sessao_versao || '1');
+}
+
+export function sessaoValida() {
+  return tokenValido(cookies().get(NOME_COOKIE)?.value);
 }
 
 /** Devolve null quando autorizado, ou uma Response de erro quando não. */
