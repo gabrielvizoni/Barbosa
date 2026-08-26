@@ -1,5 +1,6 @@
 import { exigirSessao } from '@/lib/auth';
 import { getDb, definirBarbeirosDoServico, listarBloqueios, listarServicos } from '@/lib/db';
+import { primeiroErro, validar } from '@/lib/validacao';
 
 export const dynamic = 'force-dynamic';
 
@@ -102,16 +103,9 @@ export async function POST(request, { params }) {
   const corpo = await request.json().catch(() => ({}));
   const campos = filtrarCampos(recurso, corpo);
 
-  if (params.recurso !== 'bloqueios' && !campos.nome) {
-    return Response.json({ erro: 'O nome é obrigatório.' }, { status: 400 });
-  }
-  if (params.recurso === 'bloqueios') {
-    if (!campos.data || !campos.inicio || !campos.fim) {
-      return Response.json({ erro: 'Informe a data e o intervalo.' }, { status: 400 });
-    }
-    if (campos.fim <= campos.inicio) {
-      return Response.json({ erro: 'O fim precisa ser depois do início.' }, { status: 400 });
-    }
+  const { ok, erros } = validar(params.recurso, campos, { criando: true });
+  if (!ok) {
+    return Response.json({ erro: primeiroErro(erros), erros }, { status: 400 });
   }
 
   const colunas = Object.keys(campos);

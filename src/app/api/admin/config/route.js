@@ -1,5 +1,6 @@
 import { exigirSessao, usandoSenhaInicial } from '@/lib/auth';
 import { lerConfig, lerExpediente, salvarConfig, salvarExpediente } from '@/lib/db';
+import { validarExpediente } from '@/lib/validacao';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,7 +59,17 @@ export async function PUT(request) {
         abre: /^\d{2}:\d{2}$/.test(d.abre) ? d.abre : '09:00',
         fecha: /^\d{2}:\d{2}$/.test(d.fecha) ? d.fecha : '20:00',
       }));
-    if (dias.length) salvarExpediente(dias);
+
+    if (dias.length) {
+      const { ok, erros } = validarExpediente(dias);
+      if (!ok) {
+        return Response.json(
+          { erro: `Expediente inválido: ${erros.map((e) => e.mensagem).join(' ')}` },
+          { status: 400 }
+        );
+      }
+      salvarExpediente(dias);
+    }
   }
 
   return Response.json({ config: configPublica(), expediente: lerExpediente() });
