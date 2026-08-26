@@ -40,6 +40,9 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const { nome } = usePainelConfig();
   const [visao, setVisao] = useState('dia');
   const [itens, setItens] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [tamanhoPagina, setTamanhoPagina] = useState(100);
+  const [pagina, setPagina] = useState(0);
   const [barbeiros, setBarbeiros] = useState([]);
   const [servicos, setServicos] = useState([]);
   const [busca, setBusca] = useState('');
@@ -63,11 +66,20 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const [salvandoRemarcar, setSalvandoRemarcar] = useState(false);
 
   const carregar = useCallback(() => {
-    const query = new URLSearchParams({ busca, status, barbeiro, data }).toString();
+    const query = new URLSearchParams({ busca, status, barbeiro, data, pagina }).toString();
     api(`agendamentos?${query}`)
-      .then((r) => setItens(r.itens))
+      .then((r) => {
+        setItens(r.itens);
+        setTotal(r.total || 0);
+        setTamanhoPagina(r.tamanhoPagina || 100);
+      })
       .catch(tratarErro);
-  }, [busca, status, barbeiro, data, tratarErro]);
+  }, [busca, status, barbeiro, data, pagina, tratarErro]);
+
+  // Qualquer mudança de filtro invalida a página atual — volta pra primeira.
+  useEffect(() => {
+    setPagina(0);
+  }, [busca, status, barbeiro, data]);
 
   useEffect(() => {
     const t = setTimeout(carregar, 250);
@@ -406,6 +418,40 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               </table>
             </div>
           )}
+
+          {total > tamanhoPagina ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: 14,
+                fontSize: 13.5,
+                color: 'var(--tinta-suave)',
+              }}
+            >
+              <span>
+                Mostrando {pagina * tamanhoPagina + 1}–{Math.min(total, (pagina + 1) * tamanhoPagina)}{' '}
+                de {total}
+              </span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  className="btn btn-contorno"
+                  onClick={() => setPagina((p) => Math.max(0, p - 1))}
+                  disabled={pagina === 0}
+                >
+                  Anterior
+                </button>
+                <button
+                  className="btn btn-contorno"
+                  onClick={() => setPagina((p) => p + 1)}
+                  disabled={(pagina + 1) * tamanhoPagina >= total}
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          ) : null}
         </section>
       )}
 
