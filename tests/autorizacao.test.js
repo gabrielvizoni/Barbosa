@@ -22,6 +22,7 @@ const ROTAS_PROTEGIDAS = [
   { modulo: `${PREFIXO}config/route.js`, metodos: ['GET', 'PUT'], params: {} },
   { modulo: `${PREFIXO}upload/route.js`, metodos: ['POST'], params: {} },
   { modulo: `${PREFIXO}resumo/route.js`, metodos: ['GET'], params: {} },
+  { modulo: `${PREFIXO}pendentes/route.js`, metodos: ['GET'], params: {} },
   { modulo: `${PREFIXO}agendamentos/route.js`, metodos: ['GET', 'POST', 'PUT'], params: {} },
   {
     modulo: `${PREFIXO}agendamentos/[id]/route.js`,

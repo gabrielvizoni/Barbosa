@@ -7,6 +7,8 @@ import { comLog, registrarInfo } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
+const TAMANHO_PAGINA = 100;
+
 export const GET = comLog('GET /api/admin/agendamentos', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
@@ -16,6 +18,7 @@ export const GET = comLog('GET /api/admin/agendamentos', async (request) => {
   const status = params.get('status') || '';
   const barbeiro = params.get('barbeiro') || '';
   const data = params.get('data') || '';
+  const pagina = Math.max(0, Number(params.get('pagina')) || 0);
 
   const condicoes = [];
   const valores = [];
@@ -38,11 +41,16 @@ export const GET = comLog('GET /api/admin/agendamentos', async (request) => {
   }
 
   const where = condicoes.length ? `WHERE ${condicoes.join(' AND ')}` : '';
-  const itens = getDb()
-    .prepare(`SELECT * FROM agendamentos ${where} ORDER BY data DESC, inicio DESC LIMIT 300`)
-    .all(...valores);
+  const conn = getDb();
 
-  return Response.json({ itens });
+  const total = conn.prepare(`SELECT COUNT(*) AS n FROM agendamentos ${where}`).get(...valores).n;
+  const itens = conn
+    .prepare(
+      `SELECT * FROM agendamentos ${where} ORDER BY data DESC, inicio DESC LIMIT ? OFFSET ?`
+    )
+    .all(...valores, TAMANHO_PAGINA, pagina * TAMANHO_PAGINA);
+
+  return Response.json({ itens, total, pagina, tamanhoPagina: TAMANHO_PAGINA });
 });
 
 /** Encaixe manual: o cliente ligou ou apareceu na porta. */

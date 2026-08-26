@@ -301,7 +301,8 @@ export default function Financeiro({ tratarErro }) {
               <div>
                 <h2 style={{ marginBottom: 2 }}>Movimento dos últimos 12 meses</h2>
                 <p style={{ margin: 0, fontSize: 13.5, color: 'var(--tinta-suave)' }}>
-                  Quanto entrou (e ainda vai entrar) em cada mês.
+                  Recebido + a receber somados por mês (mesma definição dos cartões acima,
+                  só que combinados aqui num único valor).
                 </p>
               </div>
               <label

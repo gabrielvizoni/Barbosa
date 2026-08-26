@@ -42,6 +42,40 @@ function limitesDoMes(mes) {
 }
 
 /**
+ * Soma realizado/previsto por mês, para todos os meses entre `mesInicio` e
+ * `mesFim` (ambos inclusive), numa única query — o filtro `data >= ? AND
+ * data < ?` no WHERE ainda usa o índice da coluna `data`; é só o
+ * agrupamento por `substr(data,1,7)` que varre as linhas já filtradas pelo
+ * intervalo, não a tabela inteira.
+ */
+function totaisPorMes(conn, mesInicio, mesFim) {
+  const [inicio] = limitesDoMes(mesInicio);
+  const [, fim] = limitesDoMes(mesFim);
+  const linhas = conn
+    .prepare(
+      `SELECT substr(data, 1, 7) AS mes,
+              COALESCE(SUM(CASE WHEN status = 'concluido' THEN preco_centavos ELSE 0 END), 0) AS realizado,
+              COALESCE(SUM(CASE WHEN status IN ('pendente', 'confirmado') THEN preco_centavos ELSE 0 END), 0) AS previsto
+       FROM agendamentos
+       WHERE data >= ? AND data < ? AND status <> 'cancelado'
+       GROUP BY substr(data, 1, 7)`
+    )
+    .all(inicio, fim);
+
+  const porMes = new Map(linhas.map((l) => [l.mes, l]));
+  return (mes) => {
+    const l = porMes.get(mes);
+    const realizado = l ? l.realizado : 0;
+    const previsto = l ? l.previsto : 0;
+    // O gráfico de 12 meses soma realizado + previsto num único valor — os
+    // cartões de KPI acima é que separam as duas partes. É a mesma
+    // definição (status <> 'cancelado'), só exibida de duas formas
+    // diferentes; não são dois números divergentes para o mesmo mês.
+    return { mes, total: realizado + previsto };
+  };
+}
+
+/**
  * Separa "realizado" (atendimentos com status concluído — dinheiro que já
  * entrou) de "previsto" (pendente + confirmado — ainda vai acontecer).
  * Cancelado não entra em nenhum dos dois.
@@ -131,42 +165,47 @@ export const GET = comLog('GET /api/admin/resumo', async (request) => {
     .get().n;
 
   // --- Financeiro ---
-  function totalDoMes(m) {
-    const [inicio, fim] = limitesDoMes(m);
-    return conn
-      .prepare(
-        `SELECT COALESCE(SUM(preco_centavos), 0) AS total FROM agendamentos
-         WHERE data >= ? AND data < ? AND status <> 'cancelado'`
-      )
-      .get(inicio, fim).total;
-  }
+  // Os 24 meses cobertos por `serie` (12 terminando em `mes`) e
+  // `serieAnoAnterior` (12 terminando em `mes` - 12) são um intervalo
+  // contínuo e sem sobreposição — uma query só para os 24, em vez de 24
+  // queries sequenciais bloqueando o event loop uma atrás da outra.
+  const meses = ultimosDozeMeses(mes);
+  const mesesAnoAnterior = ultimosDozeMeses(somarMeses(mes, -12));
+  const totalDoMes = totaisPorMes(conn, mesesAnoAnterior[0], meses[meses.length - 1]);
 
-  const serie = ultimosDozeMeses(mes).map((m) => ({ mes: m, total: totalDoMes(m) }));
+  const serie = meses.map(totalDoMes);
   // Mesmos 12 meses, um ano antes — dá pra comparar o mesmo período com o ano anterior.
-  const serieAnoAnterior = ultimosDozeMeses(somarMeses(mes, -12)).map((m) => ({
-    mes: m,
-    total: totalDoMes(m),
-  }));
+  const serieAnoAnterior = mesesAnoAnterior.map(totalDoMes);
 
   const [inicioMes, fimMes] = limitesDoMes(mes);
 
+  // Agrupado por id (com LEFT JOIN pro nome ATUAL), não pelo nome congelado
+  // no agendamento: agrupar por nome faz um profissional ou serviço
+  // renomeado aparecer como duas linhas, com o faturamento partido em duas.
+  // Quando o cadastro já foi apagado (id vira NULL no ON DELETE SET NULL), a
+  // chave de agrupamento cai para o nome congelado — senão TODOS os
+  // cadastros apagados (ids NULL) cairiam num único grupo.
   const porServico = conn
     .prepare(
-      `SELECT servico_nome AS nome, COUNT(*) AS quantidade,
-              COALESCE(SUM(preco_centavos), 0) AS total
-       FROM agendamentos
-       WHERE status <> 'cancelado' AND data >= ? AND data < ?
-       GROUP BY servico_nome ORDER BY quantidade DESC LIMIT 8`
+      `SELECT a.servico_id AS id, COALESCE(s.nome, a.servico_nome) AS nome,
+              COUNT(*) AS quantidade, COALESCE(SUM(a.preco_centavos), 0) AS total
+       FROM agendamentos a
+       LEFT JOIN servicos s ON s.id = a.servico_id
+       WHERE a.status <> 'cancelado' AND a.data >= ? AND a.data < ?
+       GROUP BY CASE WHEN a.servico_id IS NOT NULL THEN 'id:' || a.servico_id ELSE 'nome:' || a.servico_nome END
+       ORDER BY quantidade DESC LIMIT 8`
     )
     .all(inicioMes, fimMes);
 
   const porBarbeiro = conn
     .prepare(
-      `SELECT barbeiro_nome AS nome, COUNT(*) AS quantidade,
-              COALESCE(SUM(preco_centavos), 0) AS total
-       FROM agendamentos
-       WHERE status <> 'cancelado' AND data >= ? AND data < ?
-       GROUP BY barbeiro_nome ORDER BY total DESC`
+      `SELECT a.barbeiro_id AS id, COALESCE(b.nome, a.barbeiro_nome) AS nome,
+              COUNT(*) AS quantidade, COALESCE(SUM(a.preco_centavos), 0) AS total
+       FROM agendamentos a
+       LEFT JOIN barbeiros b ON b.id = a.barbeiro_id
+       WHERE a.status <> 'cancelado' AND a.data >= ? AND a.data < ?
+       GROUP BY CASE WHEN a.barbeiro_id IS NOT NULL THEN 'id:' || a.barbeiro_id ELSE 'nome:' || a.barbeiro_nome END
+       ORDER BY total DESC`
     )
     .all(inicioMes, fimMes);
 
