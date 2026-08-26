@@ -1,5 +1,5 @@
 import { lerConfig, listarBarbeiros, listarServicos } from '@/lib/db';
-import { diasDisponiveis } from '@/lib/slots';
+import { diasDisponiveis, FUSO } from '@/lib/slots';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,7 @@ export async function GET() {
   );
 
   return Response.json({
+    fuso: FUSO,
     barbearia: {
       nome: config.nome_barbearia,
       whatsapp: config.whatsapp,

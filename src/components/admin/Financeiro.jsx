@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, Vazio } from './base';
 import { moeda } from '@/lib/format';
+import { mesAtualLocal } from '@/lib/datas-cliente';
+import { useFuso } from './FusoContext';
 
 const MESES = [
   'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -19,10 +21,6 @@ const CORES = [
   'var(--verde-500)',
   'var(--marrom-700)',
 ];
-
-function mesAtual() {
-  return new Date().toISOString().slice(0, 7);
-}
 
 function mesAnterior(mes) {
   const [a, m] = mes.split('-').map(Number);
@@ -171,8 +169,9 @@ function GraficoBarras({ dados, formatar }) {
 }
 
 export default function Financeiro({ tratarErro }) {
-  const [mes, setMes] = useState(mesAtual);
-  const [comparar, setComparar] = useState(() => mesAnterior(mesAtual()));
+  const fuso = useFuso();
+  const [mes, setMes] = useState(() => mesAtualLocal(fuso));
+  const [comparar, setComparar] = useState(() => mesAnterior(mesAtualLocal(fuso)));
   const [dados, setDados] = useState(null);
   const [compararAno, setCompararAno] = useState(false);
 

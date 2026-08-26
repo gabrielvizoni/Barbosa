@@ -1,6 +1,6 @@
 import { getDb, lerConfig } from './db';
 
-const FUSO = process.env.TZ || 'America/Sao_Paulo';
+export const FUSO = process.env.TZ || 'America/Sao_Paulo';
 
 /** "HH:MM" -> minutos desde a meia-noite. */
 export function paraMinutos(hhmm) {

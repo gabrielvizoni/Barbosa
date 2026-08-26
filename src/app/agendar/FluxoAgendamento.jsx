@@ -12,6 +12,7 @@ import {
   telefoneValido,
   linkWhatsapp,
 } from '@/lib/format';
+import { hojeLocal } from '@/lib/datas-cliente';
 import { CheckCirculo, SetaEsquerda, WhatsApp } from '@/components/Icones';
 
 const PASSOS = ['Serviço', 'Profissional', 'Data', 'Horário', 'Seus dados'];
@@ -35,17 +36,13 @@ function partes(data) {
   return { ano: a, mes: m, dia: d, semana };
 }
 
-function hojeISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 /**
  * As semanas (seg. a dom.) de um mês, sempre com as 7 colunas — inclusive
  * domingo, mesmo quando a barbearia não abre nesse dia. Cada célula sabe se
- * está entre hoje e o fim da janela de agendamento (`ultimaData`) e se tem
- * horário disponível.
+ * está entre hoje (no fuso da barbearia) e o fim da janela de agendamento
+ * (`ultimaData`) e se tem horário disponível.
  */
-function gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis) {
+function gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis, hoje) {
   const primeiroDoMes = new Date(Date.UTC(ano, mesIndice, 1));
   const deslocamento = (primeiroDoMes.getUTCDay() + 6) % 7; // segunda-feira = primeira coluna
   const inicioGrade = new Date(primeiroDoMes);
@@ -53,7 +50,6 @@ function gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis) {
 
   const diasNoMes = new Date(Date.UTC(ano, mesIndice + 1, 0)).getUTCDate();
   const totalCelulas = Math.ceil((deslocamento + diasNoMes) / 7) * 7;
-  const hoje = hojeISO();
 
   return Array.from({ length: totalCelulas }, (_, i) => {
     const d = new Date(inicioGrade);
@@ -196,12 +192,13 @@ export default function FluxoAgendamento() {
 
   /* Um calendário de verdade por mês — seg. a dom., domingo incluso mesmo
    * fechado — em vez de só empilhar os dias que têm horário livre. */
+  const hojeChave = hojeLocal(dados?.fuso || 'America/Sao_Paulo');
+
   const gruposData = useMemo(() => {
     if (!dados?.dias?.length) return [];
     const disponiveis = new Set(dados.dias);
-    const hoje = hojeISO();
     const ultimaData = dados.dias[dados.dias.length - 1];
-    const [anoIni, mesIni] = hoje.split('-').map(Number);
+    const [anoIni, mesIni] = hojeChave.split('-').map(Number);
     const [anoFim, mesFim] = ultimaData.split('-').map(Number);
     const indiceFinal = anoFim * 12 + (mesFim - 1);
 
@@ -213,7 +210,7 @@ export default function FluxoAgendamento() {
         chave: `${ano}-${mesIndice}`,
         ano,
         mesIndice,
-        celulas: gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis),
+        celulas: gradeCalendarioMes(ano, mesIndice, ultimaData, disponiveis, hojeChave),
       });
       mesIndice += 1;
       if (mesIndice > 11) {
@@ -222,9 +219,7 @@ export default function FluxoAgendamento() {
       }
     }
     return grupos;
-  }, [dados]);
-
-  const hojeChave = hojeISO();
+  }, [dados, hojeChave]);
 
   function voltar() {
     setErro('');

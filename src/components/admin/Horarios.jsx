@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, Modal, Vazio } from './base';
 import { dataBr } from '@/lib/format';
+import { hojeLocal } from '@/lib/datas-cliente';
+import { useFuso } from './FusoContext';
 import { Lixeira, Mais, Pausa } from '@/components/Icones';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-
-function hoje() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function agoraArredondado() {
   const d = new Date();
@@ -23,15 +21,26 @@ function somarHoras(hhmm, horas) {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-const BLOQUEIO_VAZIO = {
-  barbeiro_id: '',
-  data: hoje(),
-  inicio: agoraArredondado(),
-  fim: somarHoras(agoraArredondado(), 1),
-  motivo: '',
-};
+/**
+ * Ponto de partida do formulário de bloqueio — precisa ser função, chamada
+ * no momento de abrir o modal, e não uma constante de módulo: um painel
+ * deixado aberto o dia inteiro (o normal numa barbearia) senão pré-preenche
+ * o formulário com a data e a hora de quando a aba foi carregada, não de
+ * agora.
+ */
+function bloqueioVazio(fuso) {
+  const inicio = agoraArredondado();
+  return {
+    barbeiro_id: '',
+    data: hojeLocal(fuso),
+    inicio,
+    fim: somarHoras(inicio, 1),
+    motivo: '',
+  };
+}
 
 export default function Horarios({ avisar, tratarErro }) {
+  const fuso = useFuso();
   const [expediente, setExpediente] = useState([]);
   const [bloqueios, setBloqueios] = useState([]);
   const [barbeiros, setBarbeiros] = useState([]);
@@ -88,7 +97,7 @@ export default function Horarios({ avisar, tratarErro }) {
     const inicio = agoraArredondado();
     await criarBloqueio({
       barbeiro_id: '',
-      data: hoje(),
+      data: hojeLocal(fuso),
       inicio,
       fim: somarHoras(inicio, horas),
       motivo: `Saída de ${horas}h`,
@@ -99,7 +108,7 @@ export default function Horarios({ avisar, tratarErro }) {
     const inicio = agoraArredondado();
     await criarBloqueio({
       barbeiro_id: '',
-      data: hoje(),
+      data: hojeLocal(fuso),
       inicio,
       fim: '23:59',
       motivo: 'Fechado pelo resto do dia',
@@ -124,7 +133,7 @@ export default function Horarios({ avisar, tratarErro }) {
           <h1>Horários e folgas</h1>
           <p>O expediente da semana e os momentos em que a agenda fica fechada.</p>
         </div>
-        <button className="btn btn-ouro" onClick={() => setEditando({ ...BLOQUEIO_VAZIO })}>
+        <button className="btn btn-ouro" onClick={() => setEditando(bloqueioVazio(fuso))}>
           <Mais /> Bloquear horário
         </button>
       </div>
