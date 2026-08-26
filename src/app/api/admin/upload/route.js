@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { exigirSessao } from '@/lib/auth';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,7 +37,7 @@ function detectarExtensao(bytes) {
   return null;
 }
 
-export async function POST(request) {
+export const POST = comLog('POST /api/admin/upload', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
@@ -64,4 +65,4 @@ export async function POST(request) {
   fs.writeFileSync(path.join(dir, nomeArquivo), bytes);
 
   return Response.json({ url: `/uploads/${pasta}/${nomeArquivo}` }, { status: 201 });
-}
+});

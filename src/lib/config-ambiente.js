@@ -31,7 +31,7 @@ export function senhaInicialValida(valor) {
 }
 
 /** Confere se dá para ler/escrever num diretório sem criar nada nele. */
-function diretorioGravavel(caminho) {
+export function diretorioGravavel(caminho) {
   try {
     const alvo = fs.existsSync(caminho) ? caminho : path.dirname(caminho) || '.';
     fs.accessSync(alvo, fs.constants.W_OK);

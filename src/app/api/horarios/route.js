@@ -1,9 +1,10 @@
 import { getDb } from '@/lib/db';
 import { horariosLivres } from '@/lib/slots';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(request) {
+export const GET = comLog('GET /api/horarios', async (request) => {
   const params = new URL(request.url).searchParams;
   const barbeiroId = Number(params.get('barbeiro'));
   const servicoId = Number(params.get('servico'));
@@ -24,4 +25,4 @@ export async function GET(request) {
   return Response.json({
     horarios: horariosLivres({ barbeiroId, duracaoMin: servico.duracao_min, data }),
   });
-}
+});

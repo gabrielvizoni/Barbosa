@@ -102,8 +102,8 @@ export default function PainelAdmin() {
   const atualizarPendentes = useCallback(() => {
     api('resumo')
       .then((r) => setPendentes(r.pendentesTotal || 0))
-      .catch(() => {});
-  }, []);
+      .catch(tratarErro);
+  }, [tratarErro]);
 
   useEffect(() => {
     if (estado === 'dentro') atualizarPendentes();

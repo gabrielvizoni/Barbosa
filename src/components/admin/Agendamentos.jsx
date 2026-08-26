@@ -75,8 +75,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   }, [carregar]);
 
   useEffect(() => {
-    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(() => {});
-    api('servicos').then((r) => setServicos(r.itens.filter((s) => s.ativo))).catch(() => {});
+    api('barbeiros').then((r) => setBarbeiros(r.itens.filter((b) => b.ativo))).catch(tratarErro);
+    api('servicos').then((r) => setServicos(r.itens.filter((s) => s.ativo))).catch(tratarErro);
   }, []);
 
   // Ao ter serviço, profissional e data escolhidos, mostra o que está livre.

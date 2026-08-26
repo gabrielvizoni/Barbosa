@@ -1,6 +1,7 @@
 import { exigirSessao } from '@/lib/auth';
 import { getDb } from '@/lib/db';
 import { agora } from '@/lib/slots';
+import { comLog } from '@/lib/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +83,7 @@ function totaisDoMes(conn, mes) {
   };
 }
 
-export async function GET(request) {
+export const GET = comLog('GET /api/admin/resumo', async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
 
@@ -220,4 +221,4 @@ export async function GET(request) {
       },
     },
   });
-}
+});
