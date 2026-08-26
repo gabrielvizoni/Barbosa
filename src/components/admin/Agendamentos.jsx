@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Etiqueta, Modal, SeletorData, SeletorLista, Vazio } from './base';
+import { api, Etiqueta, Modal, ModalConfirmacao, SeletorData, SeletorLista, Vazio } from './base';
 import { dataBr, linkConfirmacaoCliente, mascararTelefone, moeda } from '@/lib/format';
 import { usePainelConfig } from './ConfigContext';
 import { Check, Lapis, Lixeira, Mais, Relogio, Xis, Zap } from '@/components/Icones';
@@ -57,6 +57,8 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const [horarioManual, setHorarioManual] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [processando, setProcessando] = useState(null); // id do agendamento em ação (status/exclusão)
+
+  const [excluindo, setExcluindo] = useState(null); // agendamento em confirmação de exclusão, ou null
 
   const [remarcando, setRemarcando] = useState(null); // agendamento em remarcação, ou null
   const [formRemarcar, setFormRemarcar] = useState(VAZIO_REMARCAR);
@@ -138,12 +140,13 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
     }
   }
 
-  async function excluir(id, nome) {
-    if (!confirm(`Excluir o agendamento de ${nome}? Não dá para desfazer.`)) return;
+  async function excluir() {
+    const id = excluindo.id;
     if (processando) return;
     setProcessando(id);
     try {
       await api(`agendamentos/${id}`, { method: 'DELETE' });
+      setExcluindo(null);
       carregar();
       aoMudar?.();
       avisar('Agendamento excluído.');
@@ -404,7 +407,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                           ) : null}
                           <button
                             className="icone-btn perigo"
-                            onClick={() => excluir(a.id, a.cliente_nome)}
+                            onClick={() => setExcluindo(a)}
                             title="Excluir"
                             disabled={processando === a.id}
                           >
@@ -600,6 +603,24 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
             colidir com outro atendimento do mesmo profissional.
           </div>
         </Modal>
+      ) : null}
+
+      {excluindo ? (
+        <ModalConfirmacao
+          titulo="Excluir agendamento"
+          mensagem={
+            <>
+              Excluir o agendamento de <strong>{excluindo.cliente_nome}</strong> em{' '}
+              {dataBr(excluindo.data)} às {excluindo.inicio}? Não dá para desfazer.
+            </>
+          }
+          confirmarLabel={processando === excluindo.id ? 'Excluindo…' : 'Excluir'}
+          perigo
+          exigirTexto={excluindo.cliente_nome}
+          confirmando={processando === excluindo.id}
+          aoConfirmar={excluir}
+          aoFechar={() => setExcluindo(null)}
+        />
       ) : null}
 
       {remarcando ? (

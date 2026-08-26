@@ -6,6 +6,7 @@ import { getDb, lerConfig } from './db.js';
 import { agora, horariosLivres, paraHora, paraMinutos } from './slots.js';
 import { somenteDigitos, telefoneValido } from './format.js';
 import { validar } from './validacao.js';
+import { registrarAuditoria, snapshotAgendamento } from './auditoria.js';
 
 function erro(status, mensagem) {
   return { ok: false, status, erro: mensagem };
@@ -61,7 +62,7 @@ function verificarConflito(conn, { origem, barbeiro, data, inicio, fim, duracaoM
   const conflitoAgendamento = conn
     .prepare(
       `SELECT cliente_nome, inicio, fim FROM agendamentos
-       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado' ${condicaoIgnorar}
+       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado' AND excluido_em IS NULL ${condicaoIgnorar}
          AND inicio < ? AND fim > ?`
     )
     .get(data, barbeiro.id, ...paramsIgnorar, fim, inicio);
@@ -146,7 +147,7 @@ export function criarAgendamento({
 
   const executarInsercao = conn.transaction(() => {
     verificarConflito(conn, { origem, barbeiro, data, inicio, fim, duracaoMin: servico.duracao_min });
-    return conn
+    const resultado = conn
       .prepare(
         `INSERT INTO agendamentos
           (cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome,
@@ -168,6 +169,21 @@ export function criarAgendamento({
         observacoesLimpas,
         status
       );
+    registrarAuditoria(conn, {
+      acao: 'criar',
+      tabela: 'agendamentos',
+      registroId: Number(resultado.lastInsertRowid),
+      depois: snapshotAgendamento({
+        barbeiro_id: barbeiro.id,
+        servico_id: servico.id,
+        data,
+        inicio,
+        fim,
+        status,
+        preco_centavos: servico.preco_centavos,
+      }),
+    });
+    return resultado;
   });
 
   let resultado;
@@ -209,7 +225,7 @@ export function criarAgendamento({
 export function remarcarAgendamento(id, { data, inicio, barbeiroId, servicoId }) {
   const conn = getDb();
 
-  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ?').get(id);
+  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL').get(id);
   if (!atual) return erro(404, 'Agendamento não encontrado.');
   if (atual.status === 'concluido' || atual.status === 'cancelado') {
     return erro(400, `Não é possível remarcar um agendamento ${atual.status}.`);
@@ -264,6 +280,21 @@ export function remarcarAgendamento(id, { data, inicio, barbeiroId, servicoId })
         servico.preco_centavos,
         id
       );
+    registrarAuditoria(conn, {
+      acao: 'remarcar',
+      tabela: 'agendamentos',
+      registroId: id,
+      antes: snapshotAgendamento(atual),
+      depois: snapshotAgendamento({
+        barbeiro_id: barbeiro.id,
+        servico_id: servico.id,
+        data: novaData,
+        inicio: novoInicio,
+        fim: novoFim,
+        status: atual.status,
+        preco_centavos: servico.preco_centavos,
+      }),
+    });
   });
 
   try {
@@ -300,7 +331,7 @@ export function mudarStatusAgendamento(id, novoStatus) {
   }
 
   const conn = getDb();
-  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ?').get(id);
+  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL').get(id);
   if (!atual) return erro(404, 'Agendamento não encontrado.');
 
   if (!(TRANSICOES_LEGAIS[atual.status] || []).includes(novoStatus)) {
@@ -323,6 +354,13 @@ export function mudarStatusAgendamento(id, novoStatus) {
       });
     }
     conn.prepare('UPDATE agendamentos SET status = ? WHERE id = ?').run(novoStatus, id);
+    registrarAuditoria(conn, {
+      acao: 'status',
+      tabela: 'agendamentos',
+      registroId: id,
+      antes: { status: atual.status },
+      depois: { status: novoStatus },
+    });
   });
 
   try {
@@ -331,5 +369,31 @@ export function mudarStatusAgendamento(id, novoStatus) {
     return tratarErroTransacao(e);
   }
 
+  return { ok: true };
+}
+
+/**
+ * Exclusão lógica: marca `excluido_em` em vez de apagar a linha — o
+ * Financeiro é derivado 100% dessa tabela, e o painel usa uma senha
+ * compartilhada por toda a equipe, então apagar de verdade destruiria o
+ * único registro de quem fez o quê. Todas as leituras (horariosLivres,
+ * relatórios, listagens) já filtram `excluido_em IS NULL`.
+ */
+export function excluirAgendamento(id) {
+  const conn = getDb();
+  const atual = conn.prepare('SELECT * FROM agendamentos WHERE id = ? AND excluido_em IS NULL').get(id);
+  if (!atual) return erro(404, 'Agendamento não encontrado.');
+
+  const executarExclusao = conn.transaction(() => {
+    conn.prepare("UPDATE agendamentos SET excluido_em = datetime('now') WHERE id = ?").run(id);
+    registrarAuditoria(conn, {
+      acao: 'excluir',
+      tabela: 'agendamentos',
+      registroId: id,
+      antes: snapshotAgendamento(atual),
+    });
+  });
+
+  executarExclusao();
   return { ok: true };
 }

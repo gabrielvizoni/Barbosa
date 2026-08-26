@@ -1,9 +1,10 @@
 import { exigirSessao, usandoSenhaInicial } from '@/lib/auth';
-import { lerConfig, lerExpediente, salvarConfig, salvarExpediente } from '@/lib/db';
+import { getDb, lerConfig, lerExpediente, salvarConfig, salvarExpediente } from '@/lib/db';
 import { validarExpediente } from '@/lib/validacao';
 import { FUSO } from '@/lib/slots';
 import { lerCorpoJson } from '@/lib/requisicao';
 import { comLog } from '@/lib/log';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,16 @@ export const PUT = comLog('PUT /api/admin/config', async (request) => {
     for (const chave of CHAVES) {
       if (chave in corpo.config) pares[chave] = corpo.config[chave];
     }
-    if (Object.keys(pares).length) salvarConfig(pares);
+    if (Object.keys(pares).length) {
+      const antes = lerConfig();
+      salvarConfig(pares);
+      registrarAuditoria(getDb(), {
+        acao: 'salvar',
+        tabela: 'config',
+        antes: Object.fromEntries(Object.keys(pares).map((c) => [c, antes[c]])),
+        depois: pares,
+      });
+    }
   }
 
   if (Array.isArray(corpo.expediente)) {

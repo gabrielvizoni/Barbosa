@@ -256,6 +256,15 @@ textarea {
   background: rgba(46, 90, 68, 0.06);
 }
 
+.btn-perigo {
+  background: var(--erro);
+  color: var(--creme-alto);
+}
+
+.btn-perigo:hover:not(:disabled) {
+  background: #832f21;
+}
+
 .btn-claro {
   background: transparent;
   border-color: rgba(247, 243, 234, 0.4);

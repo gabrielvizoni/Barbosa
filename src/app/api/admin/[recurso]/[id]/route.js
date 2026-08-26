@@ -4,6 +4,7 @@ import { filtrarCampos, obterRecurso } from '../route';
 import { primeiroErro, validar } from '@/lib/validacao';
 import { lerCorpoJson } from '@/lib/requisicao';
 import { comLog } from '@/lib/log';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,11 +34,36 @@ export const PATCH = comLog('PATCH /api/admin/[recurso]/[id]', async (request, {
     return Response.json({ erro: primeiroErro(erros), erros }, { status: 400 });
   }
 
-  const resultado = getDb()
-    .prepare(
-      `UPDATE ${recurso.tabela} SET ${colunas.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`
-    )
-    .run(...colunas.map((c) => campos[c]), id);
+  // Preço de serviço é auditado: é o único campo, entre os recursos de
+  // cadastro, cuja alteração muda quanto o Financeiro reporta para
+  // atendimentos futuros. Lida ANTES do update, na mesma transação, para
+  // não gravar preço novo em antes/depois por engano.
+  const auditarPreco = params.recurso === 'servicos' && 'preco_centavos' in campos;
+  const conn = getDb();
+  const precoAnterior = auditarPreco
+    ? conn.prepare('SELECT preco_centavos FROM servicos WHERE id = ?').get(id)
+    : null;
+
+  const executarUpdate = conn.transaction(() => {
+    const resultadoUpdate = conn
+      .prepare(
+        `UPDATE ${recurso.tabela} SET ${colunas.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`
+      )
+      .run(...colunas.map((c) => campos[c]), id);
+
+    if (resultadoUpdate.changes > 0 && auditarPreco && precoAnterior) {
+      registrarAuditoria(conn, {
+        acao: 'alterar_preco',
+        tabela: 'servicos',
+        registroId: id,
+        antes: { preco_centavos: precoAnterior.preco_centavos },
+        depois: { preco_centavos: campos.preco_centavos },
+      });
+    }
+    return resultadoUpdate;
+  });
+
+  const resultado = executarUpdate();
 
   if (resultado.changes === 0) {
     return Response.json({ erro: 'Item não encontrado.' }, { status: 404 });

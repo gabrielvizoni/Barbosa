@@ -47,6 +47,63 @@ export function Modal({ titulo, children, aoFechar, rodape }) {
   );
 }
 
+/**
+ * Substitui o `confirm()` nativo do navegador por um modal do próprio
+ * sistema. Quando `exigirTexto` é passado, o botão de confirmar só habilita
+ * depois de digitar exatamente esse texto — fricção proposital para ações
+ * mais arriscadas (ex.: excluir um agendamento, exigindo o nome do cliente).
+ */
+export function ModalConfirmacao({
+  titulo,
+  mensagem,
+  confirmarLabel = 'Confirmar',
+  cancelarLabel = 'Cancelar',
+  perigo = false,
+  exigirTexto,
+  confirmando = false,
+  aoConfirmar,
+  aoFechar,
+}) {
+  const [digitado, setDigitado] = useState('');
+  const bloqueado = confirmando || (exigirTexto !== undefined && digitado.trim() !== exigirTexto);
+
+  return (
+    <Modal
+      titulo={titulo}
+      aoFechar={aoFechar}
+      rodape={
+        <>
+          <button className="btn btn-contorno" onClick={aoFechar}>
+            {cancelarLabel}
+          </button>
+          <button
+            className={`btn ${perigo ? 'btn-perigo' : 'btn-ouro'}`}
+            onClick={aoConfirmar}
+            disabled={bloqueado}
+          >
+            {confirmarLabel}
+          </button>
+        </>
+      }
+    >
+      <div style={{ marginBottom: exigirTexto !== undefined ? 14 : 0 }}>{mensagem}</div>
+      {exigirTexto !== undefined ? (
+        <label className="campo" style={{ marginBottom: 0 }}>
+          <span>
+            Digite <strong>{exigirTexto}</strong> para confirmar
+          </span>
+          <input
+            className="entrada"
+            value={digitado}
+            onChange={(e) => setDigitado(e.target.value)}
+            autoFocus
+          />
+        </label>
+      ) : null}
+    </Modal>
+  );
+}
+
 export function Etiqueta({ status }) {
   const rotulos = {
     pendente: 'Pendente',

@@ -1,6 +1,5 @@
 import { exigirSessao } from '@/lib/auth';
-import { getDb } from '@/lib/db';
-import { mudarStatusAgendamento, remarcarAgendamento } from '@/lib/agendamentos';
+import { excluirAgendamento, mudarStatusAgendamento, remarcarAgendamento } from '@/lib/agendamentos';
 import { lerCorpoJson } from '@/lib/requisicao';
 import { comLog, registrarInfo } from '@/lib/log';
 
@@ -67,9 +66,9 @@ export const DELETE = comLog('DELETE /api/admin/agendamentos/[id]', async (reque
     return Response.json({ erro: 'Agendamento não encontrado.' }, { status: 404 });
   }
 
-  const resultado = getDb().prepare('DELETE FROM agendamentos WHERE id = ?').run(id);
-  if (resultado.changes === 0) {
-    return Response.json({ erro: 'Agendamento não encontrado.' }, { status: 404 });
+  const resultado = excluirAgendamento(id);
+  if (!resultado.ok) {
+    return Response.json({ erro: resultado.erro }, { status: resultado.status });
   }
 
   registrarInfo('DELETE /api/admin/agendamentos/[id]', 'agendamento excluído', {

@@ -104,7 +104,7 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const ocupados = conn
     .prepare(
       `SELECT inicio, fim FROM agendamentos
-       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado'`
+       WHERE data = ? AND barbeiro_id = ? AND status <> 'cancelado' AND excluido_em IS NULL`
     )
     .all(data, barbeiroId)
     .map((a) => [paraMinutos(a.inicio), paraMinutos(a.fim)]);

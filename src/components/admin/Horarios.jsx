@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, Modal, Vazio } from './base';
-import { dataBr } from '@/lib/format';
+import { api, Modal, ModalConfirmacao, Vazio } from './base';
+import { dataBr, linkAvisoBloqueio } from '@/lib/format';
 import { hojeLocal } from '@/lib/datas-cliente';
 import { usePainelConfig } from './ConfigContext';
-import { Lixeira, Mais, Pausa } from '@/components/Icones';
+import { Lixeira, Mais, Pausa, Zap } from '@/components/Icones';
 
 const NOMES = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 

@@ -101,3 +101,21 @@ export function linkConfirmacaoCliente(nomeBarbearia, agendamento) {
 
   return `https://wa.me/${completo}?text=${encodeURIComponent(texto)}`;
 }
+
+/**
+ * Link de WhatsApp para avisar um cliente cujo agendamento colidiu com um
+ * bloqueio criado DEPOIS que ele já tinha marcado — o horário continua
+ * reservado no banco (bloquear não cancela ninguém), mas alguém da equipe
+ * precisa avisar e remarcar. Mesma base de linkConfirmacaoCliente.
+ */
+export function linkAvisoBloqueio(nomeBarbearia, agendamento) {
+  const numero = somenteDigitos(agendamento.cliente_telefone);
+  if (!numero) return null;
+  const completo = numero.startsWith('55') ? numero : `55${numero}`;
+
+  const primeiroNome = agendamento.cliente_nome.split(' ')[0];
+  const local = nomeBarbearia ? `da ${nomeBarbearia}` : 'da barbearia';
+  const texto = `Olá, ${primeiroNome}! Aqui é ${local}. Precisamos remarcar seu horário do dia ${dataBr(agendamento.data)} às ${agendamento.inicio} — surgiu um imprevisto nesse intervalo. Pode me chamar pra combinarmos outro horário?`;
+
+  return `https://wa.me/${completo}?text=${encodeURIComponent(texto)}`;
+}

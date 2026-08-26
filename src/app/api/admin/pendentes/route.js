@@ -10,7 +10,7 @@ export const GET = comLog('GET /api/admin/pendentes', async (request) => {
   if (negado) return negado;
 
   const total = getDb()
-    .prepare("SELECT COUNT(*) AS n FROM agendamentos WHERE status = 'pendente'")
+    .prepare("SELECT COUNT(*) AS n FROM agendamentos WHERE status = 'pendente' AND excluido_em IS NULL")
     .get().n;
 
   return Response.json({ total });
