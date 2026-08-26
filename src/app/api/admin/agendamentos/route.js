@@ -20,7 +20,7 @@ export const GET = comLog('GET /api/admin/agendamentos', async (request) => {
   const data = params.get('data') || '';
   const pagina = Math.max(0, Number(params.get('pagina')) || 0);
 
-  const condicoes = [];
+  const condicoes = ['excluido_em IS NULL'];
   const valores = [];
 
   if (busca) {

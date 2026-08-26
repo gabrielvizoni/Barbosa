@@ -276,6 +276,33 @@ export const migrations = [
       `);
     },
   },
+
+  {
+    versao: 5,
+    descricao: 'soft delete de agendamentos e tabela de auditoria',
+    up(conn) {
+      // Coluna nova sem CHECK: ALTER TABLE ADD COLUMN é suportado direto pelo
+      // SQLite (diferente de ADD CONSTRAINT) — não precisa do procedimento de
+      // rebuild de tabela usado na Etapa 2.
+      conn.exec(`ALTER TABLE agendamentos ADD COLUMN excluido_em TEXT`);
+
+      // "antes"/"depois" guardam um retrato dos campos operacionais (status,
+      // data, horário, ids, preço) — nunca nome ou telefone do cliente, que
+      // já ficam de fora dos objetos montados em src/lib/auditoria.js.
+      conn.exec(`
+        CREATE TABLE IF NOT EXISTS auditoria (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          acao TEXT NOT NULL,
+          tabela TEXT NOT NULL,
+          registro_id INTEGER,
+          antes TEXT,
+          depois TEXT,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_auditoria_tabela_registro ON auditoria(tabela, registro_id);
+      `);
+    },
+  },
 ];
 
 /** Maior número de versão declarado — o que o banco precisa ter para subir. */

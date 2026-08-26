@@ -130,5 +130,22 @@ export const POST = comLog('POST /api/admin/[recurso]', async (request, { params
     definirBarbeirosDoServico(id, corpo.barbeiros);
   }
 
-  return Response.json({ id }, { status: 201 });
+  // Bloquear não cancela quem já tinha marcado nesse intervalo — os
+  // agendamentos continuam de pé. O painel precisa saber quantos (e quais)
+  // para a equipe avisar os clientes, em vez de só um texto de aviso
+  // genérico no modal (item 4 da Etapa 8 da auditoria).
+  let atropelados;
+  if (params.recurso === 'bloqueios') {
+    atropelados = getDb()
+      .prepare(
+        `SELECT id, cliente_nome, cliente_telefone, data, inicio
+         FROM agendamentos
+         WHERE status <> 'cancelado' AND excluido_em IS NULL
+           AND data = ? AND (? IS NULL OR barbeiro_id = ?)
+           AND inicio < ? AND fim > ?`
+      )
+      .all(campos.data, campos.barbeiro_id, campos.barbeiro_id, campos.fim, campos.inicio);
+  }
+
+  return Response.json({ id, atropelados }, { status: 201 });
 });

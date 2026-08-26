@@ -1,6 +1,8 @@
 import { exigirSessao, senhaConfere, trocarSenha } from '@/lib/auth';
+import { getDb } from '@/lib/db';
 import { lerCorpoJson } from '@/lib/requisicao';
 import { comLog } from '@/lib/log';
+import { registrarAuditoria } from '@/lib/auditoria';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,5 +37,7 @@ export const POST = comLog('POST /api/admin/senha', async (request) => {
   }
 
   await trocarSenha(nova);
+  // Nunca a senha nem o hash — só o fato de que ela mudou.
+  registrarAuditoria(getDb(), { acao: 'trocar_senha', tabela: 'config' });
   return Response.json({ ok: true });
 });
