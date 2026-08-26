@@ -1,4 +1,4 @@
-# The Barbosa — Sistema de Agendamento para Barbearias
+# The Barbosa — Sistema de Agendamento para Barbearia
 
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
