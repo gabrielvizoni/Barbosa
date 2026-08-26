@@ -180,6 +180,9 @@ export default function PaginaInicial() {
                         className="retrato"
                         src={barbeiro.foto}
                         alt={barbeiro.nome}
+                        width={96}
+                        height={96}
+                        loading="lazy"
                       />
                     ) : (
                       <div className="retrato" aria-hidden="true">
@@ -222,6 +225,9 @@ export default function PaginaInicial() {
                         className="cartao-servico-imagem"
                         src={produto.imagem}
                         alt=""
+                        width={480}
+                        height={160}
+                        loading="lazy"
                       />
                     ) : null}
                     {produto.marca ? (
@@ -368,6 +374,9 @@ export default function PaginaInicial() {
                     className="marca-logo"
                     src={config.logo_url}
                     alt={nome}
+                    width={160}
+                    height={40}
+                    loading="lazy"
                   />
                 ) : (
                   <span className="marca-poste" aria-hidden="true" />

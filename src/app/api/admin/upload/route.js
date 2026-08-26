@@ -1,15 +1,27 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import sharp from "sharp";
 import { exigirSessao } from "@/lib/auth";
 import { comLog } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
 
 const TAMANHO_MAXIMO = 5 * 1024 * 1024; // 5 MB
+const LARGURA_MAXIMA = 700;
+const QUALIDADE_WEBP = 80;
 
 // Uma pasta por tipo de imagem, só para organizar public/uploads.
 const PASTAS_VALIDAS = new Set(["logo", "barbeiros", "servicos", "produtos"]);
+
+/**
+ * O caminho de um upload nosso é sempre "/uploads/<pasta válida>/<uuid>.webp"
+ * — só apaga o arquivo anterior se ele bater exatamente nesse formato, para
+ * um valor forjado no campo "anterior" nunca apagar arquivo fora da pasta.
+ */
+const CAMINHO_UPLOAD_VALIDO = new RegExp(
+  `^/uploads/(${[...PASTAS_VALIDAS].join("|")})/[0-9a-f-]{36}\\.webp$`,
+);
 
 /**
  * Descobre o tipo real do arquivo pelos primeiros bytes (assinatura/"magic
@@ -91,10 +103,34 @@ export const POST = comLog("POST /api/admin/upload", async (request) => {
     );
   }
 
-  const nomeArquivo = `${crypto.randomUUID()}.${extensao}`;
+  // O dono sobe a foto direto da câmera do celular — sem redimensionar, uma
+  // imagem de alguns MB deixa a home inutilizável em 4G. Redimensiona para
+  // no máximo 700px de largura (nunca aumenta imagem menor) e converte para
+  // WebP: mesma imagem, arquivo bem menor.
+  let processada;
+  try {
+    processada = await sharp(bytes)
+      .resize({ width: LARGURA_MAXIMA, withoutEnlargement: true })
+      .webp({ quality: QUALIDADE_WEBP })
+      .toBuffer();
+  } catch {
+    return Response.json(
+      { erro: "Não consegui processar essa imagem." },
+      { status: 400 },
+    );
+  }
+
+  const nomeArquivo = `${crypto.randomUUID()}.webp`;
   const dir = path.join(process.cwd(), "public", "uploads", pasta);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, nomeArquivo), bytes);
+  fs.writeFileSync(path.join(dir, nomeArquivo), processada);
+
+  // Apaga a imagem que essa está substituindo — sem isso, as órfãs ficam no
+  // disco para sempre a cada troca de foto.
+  const anterior = form?.get("anterior");
+  if (typeof anterior === "string" && CAMINHO_UPLOAD_VALIDO.test(anterior)) {
+    fs.unlink(path.join(process.cwd(), "public", anterior), () => {});
+  }
 
   return Response.json(
     { url: `/uploads/${pasta}/${nomeArquivo}` },

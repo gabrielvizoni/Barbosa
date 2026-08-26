@@ -80,7 +80,9 @@ export default function Horarios({ avisar, tratarErro, aoAlterar }) {
   // Editar o expediente e trocar de tela sem salvar descartava tudo em
   // silêncio — agora o painel avisa antes de sair (ver PainelAdmin.jsx).
   useEffect(() => {
-    aoAlterar?.(JSON.stringify(expediente) !== JSON.stringify(expedienteOriginal));
+    aoAlterar?.(
+      JSON.stringify(expediente) !== JSON.stringify(expedienteOriginal),
+    );
   }, [expediente, expedienteOriginal, aoAlterar]);
 
   function mudarDia(dia, campo, valor) {

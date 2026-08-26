@@ -7,8 +7,15 @@ import { mascararTelefone, somenteDigitos } from "@/lib/format";
 const SENHAS_VAZIAS = { atual: "", nova: "", confirmacao: "" };
 const SENHA_MINIMA = 6;
 
-export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
+export default function Configuracoes({
+  avisar,
+  tratarErro,
+  aoTrocarSenha,
+  aoAlterar,
+}) {
+  const [aba, setAba] = useState("dados");
   const [config, setConfig] = useState(null);
+  const [configOriginal, setConfigOriginal] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
   const [senhas, setSenhas] = useState(SENHAS_VAZIAS);
@@ -20,10 +27,27 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
     api("config")
       .then((r) => {
         setConfig(r.config);
+        setConfigOriginal(r.config);
         setSenhaInicial(!!r.senhaInicial);
+        // Com a senha inicial, é a aba que precisa de ação — abre nela direto.
+        if (r.senhaInicial) setAba("senha");
       })
       .catch(tratarErro);
   }, [tratarErro]);
+
+  // "Salvar configurações" e "Trocar senha" são ações independentes — o
+  // usuário preenchia a senha nova, clicava em "Salvar configurações", via
+  // "Configurações salvas" e achava que tinha trocado a senha (não tinha).
+  // Separadas em abas, cada botão só existe dentro da ação que ele executa.
+  // Também avisa o painel quando há campo editado e não salvo, em qualquer
+  // uma das duas abas, para não descartar em silêncio ao trocar de seção.
+  const configSujo =
+    !!configOriginal &&
+    JSON.stringify(config) !== JSON.stringify(configOriginal);
+  const senhaSuja = !!(senhas.atual || senhas.nova || senhas.confirmacao);
+  useEffect(() => {
+    aoAlterar?.(configSujo || senhaSuja);
+  }, [configSujo, senhaSuja, aoAlterar]);
 
   async function trocarSenha() {
     setErroSenha("");
@@ -54,6 +78,7 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
       });
       setSenhas(SENHAS_VAZIAS);
       setSenhaInicial(false);
+      setAba("dados");
       aoTrocarSenha?.();
       avisar("Senha trocada. Use a nova no próximo acesso.");
     } catch (erro) {
@@ -73,12 +98,14 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
   async function salvar() {
     setSalvando(true);
     try {
-      await api("config", {
+      const r = await api("config", {
         method: "PUT",
         body: {
           config: { ...config, whatsapp: somenteDigitos(config.whatsapp) },
         },
       });
+      setConfig(r.config);
+      setConfigOriginal(r.config);
       avisar("Configurações salvas.");
     } catch (erro) {
       tratarErro(erro);
@@ -96,212 +123,263 @@ export default function Configuracoes({ avisar, tratarErro, aoTrocarSenha }) {
         </div>
       </div>
 
-      <section className="bloco">
-        <h2>Identificação</h2>
-
-        <CampoImagem
-          label="Logo da barbearia (opcional)"
-          valor={config.logo_url}
-          aoMudar={(url) => mudar("logo_url", url)}
-          pasta="logo"
-          avisar={avisar}
-        />
-
-        <label className="campo">
-          <span>Nome da barbearia</span>
-          <input
-            className="entrada"
-            value={config.nome_barbearia}
-            onChange={(e) => mudar("nome_barbearia", e.target.value)}
-          />
-        </label>
-
-        <label className="campo">
-          <span>Frase de apresentação</span>
-          <textarea
-            className="entrada"
-            value={config.slogan}
-            onChange={(e) => mudar("slogan", e.target.value)}
-          />
-        </label>
-
-        <div className="linha-campos">
-          <label className="campo">
-            <span>WhatsApp da barbearia</span>
-            <input
-              className="entrada mono"
-              value={mascararTelefone(config.whatsapp)}
-              onChange={(e) => mudar("whatsapp", e.target.value)}
-              placeholder="(44) 99999-0000"
-            />
-          </label>
-          <label className="campo">
-            <span>Endereço</span>
-            <input
-              className="entrada"
-              value={config.endereco}
-              onChange={(e) => mudar("endereco", e.target.value)}
-            />
-          </label>
-        </div>
-
-        <label className="campo">
-          <span>Instagram (usuário, sem @)</span>
-          <input
-            className="entrada"
-            value={config.instagram}
-            onChange={(e) =>
-              mudar("instagram", e.target.value.replace(/^@/, ""))
-            }
-            placeholder="seuusuario"
-          />
-        </label>
-
-        <div className="aviso">
-          Sem esse número, o botão de confirmação no WhatsApp não aparece para o
-          cliente no fim do agendamento.
-        </div>
-      </section>
-
-      <section className="bloco">
-        <h2>Regras do agendamento</h2>
-
-        <div className="linha-campos">
-          <label className="campo">
-            <span>De quanto em quanto tempo</span>
-            <select
-              className="entrada"
-              value={config.intervalo_min}
-              onChange={(e) => mudar("intervalo_min", e.target.value)}
-            >
-              <option value="15">15 minutos</option>
-              <option value="20">20 minutos</option>
-              <option value="30">30 minutos</option>
-              <option value="60">1 hora</option>
-            </select>
-          </label>
-
-          <label className="campo">
-            <span>Antecedência mínima</span>
-            <select
-              className="entrada"
-              value={config.antecedencia_min}
-              onChange={(e) => mudar("antecedencia_min", e.target.value)}
-            >
-              <option value="0">Sem antecedência</option>
-              <option value="30">30 minutos</option>
-              <option value="60">1 hora</option>
-              <option value="120">2 horas</option>
-              <option value="1440">1 dia</option>
-            </select>
-          </label>
-
-          <label className="campo">
-            <span>Quantos dias à frente</span>
-            <select
-              className="entrada"
-              value={config.dias_futuros}
-              onChange={(e) => mudar("dias_futuros", e.target.value)}
-            >
-              <option value="7">7 dias</option>
-              <option value="15">15 dias</option>
-              <option value="30">30 dias</option>
-              <option value="60">60 dias</option>
-              <option value="90">90 dias (3 meses)</option>
-            </select>
-          </label>
-        </div>
-
-        <label className="caixa">
-          <input
-            type="checkbox"
-            checked={config.confirmacao_automatica === "1"}
-            onChange={(e) =>
-              mudar("confirmacao_automatica", e.target.checked ? "1" : "0")
-            }
-          />
-          Marcar como confirmado assim que o cliente agenda
-        </label>
-
-        <p
-          style={{ fontSize: 13.5, color: "var(--tinta-suave)", marginTop: 10 }}
-        >
-          Desmarcado, todo agendamento entra como pendente e espera você
-          confirmar na tela de Agendamentos.
-        </p>
-      </section>
-
-      <button className="btn btn-ouro" onClick={salvar} disabled={salvando}>
-        {salvando ? "Salvando…" : "Salvar configurações"}
-      </button>
-
-      <section className="bloco" style={{ marginTop: 24 }}>
-        <h2>Senha do painel</h2>
-
-        {senhaInicial ? (
-          <div className="aviso">
-            Você ainda está usando a senha inicial, a mesma que veio na
-            instalação. Defina uma senha sua agora.
-          </div>
-        ) : null}
-
-        {erroSenha ? <div className="aviso aviso-erro">{erroSenha}</div> : null}
-
-        <div className="linha-campos">
-          <label className="campo">
-            <span>Senha atual</span>
-            <input
-              className="entrada"
-              type="password"
-              value={senhas.atual}
-              onChange={(e) => setSenhas({ ...senhas, atual: e.target.value })}
-              autoComplete="current-password"
-            />
-          </label>
-          <label className="campo">
-            <span>Senha nova</span>
-            <input
-              className="entrada"
-              type="password"
-              value={senhas.nova}
-              onChange={(e) => setSenhas({ ...senhas, nova: e.target.value })}
-              autoComplete="new-password"
-            />
-          </label>
-          <label className="campo">
-            <span>Repita a senha nova</span>
-            <input
-              className="entrada"
-              type="password"
-              value={senhas.confirmacao}
-              onChange={(e) =>
-                setSenhas({ ...senhas, confirmacao: e.target.value })
-              }
-              autoComplete="new-password"
-            />
-          </label>
-        </div>
-
+      <div
+        className="agenda-filtros"
+        role="tablist"
+        style={{ marginBottom: 20 }}
+      >
         <button
-          className="btn btn-verde"
-          onClick={trocarSenha}
-          disabled={trocando}
+          type="button"
+          role="tab"
+          id="aba-dados"
+          aria-selected={aba === "dados"}
+          aria-controls="painel-dados"
+          className={`pilula ${aba === "dados" ? "ativa" : ""}`}
+          onClick={() => setAba("dados")}
         >
-          {trocando ? "Trocando…" : "Trocar senha"}
+          Configurações{configSujo ? " •" : ""}
         </button>
-
-        <p
-          style={{
-            fontSize: 13.5,
-            color: "var(--tinta-suave)",
-            marginTop: 12,
-            marginBottom: 0,
-          }}
+        <button
+          type="button"
+          role="tab"
+          id="aba-senha"
+          aria-selected={aba === "senha"}
+          aria-controls="painel-senha"
+          className={`pilula ${aba === "senha" ? "ativa" : ""}`}
+          onClick={() => setAba("senha")}
         >
-          Mínimo de 6 caracteres. Ao trocar, qualquer outro aparelho que esteja
-          com o painel aberto é desconectado — só este continua logado.
-        </p>
-      </section>
+          Senha do painel{senhaInicial ? " •" : ""}
+        </button>
+      </div>
+
+      <div
+        role="tabpanel"
+        id="painel-dados"
+        aria-labelledby="aba-dados"
+        hidden={aba !== "dados"}
+      >
+        <section className="bloco">
+          <h2>Identificação</h2>
+
+          <CampoImagem
+            label="Logo da barbearia (opcional)"
+            valor={config.logo_url}
+            aoMudar={(url) => mudar("logo_url", url)}
+            pasta="logo"
+            avisar={avisar}
+          />
+
+          <label className="campo">
+            <span>Nome da barbearia</span>
+            <input
+              className="entrada"
+              value={config.nome_barbearia}
+              onChange={(e) => mudar("nome_barbearia", e.target.value)}
+            />
+          </label>
+
+          <label className="campo">
+            <span>Frase de apresentação</span>
+            <textarea
+              className="entrada"
+              value={config.slogan}
+              onChange={(e) => mudar("slogan", e.target.value)}
+            />
+          </label>
+
+          <div className="linha-campos">
+            <label className="campo">
+              <span>WhatsApp da barbearia</span>
+              <input
+                className="entrada mono"
+                value={mascararTelefone(config.whatsapp)}
+                onChange={(e) => mudar("whatsapp", e.target.value)}
+                placeholder="(44) 99999-0000"
+              />
+            </label>
+            <label className="campo">
+              <span>Endereço</span>
+              <input
+                className="entrada"
+                value={config.endereco}
+                onChange={(e) => mudar("endereco", e.target.value)}
+              />
+            </label>
+          </div>
+
+          <label className="campo">
+            <span>Instagram (usuário, sem @)</span>
+            <input
+              className="entrada"
+              value={config.instagram}
+              onChange={(e) =>
+                mudar("instagram", e.target.value.replace(/^@/, ""))
+              }
+              placeholder="seuusuario"
+            />
+          </label>
+
+          <div className="aviso">
+            Sem esse número, o botão de confirmação no WhatsApp não aparece para
+            o cliente no fim do agendamento.
+          </div>
+        </section>
+
+        <section className="bloco">
+          <h2>Regras do agendamento</h2>
+
+          <div className="linha-campos">
+            <label className="campo">
+              <span>De quanto em quanto tempo</span>
+              <select
+                className="entrada"
+                value={config.intervalo_min}
+                onChange={(e) => mudar("intervalo_min", e.target.value)}
+              >
+                <option value="15">15 minutos</option>
+                <option value="20">20 minutos</option>
+                <option value="30">30 minutos</option>
+                <option value="60">1 hora</option>
+              </select>
+            </label>
+
+            <label className="campo">
+              <span>Antecedência mínima</span>
+              <select
+                className="entrada"
+                value={config.antecedencia_min}
+                onChange={(e) => mudar("antecedencia_min", e.target.value)}
+              >
+                <option value="0">Sem antecedência</option>
+                <option value="30">30 minutos</option>
+                <option value="60">1 hora</option>
+                <option value="120">2 horas</option>
+                <option value="1440">1 dia</option>
+              </select>
+            </label>
+
+            <label className="campo">
+              <span>Quantos dias à frente</span>
+              <select
+                className="entrada"
+                value={config.dias_futuros}
+                onChange={(e) => mudar("dias_futuros", e.target.value)}
+              >
+                <option value="7">7 dias</option>
+                <option value="15">15 dias</option>
+                <option value="30">30 dias</option>
+                <option value="60">60 dias</option>
+                <option value="90">90 dias (3 meses)</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="caixa">
+            <input
+              type="checkbox"
+              checked={config.confirmacao_automatica === "1"}
+              onChange={(e) =>
+                mudar("confirmacao_automatica", e.target.checked ? "1" : "0")
+              }
+            />
+            Marcar como confirmado assim que o cliente agenda
+          </label>
+
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--tinta-suave)",
+              marginTop: 10,
+            }}
+          >
+            Desmarcado, todo agendamento entra como pendente e espera você
+            confirmar na tela de Agendamentos.
+          </p>
+        </section>
+
+        <button className="btn btn-ouro" onClick={salvar} disabled={salvando}>
+          {salvando ? "Salvando…" : "Salvar configurações"}
+        </button>
+      </div>
+
+      <div
+        role="tabpanel"
+        id="painel-senha"
+        aria-labelledby="aba-senha"
+        hidden={aba !== "senha"}
+      >
+        <section className="bloco">
+          <h2>Senha do painel</h2>
+
+          {senhaInicial ? (
+            <div className="aviso">
+              Você ainda está usando a senha inicial, a mesma que veio na
+              instalação. Defina uma senha sua agora.
+            </div>
+          ) : null}
+
+          {erroSenha ? (
+            <div className="aviso aviso-erro">{erroSenha}</div>
+          ) : null}
+
+          <div className="linha-campos">
+            <label className="campo">
+              <span>Senha atual</span>
+              <input
+                className="entrada"
+                type="password"
+                value={senhas.atual}
+                onChange={(e) =>
+                  setSenhas({ ...senhas, atual: e.target.value })
+                }
+                autoComplete="current-password"
+              />
+            </label>
+            <label className="campo">
+              <span>Senha nova</span>
+              <input
+                className="entrada"
+                type="password"
+                value={senhas.nova}
+                onChange={(e) => setSenhas({ ...senhas, nova: e.target.value })}
+                autoComplete="new-password"
+              />
+            </label>
+            <label className="campo">
+              <span>Repita a senha nova</span>
+              <input
+                className="entrada"
+                type="password"
+                value={senhas.confirmacao}
+                onChange={(e) =>
+                  setSenhas({ ...senhas, confirmacao: e.target.value })
+                }
+                autoComplete="new-password"
+              />
+            </label>
+          </div>
+
+          <button
+            className="btn btn-verde"
+            onClick={trocarSenha}
+            disabled={trocando}
+          >
+            {trocando ? "Trocando…" : "Trocar senha"}
+          </button>
+
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--tinta-suave)",
+              marginTop: 12,
+              marginBottom: 0,
+            }}
+          >
+            Mínimo de 6 caracteres. Ao trocar, qualquer outro aparelho que
+            esteja com o painel aberto é desconectado — só este continua logado.
+          </p>
+        </section>
+      </div>
     </>
   );
 }

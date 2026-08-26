@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, SeletorData, Vazio } from "./base";
+import { api, Vazio } from "./base";
 import { iniciais, mascararTelefone, moeda } from "@/lib/format";
 import { hojeLocal } from "@/lib/datas-cliente";
 import { usePainelConfig } from "./ConfigContext";
@@ -70,6 +70,9 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
                 className="avatar-mini"
                 src={b.foto}
                 alt=""
+                width={24}
+                height={24}
+                loading="lazy"
                 style={{ width: 24, height: 24 }}
               />
             ) : (
@@ -83,9 +86,11 @@ export default function AgendaVisual({ barbeiros, tratarErro }) {
             {b.nome.split(" ")[0]}
           </button>
         ))}
-        <SeletorData
+        <input
+          type="date"
+          className="entrada mono"
           value={data}
-          onChange={(v) => setData(v || hojeLocal(fuso))}
+          onChange={(e) => setData(e.target.value || hojeLocal(fuso))}
         />
       </div>
 

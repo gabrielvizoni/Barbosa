@@ -533,7 +533,14 @@ export default function FluxoAgendamento() {
                     >
                       {b.foto ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
-                        <img className="avatar-mini" src={b.foto} alt="" />
+                        <img
+                          className="avatar-mini"
+                          src={b.foto}
+                          alt=""
+                          width={42}
+                          height={42}
+                          loading="lazy"
+                        />
                       ) : (
                         <span className="avatar-mini" aria-hidden="true">
                           {iniciais(b.nome)}

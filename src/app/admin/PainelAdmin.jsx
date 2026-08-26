@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/components/admin/base";
+import { api, ModalConfirmacao } from "@/components/admin/base";
 import { ConfigProvider } from "@/components/admin/ConfigContext";
 import { NOME_PADRAO } from "@/lib/format";
 import VisaoGeral from "@/components/admin/VisaoGeral";
@@ -60,6 +60,32 @@ export default function PainelAdmin() {
   const [secaoAtiva, setSecaoAtiva] = useState("visao");
   const [pendentes, setPendentes] = useState(0);
   const [recado, setRecado] = useState(null);
+  // Editar o expediente ou as configurações e trocar de seção descartava
+  // tudo em silêncio — a tela em uso avisa aqui quando tem algo não salvo,
+  // e a troca de seção passa a pedir confirmação antes de perder.
+  const [sujo, setSujo] = useState(false);
+  const [secaoPretendida, setSecaoPretendida] = useState(null);
+
+  useEffect(() => {
+    if (!sujo) return;
+    function aoFechar(e) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", aoFechar);
+    return () => window.removeEventListener("beforeunload", aoFechar);
+  }, [sujo]);
+
+  function pedirTrocaSecao(id) {
+    if (sujo) setSecaoPretendida(id);
+    else setSecaoAtiva(id);
+  }
+
+  function confirmarTrocaSecao() {
+    setSujo(false);
+    setSecaoAtiva(secaoPretendida);
+    setSecaoPretendida(null);
+  }
 
   // /api/public não exige sessão — é a única forma de mostrar o nome da
   // barbearia já na tela de login, antes de qualquer autenticação.
@@ -137,6 +163,7 @@ export default function PainelAdmin() {
 
   async function sair() {
     await api("logout", { method: "POST" }).catch(() => {});
+    setSujo(false);
     setEstado("fora");
   }
 
@@ -237,7 +264,7 @@ export default function PainelAdmin() {
               <button
                 key={id}
                 className={`item-menu ${id === secaoEfetiva ? "ativo" : ""}`}
-                onClick={() => (bloqueado ? null : setSecaoAtiva(id))}
+                onClick={() => (bloqueado ? null : pedirTrocaSecao(id))}
                 disabled={bloqueado}
                 title={
                   bloqueado ? "Defina uma senha própria primeiro" : undefined
@@ -276,9 +303,21 @@ export default function PainelAdmin() {
             tratarErro={tratarErro}
             aoMudar={atualizarPendentes}
             aoTrocarSenha={() => setSenhaInicial(false)}
+            aoAlterar={setSujo}
           />
         </ConfigProvider>
       </main>
+
+      {secaoPretendida ? (
+        <ModalConfirmacao
+          titulo="Alterações não salvas"
+          mensagem="Você tem alterações não salvas nesta tela. Sair mesmo assim? Elas serão perdidas."
+          confirmarLabel="Sair sem salvar"
+          perigo
+          aoConfirmar={confirmarTrocaSecao}
+          aoFechar={() => setSecaoPretendida(null)}
+        />
+      ) : null}
 
       {recado ? (
         <div className={`recado ${recado.tipo === "erro" ? "erro" : ""}`}>

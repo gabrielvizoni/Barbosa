@@ -1,15 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  api,
-  Etiqueta,
-  Modal,
-  ModalConfirmacao,
-  SeletorData,
-  SeletorLista,
-  Vazio,
-} from "./base";
+import { api, Etiqueta, Modal, ModalConfirmacao, Vazio } from "./base";
 import {
   dataBr,
   linkConfirmacaoCliente,
@@ -61,6 +53,19 @@ const VAZIO_REMARCAR = {
   data: "",
   inicio: "",
 };
+
+/**
+ * Só os profissionais que executam o serviço escolhido — sem isso, o select
+ * oferecia qualquer profissional ativo e o backend rejeitava a combinação
+ * só depois do formulário inteiro preenchido.
+ */
+function barbeirosDoServico(servicoId, listaBarbeiros, listaServicos) {
+  if (!servicoId) return listaBarbeiros;
+  const servico = listaServicos.find((s) => String(s.id) === String(servicoId));
+  return servico
+    ? listaBarbeiros.filter((b) => servico.barbeiros.includes(b.id))
+    : listaBarbeiros;
+}
 
 export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
   const { nome } = usePainelConfig();
@@ -257,6 +262,17 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
     setRemarcando(a);
   }
 
+  const barbeirosNovo = barbeirosDoServico(
+    novo.servico_id,
+    barbeiros,
+    servicos,
+  );
+  const barbeirosRemarcar = barbeirosDoServico(
+    formRemarcar.servico_id,
+    barbeiros,
+    servicos,
+  );
+
   async function salvarRemarcar() {
     setErroRemarcar("");
     if (!formRemarcar.servico_id) return setErroRemarcar("Escolha o serviço.");
@@ -330,23 +346,38 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
             />
-            <SeletorLista
+            <select
+              className="entrada"
               value={status}
-              onChange={setStatus}
-              options={STATUS.map((s) => ({ value: s.id, rotulo: s.rotulo }))}
-            />
-            <SeletorLista
+              onChange={(e) => setStatus(e.target.value)}
+              aria-label="Filtrar por status"
+            >
+              {STATUS.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.rotulo}
+                </option>
+              ))}
+            </select>
+            <select
+              className="entrada"
               value={barbeiro}
-              onChange={setBarbeiro}
-              options={[
-                { value: "", rotulo: "Todos os profissionais" },
-                ...barbeiros.map((b) => ({
-                  value: String(b.id),
-                  rotulo: b.nome,
-                })),
-              ]}
+              onChange={(e) => setBarbeiro(e.target.value)}
+              aria-label="Filtrar por profissional"
+            >
+              <option value="">Todos os profissionais</option>
+              {barbeiros.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.nome}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              className="entrada mono"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+              aria-label="Filtrar por data"
             />
-            <SeletorData value={data} onChange={setData} />
           </div>
 
           {itens.length === 0 ? (
@@ -580,9 +611,23 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               <select
                 className="entrada"
                 value={novo.servico_id}
-                onChange={(e) =>
-                  setNovo({ ...novo, servico_id: e.target.value, inicio: "" })
-                }
+                onChange={(e) => {
+                  const servico_id = e.target.value;
+                  const permitidos = barbeirosDoServico(
+                    servico_id,
+                    barbeiros,
+                    servicos,
+                  );
+                  const barbeiroValido = permitidos.some(
+                    (b) => String(b.id) === novo.barbeiro_id,
+                  );
+                  setNovo({
+                    ...novo,
+                    servico_id,
+                    barbeiro_id: barbeiroValido ? novo.barbeiro_id : "",
+                    inicio: "",
+                  });
+                }}
               >
                 <option value="">Escolha…</option>
                 {servicos.map((s) => (
@@ -602,7 +647,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 }
               >
                 <option value="">Escolha…</option>
-                {barbeiros.map((b) => (
+                {barbeirosNovo.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.nome}
                   </option>
@@ -613,10 +658,13 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
           <label className="campo">
             <span>Data</span>
-            <SeletorData
-              className="seletor-data-bloco"
+            <input
+              type="date"
+              className="entrada mono"
               value={novo.data}
-              onChange={(data) => setNovo({ ...novo, data, inicio: "" })}
+              onChange={(e) =>
+                setNovo({ ...novo, data: e.target.value, inicio: "" })
+              }
             />
           </label>
 
@@ -750,13 +798,23 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
               <select
                 className="entrada"
                 value={formRemarcar.servico_id}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const servico_id = e.target.value;
+                  const permitidos = barbeirosDoServico(
+                    servico_id,
+                    barbeiros,
+                    servicos,
+                  );
+                  const barbeiroValido = permitidos.some(
+                    (b) => String(b.id) === formRemarcar.barbeiro_id,
+                  );
                   setFormRemarcar({
                     ...formRemarcar,
-                    servico_id: e.target.value,
+                    servico_id,
+                    barbeiro_id: barbeiroValido ? formRemarcar.barbeiro_id : "",
                     inicio: "",
-                  })
-                }
+                  });
+                }}
               >
                 <option value="">Escolha…</option>
                 {servicos.map((s) => (
@@ -780,7 +838,7 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
                 }
               >
                 <option value="">Escolha…</option>
-                {barbeiros.map((b) => (
+                {barbeirosRemarcar.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.nome}
                   </option>
@@ -791,11 +849,16 @@ export default function Agendamentos({ avisar, tratarErro, aoMudar }) {
 
           <label className="campo">
             <span>Data</span>
-            <SeletorData
-              className="seletor-data-bloco"
+            <input
+              type="date"
+              className="entrada mono"
               value={formRemarcar.data}
-              onChange={(data) =>
-                setFormRemarcar({ ...formRemarcar, data, inicio: "" })
+              onChange={(e) =>
+                setFormRemarcar({
+                  ...formRemarcar,
+                  data: e.target.value,
+                  inicio: "",
+                })
               }
             />
           </label>

@@ -25,6 +25,10 @@ const CHAVES = [
   "antecedencia_min",
   "dias_futuros",
   "confirmacao_automatica",
+  // Autodeclaração do checklist de primeiros passos (Etapa 9 da auditoria):
+  // "conferir o expediente" não dá pra inferir dos dados, só o próprio
+  // dono sabe se já olhou — fica marcado quando ele confirma na tela.
+  "onboarding_expediente_ok",
 ];
 
 /** Nunca saem para o navegador: o hash da senha e o controle de sessões. */
