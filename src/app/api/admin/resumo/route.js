@@ -83,7 +83,7 @@ function totaisDoMes(conn, mes) {
 }
 
 export async function GET(request) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const conn = getDb();

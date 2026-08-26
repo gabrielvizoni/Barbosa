@@ -1,12 +1,11 @@
 // Helpers compartilhados pela bateria de testes.
 //
 // Cada arquivo de teste roda em um processo próprio (comportamento padrão do
-// `node --test`), então usar DATABASE_PATH=':memory:' antes do primeiro
-// getDb() dá a cada arquivo um banco SQLite isolado, criado do zero com o
-// mesmo schema/seed de produção (migrate() roda normalmente) — sem precisar
-// mexer em src/lib/db.js.
-process.env.DATABASE_PATH = ':memory:';
-
+// `node --test`), e DATABASE_PATH=':memory:' (definida em
+// tests/register-hooks.mjs, carregada antes de qualquer módulo de teste) dá
+// a cada arquivo um banco SQLite isolado, criado do zero com o mesmo
+// schema/seed de produção (migrate() roda normalmente) — sem precisar mexer
+// em src/lib/db.js.
 import { getDb } from '../src/lib/db.js';
 
 /** Abre (ou reaproveita) o banco de teste em memória do processo atual. */

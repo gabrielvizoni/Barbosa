@@ -37,7 +37,7 @@ function detectarExtensao(bytes) {
 }
 
 export async function POST(request) {
-  const negado = exigirSessao();
+  const negado = exigirSessao(request);
   if (negado) return negado;
 
   const form = await request.formData().catch(() => null);
