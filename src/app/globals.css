@@ -128,25 +128,47 @@ textarea {
 }
 
 /* Ponto de partida das animações de entrada (ver src/components/Animacoes.jsx).
-   Começam invisíveis para o JavaScript revelar aos poucos, sem "pular".
-   Quem prefere menos movimento já vê tudo visível, sem esperar pela animação. */
-.anim-entrada,
-.secao-cabeca,
-.grade > *,
-.grade-equipe > *,
-.contato-grade > *,
-.chamada-interna > * {
+   O padrão é conteúdo VISÍVEL — opacity:0 só existe condicionado a
+   `.js-ativo` (classe ligada por um script inline em layout.jsx, antes da
+   primeira pintura). Assim a animação é um incremento sobre a página que já
+   funciona, nunca um pré-requisito para ela aparecer: se o script falhar,
+   for bloqueado, ou o JS estiver desligado, o conteúdo continua visível —
+   já mordeu este projeto duas vezes (uma classe de CSS esquecida, depois
+   uma CSP nova), então o padrão seguro é o que não depende de nada rodar
+   certo primeiro. */
+.js-ativo .anim-entrada,
+.js-ativo .secao-cabeca,
+.js-ativo .grade > *,
+.js-ativo .grade-equipe > *,
+.js-ativo .contato-grade > *,
+.js-ativo .chamada-interna > * {
   opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-entrada,
-  .secao-cabeca,
-  .grade > *,
-  .grade-equipe > *,
-  .contato-grade > *,
-  .chamada-interna > * {
+  .js-ativo .anim-entrada,
+  .js-ativo .secao-cabeca,
+  .js-ativo .grade > *,
+  .js-ativo .grade-equipe > *,
+  .js-ativo .contato-grade > *,
+  .js-ativo .chamada-interna > * {
     opacity: 1;
+  }
+}
+
+/* Rede extra: navegador com JavaScript desligado nunca chega a rodar o
+   script que liga `.js-ativo`, então a regra acima já não bateria — mas
+   caso algum agente externo force a classe sem o JS de fato funcionar
+   (ex.: pré-render de terceiros, cache antigo), isso garante o conteúdo
+   visível mesmo assim. */
+@media (scripting: none) {
+  .js-ativo .anim-entrada,
+  .js-ativo .secao-cabeca,
+  .js-ativo .grade > *,
+  .js-ativo .grade-equipe > *,
+  .js-ativo .contato-grade > *,
+  .js-ativo .chamada-interna > * {
+    opacity: 1 !important;
   }
 }
 

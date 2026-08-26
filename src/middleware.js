@@ -18,9 +18,17 @@ import { NextResponse } from "next/server";
 export function middleware(request) {
   const nonce = crypto.randomUUID();
 
+  // 'unsafe-eval' SÓ em desenvolvimento: é o que o React Fast Refresh do
+  // `next dev` usa internamente para trocar módulos a quente (eval de
+  // string) — não existe no bundle de produção, que não faz HMR. NUNCA
+  // remova esta condicional para "simplificar" a linha abaixo: isso
+  // afrouxaria a política também em produção, que precisa continuar sem
+  // unsafe-eval e sem unsafe-inline no script-src.
+  const dev = process.env.NODE_ENV !== "production";
+
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",
