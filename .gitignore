@@ -8,3 +8,4 @@ public/uploads
 *.log
 .DS_Store
 .claude
+/data/
