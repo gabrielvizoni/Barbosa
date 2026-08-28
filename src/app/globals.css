@@ -35,9 +35,9 @@
   --erro: #a6402e;
 
   /* Tipografia */
-  --fonte-display: "Playfair Display", Georgia, serif;
-  --fonte-corpo: "Inter", system-ui, -apple-system, sans-serif;
-  --fonte-mono: "DM Mono", ui-monospace, monospace;
+  --fonte-display: "Raleway", system-ui, -apple-system, sans-serif;
+  --fonte-corpo: "Raleway", system-ui, -apple-system, sans-serif;
+  --fonte-mono: "Raleway", system-ui, -apple-system, sans-serif;
 
   /* Métrica */
   --raio: 10px;
