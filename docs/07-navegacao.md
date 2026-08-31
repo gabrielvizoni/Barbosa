@@ -96,7 +96,7 @@ Da definição em `PainelAdmin.jsx`:
 | `profissionais` | Profissionais     | `Profissionais` | RF-31 a RF-36                | `[PARCIAL]`      |
 | `servicos`      | Serviços          | `Servicos`      | RF-37 a RF-41                | `[IMPLEMENTADO]` |
 | `produtos`      | Produtos          | `Produtos`      | RF-42 a RF-46                | `[PARCIAL]`      |
-| `horarios`      | Horários e folgas | `Horarios`      | RF-81 a RF-83, RF-34         | `[PARCIAL]`      |
+| `horarios`      | Horários e folgas | `Horarios`      | RF-81 a RF-83, RF-34         | `[IMPLEMENTADO]` |
 | `financeiro`    | Financeiro        | `Financeiro`    | RF-53 a RF-59, RF-67 a RF-70 | `[PARCIAL]`      |
 | `config`        | Configurações     | `Configuracoes` | RF-76 a RF-80                | `[IMPLEMENTADO]` |
 | —               | Sair              | (logout)        | —                            | `[IMPLEMENTADO]` |

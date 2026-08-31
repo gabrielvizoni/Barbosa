@@ -21,13 +21,16 @@ sequenceDiagram
 
     Cliente->>Site: abre /agendar
     Site->>API: GET /api/public
-    API->>DB: serviços ativos, equipe, dias
+    API->>DB: serviços ativos, equipe, dias (união dos profissionais)
     DB-->>Site: catálogo
 
-    Cliente->>Site: escolhe serviço, profissional, dia
+    Cliente->>Site: escolhe serviço, profissional
+    Site->>API: GET /api/public?barbeiro=ID
+    API->>DB: dias do profissional (expediente + folgas recorrentes)
+    Cliente->>Site: escolhe dia
     Site->>API: GET /api/horarios (barbeiro, servico, data)
     API->>Ag: horariosLivres(...)
-    Ag->>DB: expediente, agendamentos, bloqueios
+    Ag->>DB: expediente do profissional, folgas recorrentes, agendamentos, bloqueios
     Ag-->>Site: horários livres
 
     Cliente->>Site: escolhe horário, informa nome e WhatsApp, confirma

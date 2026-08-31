@@ -1,13 +1,13 @@
 # 06 — Modelo de dados
 
-Extraído de `src/lib/migrations.js` (6 migrations, versão esperada **6**). O
+Extraído de `src/lib/migrations.js` (7 migrations, versão esperada **7**). O
 schema é SQLite; toda leitura e escrita passa por `src/lib/db.js` com
 _prepared statements_, sem ORM.
 
-- **Situação atual:** o que as 6 migrations criam.
+- **Situação atual:** o que as 7 migrations criam.
 - **Situação alvo:** as entidades novas que os módulos `[PLANEJADO]`
-  (conta de cliente, comandas, caixa, 2FA, expediente por profissional)
-  exigem. Ainda não existem migrations para elas.
+  (conta de cliente, comandas, caixa, 2FA) exigem. Ainda não existem
+  migrations para elas.
 
 Convenções do schema: dinheiro em **centavos** (`_centavos`, inteiro); datas em
 `AAAA-MM-DD` e horas em `HH:MM`, validadas por `CHECK ... GLOB`; texto não
@@ -61,11 +61,18 @@ erDiagram
         INTEGER ativo
         TEXT    imagem "migration 2"
     }
-    expediente {
+    expediente_barbeiro {
+        INTEGER barbeiro_id PK, FK "migration 7; ON DELETE CASCADE"
         INTEGER dia PK "0 domingo a 6 sabado"
         INTEGER aberto
         TEXT    abre "HH:MM"
         TEXT    fecha "HH:MM; posterior a abre"
+    }
+    folgas_recorrentes {
+        INTEGER id PK
+        INTEGER barbeiro_id FK "migration 7; ON DELETE CASCADE"
+        INTEGER dia_semana "0 domingo a 6 sabado; unico por barbeiro"
+        TEXT    criado_em
     }
     bloqueios {
         INTEGER id PK
@@ -124,12 +131,14 @@ erDiagram
         INTEGER versao "controle das migrations"
     }
 
-    barbeiros           ||--o{ servico_barbeiro   : "realiza"
-    servicos            ||--o{ servico_barbeiro   : "é realizado por"
-    barbeiros           ||--o{ agendamentos       : "atende"
-    servicos            ||--o{ agendamentos       : "é agendado em"
-    barbeiros           ||--o{ bloqueios          : "tem folga"
-    barbeiros           ||--o{ reset_senha_tokens : "solicita"
+    barbeiros           ||--o{ servico_barbeiro    : "realiza"
+    servicos            ||--o{ servico_barbeiro    : "é realizado por"
+    barbeiros           ||--o{ agendamentos        : "atende"
+    servicos            ||--o{ agendamentos        : "é agendado em"
+    barbeiros           ||--o{ bloqueios           : "tem folga pontual"
+    barbeiros           ||--|{ expediente_barbeiro : "trabalha na semana"
+    barbeiros           ||--o{ folgas_recorrentes  : "folga toda semana"
+    barbeiros           ||--o{ reset_senha_tokens  : "solicita"
 ```
 
 `config` e `schema_version` não têm relação com as demais — `config` é um
@@ -146,16 +155,36 @@ Uma linha por parâmetro. Chaves usadas: `nome_barbearia`, `slogan`, `whatsapp`,
 `dias_futuros`, `confirmacao_automatica`, `sessao_versao`, `senha_hash`
 (hash `scrypt` do painel, gravado após a troca do bootstrap).
 
-### `expediente` — expediente da barbearia por dia da semana
+### `expediente_barbeiro` — expediente semanal por profissional (migration 7)
 
-| Coluna   | Tipo    | Regras                                     |
-| -------- | ------- | ------------------------------------------ |
-| `dia`    | INTEGER | PK. `CHECK 0..6` (0 = domingo).            |
-| `aberto` | INTEGER | `0/1`. `0` fecha o dia inteiro.            |
-| `abre`   | TEXT    | `CHECK GLOB HH:MM`.                        |
-| `fecha`  | TEXT    | `CHECK GLOB HH:MM` e `CHECK fecha > abre`. |
+Substitui a antiga tabela global `expediente` (RN-14). Uma linha por
+`(profissional, dia da semana)`.
 
-Seed na migration 1: domingo 09–18 fechado, seg–sex 09–20, sábado 08–18.
+| Coluna        | Tipo    | Regras                                                   |
+| ------------- | ------- | -------------------------------------------------------- |
+| `barbeiro_id` | INTEGER | PK (parte). FK → `barbeiros` `ON DELETE CASCADE`.        |
+| `dia`         | INTEGER | PK (parte). `CHECK BETWEEN 0 AND 6` (0 = domingo).       |
+| `aberto`      | INTEGER | `0/1`. `0` fecha o dia inteiro para aquele profissional. |
+| `abre`        | TEXT    | `CHECK GLOB HH:MM`.                                      |
+| `fecha`       | TEXT    | `CHECK GLOB HH:MM` e `CHECK fecha > abre`.               |
+
+PK composta `(barbeiro_id, dia)`. Todo profissional novo nasce com as 7 linhas
+semeadas pelo _trigger_ `trg_expediente_barbeiro_padrao` (domingo 09–18
+fechado, seg–sex 09–20, sábado 08–18); a migration 7 semeou os profissionais
+já existentes a partir da grade global de então.
+
+### `folgas_recorrentes` — dias da semana em que o profissional nunca atende (migration 7)
+
+Distinto de `bloqueios` (exceção de uma data pontual). Um dia de folga
+recorrente zera a disponibilidade daquele profissional naquele dia da semana,
+mesmo com o expediente aberto (RN-49).
+
+| Coluna        | Tipo    | Regras                                                          |
+| ------------- | ------- | --------------------------------------------------------------- |
+| `id`          | INTEGER | PK autoincremento.                                              |
+| `barbeiro_id` | INTEGER | FK → `barbeiros` `ON DELETE CASCADE`.                           |
+| `dia_semana`  | INTEGER | `CHECK BETWEEN 0 AND 6`. Único por `(barbeiro_id, dia_semana)`. |
+| `criado_em`   | TEXT    | `datetime('now')`.                                              |
 
 ### `barbeiros` — profissionais e, desde a migration 6, credenciais de painel
 
@@ -270,7 +299,7 @@ ids, preço). **Nunca** nome ou telefone do cliente (RN-43). Índice:
 ### `schema_version`
 
 Uma linha, sem PK. `aplicarMigrations()` faz `DELETE` + `INSERT` a cada
-migration aplicada; `getDb()` recusa subir se o valor não for `6`.
+migration aplicada; `getDb()` recusa subir se o valor não for `7`.
 
 ---
 
@@ -279,21 +308,19 @@ migration aplicada; `getDb()` recusa subir se o valor não for `6`.
 Estas entidades ainda não existem. A lista fixa o vocabulário e as ligações
 esperadas; o desenho fino sai quando o módulo for implementado.
 
-| Entidade              | Papel                                                                                                                                                                                                                                                 | Liga-se a                                                 |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `clientes`            | Conta do cliente: `nome`, `telefone`, `email` (`NOT NULL`, único), `senha_hash` (`scrypt`), `sessao_versao`, `criado_em`, `anonimizado_em`. Base do histórico e das métricas. A classificação novo/recorrente é **derivada** (RN-51), não uma coluna. | `agendamentos` (novo `cliente_id`), `comandas`            |
-| `lembretes`           | Antecedência do lembrete por cliente ou por agendamento (15 min … 24 h) e controle de envio (canal, `enviado_em`).                                                                                                                                    | `clientes`, `agendamentos`                                |
-| `expediente_barbeiro` | Expediente semanal **por profissional** — substitui a tabela `expediente` global (RN-14): `barbeiro_id`, `dia`, `aberto`, `abre`, `fecha`.                                                                                                            | `barbeiros`                                               |
-| `folgas_recorrentes`  | Folgas que se repetem (ex.: toda segunda), por profissional (RN-49). Distinto de `bloqueios` (data pontual).                                                                                                                                          | `barbeiros`                                               |
-| `formas_pagamento`    | Cadastro de formas de pagamento aceitas (dinheiro, Pix, débito, crédito…).                                                                                                                                                                            | `pagamentos`                                              |
-| `caixa_sessoes`       | Abertura e fechamento do caixa do dia, um por dia para a barbearia (RN-31): `data`, `aberto_em`, `fechado_em`, `valor_abertura`, `valor_fechamento`, `diferenca`.                                                                                     | `caixa_movimentos`                                        |
-| `caixa_movimentos`    | Movimentos do caixa: `valor_centavos`, `tipo` (`sangria`, `reforco`, `troco`, `entrada_avulsa`, `saida_avulsa`, `pagamento` — RN-31), `descricao`, `pagamento_id?`.                                                                                   | `caixa_sessoes`, `pagamentos`                             |
-| `pagamentos`          | Um pagamento de uma comanda: `comanda_id`, `forma_pagamento_id`, `valor_centavos`, `registrado_em`. Uma comanda tem **1..N** pagamentos (RN-30). O executante do serviço vem da comanda / do agendamento (RN-32).                                     | `comandas`, `formas_pagamento`, `caixa_movimentos`        |
-| `comandas`            | 1:1 com `agendamentos` ou avulsa (RN-33): `cliente_id`, `agendamento_id` (nullable), `status` (`aberta`/`fechada`), `total_centavos`, `fechada_em`. Só fecha se o agendamento vinculado estiver `concluido`.                                          | `agendamentos`, `clientes`, `comanda_itens`, `pagamentos` |
-| `comanda_itens`       | Linhas da comanda: `tipo` (`servico`/`produto`), `servico_id`/`produto_id`, `quantidade`, `preco_unit_centavos`. A venda de produto valida o estoque e é bloqueada se insuficiente (RN-34).                                                           | `comandas`, `servicos`, `produtos`                        |
-| `notificacoes_admin`  | Fila de avisos do painel (novo agendamento, cancelamento, remarcação, mudança de status): `tipo`, `agendamento_id`, `lida_em`.                                                                                                                        | `agendamentos`                                            |
-| `admin_2fa`           | Segredo TOTP + códigos de recuperação, obrigatório para `admin` e `superadmin` (RN-40).                                                                                                                                                               | `barbeiros`                                               |
-| `bad_list`            | Situação do cliente quanto a faltas. Pode ser materializada (`cliente_id`, `faltas_consecutivas`, `incluido_em`) ou derivada de `agendamentos` em tempo de consulta.                                                                                  | `clientes`, `agendamentos`                                |
+| Entidade             | Papel                                                                                                                                                                                                                                                 | Liga-se a                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `clientes`           | Conta do cliente: `nome`, `telefone`, `email` (`NOT NULL`, único), `senha_hash` (`scrypt`), `sessao_versao`, `criado_em`, `anonimizado_em`. Base do histórico e das métricas. A classificação novo/recorrente é **derivada** (RN-51), não uma coluna. | `agendamentos` (novo `cliente_id`), `comandas`            |
+| `lembretes`          | Antecedência do lembrete por cliente ou por agendamento (15 min … 24 h) e controle de envio (canal, `enviado_em`).                                                                                                                                    | `clientes`, `agendamentos`                                |
+| `formas_pagamento`   | Cadastro de formas de pagamento aceitas (dinheiro, Pix, débito, crédito…).                                                                                                                                                                            | `pagamentos`                                              |
+| `caixa_sessoes`      | Abertura e fechamento do caixa do dia, um por dia para a barbearia (RN-31): `data`, `aberto_em`, `fechado_em`, `valor_abertura`, `valor_fechamento`, `diferenca`.                                                                                     | `caixa_movimentos`                                        |
+| `caixa_movimentos`   | Movimentos do caixa: `valor_centavos`, `tipo` (`sangria`, `reforco`, `troco`, `entrada_avulsa`, `saida_avulsa`, `pagamento` — RN-31), `descricao`, `pagamento_id?`.                                                                                   | `caixa_sessoes`, `pagamentos`                             |
+| `pagamentos`         | Um pagamento de uma comanda: `comanda_id`, `forma_pagamento_id`, `valor_centavos`, `registrado_em`. Uma comanda tem **1..N** pagamentos (RN-30). O executante do serviço vem da comanda / do agendamento (RN-32).                                     | `comandas`, `formas_pagamento`, `caixa_movimentos`        |
+| `comandas`           | 1:1 com `agendamentos` ou avulsa (RN-33): `cliente_id`, `agendamento_id` (nullable), `status` (`aberta`/`fechada`), `total_centavos`, `fechada_em`. Só fecha se o agendamento vinculado estiver `concluido`.                                          | `agendamentos`, `clientes`, `comanda_itens`, `pagamentos` |
+| `comanda_itens`      | Linhas da comanda: `tipo` (`servico`/`produto`), `servico_id`/`produto_id`, `quantidade`, `preco_unit_centavos`. A venda de produto valida o estoque e é bloqueada se insuficiente (RN-34).                                                           | `comandas`, `servicos`, `produtos`                        |
+| `notificacoes_admin` | Fila de avisos do painel (novo agendamento, cancelamento, remarcação, mudança de status): `tipo`, `agendamento_id`, `lida_em`.                                                                                                                        | `agendamentos`                                            |
+| `admin_2fa`          | Segredo TOTP + códigos de recuperação, obrigatório para `admin` e `superadmin` (RN-40).                                                                                                                                                               | `barbeiros`                                               |
+| `bad_list`           | Situação do cliente quanto a faltas. Pode ser materializada (`cliente_id`, `faltas_consecutivas`, `incluido_em`) ou derivada de `agendamentos` em tempo de consulta.                                                                                  | `clientes`, `agendamentos`                                |
 
 **Impacto em `agendamentos`:**
 
@@ -304,7 +331,3 @@ esperadas; o desenho fino sai quando o módulo for implementado.
   marcação), como `barbeiro_nome` / `servico_nome`.
 - O `CHECK` de `status` passa a aceitar `no-show`; o índice único parcial
   `idx_ag_sem_duplicidade` passa a ignorar `('cancelado', 'no-show')` (RN-09).
-
-**Substituição de `expediente`:** a tabela global sai de cena quando
-`expediente_barbeiro` entra; a migration correspondente precisa semear o
-expediente de cada profissional a partir da grade global atual.

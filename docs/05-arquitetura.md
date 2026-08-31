@@ -157,9 +157,11 @@ de qualquer provedor externo não pode derrubar o agendamento nem o painel.
   `BEGIN IMMEDIATE` para pegar o lock antes de reconferir a disponibilidade.
 - **Estado em disco local.** O banco (`data/`) e os uploads (`public/uploads/`)
   precisam de disco persistente — o que exclui hospedagem efêmera sem volume.
-- **Disponibilidade por profissional.** Na situação alvo, `slots.js` lê o
-  expediente de `expediente_barbeiro` e as `folgas_recorrentes` de cada
-  profissional, em vez da grade global de `expediente` (RN-14).
+- **Disponibilidade por profissional.** `slots.js` lê o expediente de
+  `expediente_barbeiro` e as `folgas_recorrentes` de cada profissional (RN-14);
+  não há mais grade global de `expediente`. `diasDisponiveis()` aceita um
+  `barbeiroId` (usado por `GET /api/public?barbeiro=<id>`) ou, sem ele, devolve
+  a união dos profissionais ativos.
 
 ---
 

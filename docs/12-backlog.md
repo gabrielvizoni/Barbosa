@@ -291,17 +291,23 @@ conta de cliente existe hoje — o agendamento público é anônimo.
 
 ---
 
-## Epic B — Expediente por profissional
+## Epic B — Expediente por profissional — CONCLUÍDO
 
 **Tamanho:** M · **Depende de:** nada · **Documentos:**
 [01](01-requisitos-funcionais.md) (RF-34, RF-81),
 [02](02-regras-de-negocio.md) (RN-14, RN-49), [05](05-arquitetura.md) §6,
 [06](06-modelo-de-dados.md) §3
 
-Situação: RF-34 e RN-14 estão `[PARCIAL]`; RN-49 é `[PLANEJADO]`. Hoje o
-expediente é uma grade global (`expediente`, uma linha por dia da semana).
+Situação: **entregue** (migration 7). RF-34, RF-81, RN-14 e RN-49 agora
+`[IMPLEMENTADO]`. O expediente é individual por profissional
+(`expediente_barbeiro`), com folgas recorrentes (`folgas_recorrentes`); a
+tabela global `expediente` foi removida. Profissional novo nasce com o
+expediente padrão via _trigger_. O "Horário de funcionamento" do site é a
+união dos profissionais ativos. Endpoint novo:
+`GET`/`PUT /api/admin/barbeiros/[id]/expediente`; `GET /api/public` aceita
+`?barbeiro=<id>`.
 
-- [ ] **T-B.1** Migration: `expediente_barbeiro` (`barbeiro_id` FK
+- [x] **T-B.1** Migration: `expediente_barbeiro` (`barbeiro_id` FK
       `ON DELETE CASCADE`, `dia` com `CHECK 0..6`, `aberto`, `abre`, `fecha`,
       PK `(barbeiro_id, dia)`) + `folgas_recorrentes` (`id`, `barbeiro_id` FK
       `CASCADE`, `dia_semana` com `CHECK 0..6`, `criado_em`). Semear
@@ -316,7 +322,7 @@ expediente é uma grade global (`expediente`, uma linha por dia da semana).
     [`src/lib/migrations.js:167`](../src/lib/migrations.js#L167) (criar a nova,
     `INSERT..SELECT`, `DROP`, `RENAME` sempre a nova); `GLOB_HORA` no topo do
     arquivo para os CHECK de `HH:MM`.
-- [ ] **T-B.2** `src/lib/db.js`: `lerExpedienteBarbeiro`,
+- [x] **T-B.2** `src/lib/db.js`: `lerExpedienteBarbeiro`,
       `salvarExpedienteBarbeiro`, `listarFolgasRecorrentes`,
       `definirFolgasRecorrentes`.
   - **Aceite:** teste — salvar e reler o expediente de um barbeiro; definir
@@ -325,7 +331,7 @@ expediente é uma grade global (`expediente`, uma linha por dia da semana).
   - **Reúso:** `lerExpediente`/`salvarExpediente` em
     [`src/lib/db.js:67`](../src/lib/db.js#L67) (mesma forma, com `barbeiro_id`
     a mais).
-- [ ] **T-B.3** `src/lib/slots.js`: `horariosLivres` e `diasDisponiveis`
+- [x] **T-B.3** `src/lib/slots.js`: `horariosLivres` e `diasDisponiveis`
       passam a ler o expediente **do barbeiro**; folga recorrente do barbeiro
       conta como dia fechado.
   - **Aceite:** `tests/slots.test.js` estendido — dois barbeiros com
@@ -336,7 +342,7 @@ expediente é uma grade global (`expediente`, uma linha por dia da semana).
     [`src/lib/slots.js:112`](../src/lib/slots.js#L112) e `diasDisponiveis` em
     [`src/lib/slots.js:173`](../src/lib/slots.js#L173) (hoje leem
     `SELECT * FROM expediente`).
-- [ ] **T-B.4** `GET /api/public` e `GET /api/horarios`: `diasDisponiveis`
+- [x] **T-B.4** `GET /api/public` e `GET /api/horarios`: `diasDisponiveis`
       passa a depender do barbeiro (o assistente já sabe o barbeiro no passo
       da data). Ajustar `FluxoAgendamento.jsx` para buscar os dias depois de
       escolhido o profissional.
@@ -345,7 +351,7 @@ expediente é uma grade global (`expediente`, uma linha por dia da semana).
   - **Satisfaz:** RF-03, RF-04 (comportamento por profissional).
   - **Reúso:** [`src/app/api/public/route.js`](../src/app/api/public/route.js)
     e [`src/app/api/horarios/route.js`](../src/app/api/horarios/route.js).
-- [ ] **T-B.5** Painel: editor de expediente **por profissional** e de folgas
+- [x] **T-B.5** Painel: editor de expediente **por profissional** e de folgas
       recorrentes em `Horarios.jsx` (e/ou um bloco em `Configuracoes.jsx`); a
       grade global some da interface.
   - **Aceite:** dá para abrir/fechar um dia e mudar `abre`/`fecha` de cada
@@ -354,7 +360,7 @@ expediente é uma grade global (`expediente`, uma linha por dia da semana).
   - **Reúso:** `validarExpediente` em
     [`src/lib/validacao.js:160`](../src/lib/validacao.js#L160);
     [`src/components/admin/Horarios.jsx`](../src/components/admin/Horarios.jsx).
-- [ ] **T-B.6** `tests/expediente-barbeiro.test.js`. Vira as tags de RF-34,
+- [x] **T-B.6** `tests/expediente-barbeiro.test.js`. Vira as tags de RF-34,
       RF-81, RN-14, RN-49 e ajusta [05](05-arquitetura.md) §6 e
       [06](06-modelo-de-dados.md) §1/§3 (a `expediente` sai do DER atual).
   - **Aceite:** `npm test` verde.

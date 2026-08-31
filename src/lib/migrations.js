@@ -364,6 +364,71 @@ export const migrations = [
       conn.exec(`UPDATE barbeiros SET papel = 'admin'`);
     },
   },
+
+  {
+    versao: 7,
+    descricao: "expediente por profissional e folgas recorrentes",
+    up(conn) {
+      // O expediente deixa de ser uma grade global da barbearia e passa a ser
+      // individual por profissional (RN-14). As folgas recorrentes (RN-49) são
+      // dias da semana em que aquele profissional nunca atende — distintas dos
+      // `bloqueios`, que são exceções de uma data pontual.
+      conn.exec(`
+        CREATE TABLE IF NOT EXISTS expediente_barbeiro (
+          barbeiro_id INTEGER NOT NULL REFERENCES barbeiros(id) ON DELETE CASCADE,
+          dia INTEGER NOT NULL CHECK (dia BETWEEN 0 AND 6),   -- 0 = domingo
+          aberto INTEGER NOT NULL DEFAULT 1,
+          abre TEXT NOT NULL DEFAULT '09:00' CHECK (abre GLOB '${GLOB_HORA}'),
+          fecha TEXT NOT NULL DEFAULT '20:00' CHECK (fecha GLOB '${GLOB_HORA}'),
+          PRIMARY KEY (barbeiro_id, dia),
+          CHECK (fecha > abre)
+        );
+
+        CREATE TABLE IF NOT EXISTS folgas_recorrentes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          barbeiro_id INTEGER NOT NULL REFERENCES barbeiros(id) ON DELETE CASCADE,
+          dia_semana INTEGER NOT NULL CHECK (dia_semana BETWEEN 0 AND 6),
+          criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE (barbeiro_id, dia_semana)
+        );
+      `);
+
+      // Todo profissional novo nasce com o mesmo expediente padrão da seed
+      // inicial do sistema (domingo fechado, seg–sex 09–20, sábado 08–18) —
+      // fica agendável na hora, e o dono ajusta depois. O gatilho cobre todos
+      // os caminhos de criação (painel, bootstrap, testes) sem acoplar código.
+      conn.exec(`
+        CREATE TRIGGER IF NOT EXISTS trg_expediente_barbeiro_padrao
+        AFTER INSERT ON barbeiros
+        BEGIN
+          INSERT INTO expediente_barbeiro (barbeiro_id, dia, aberto, abre, fecha) VALUES
+            (NEW.id, 0, 0, '09:00', '18:00'),
+            (NEW.id, 1, 1, '09:00', '20:00'),
+            (NEW.id, 2, 1, '09:00', '20:00'),
+            (NEW.id, 3, 1, '09:00', '20:00'),
+            (NEW.id, 4, 1, '09:00', '20:00'),
+            (NEW.id, 5, 1, '09:00', '20:00'),
+            (NEW.id, 6, 1, '08:00', '18:00');
+        END;
+      `);
+
+      // Instalação existente: cada profissional herda a grade global atual
+      // (que pode já ter sido customizada pelo dono), não o padrão acima.
+      const grade = conn
+        .prepare("SELECT dia, aberto, abre, fecha FROM expediente")
+        .all();
+      const barbeiros = conn.prepare("SELECT id FROM barbeiros").all();
+      const inserir = conn.prepare(
+        `INSERT INTO expediente_barbeiro (barbeiro_id, dia, aberto, abre, fecha)
+         VALUES (?, ?, ?, ?, ?)`,
+      );
+      for (const b of barbeiros)
+        for (const d of grade)
+          inserir.run(b.id, d.dia, d.aberto, d.abre, d.fecha);
+
+      conn.exec(`DROP TABLE expediente`);
+    },
+  },
 ];
 
 /** Maior número de versão declarado — o que o banco precisa ter para subir. */

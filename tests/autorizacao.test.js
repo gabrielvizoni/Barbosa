@@ -59,6 +59,11 @@ const ROTAS_PROTEGIDAS = [
     metodos: ["POST"],
     params: { id: "1" },
   },
+  {
+    modulo: `${PREFIXO}barbeiros/[id]/expediente/route.js`,
+    metodos: ["GET", "PUT"],
+    params: { id: "1" },
+  },
 ];
 
 // Rotas que INTENCIONALMENTE não passam por exigirSessao() — cada uma precisa

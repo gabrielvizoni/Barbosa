@@ -145,35 +145,97 @@ test("agendamento cancelado não conta para o índice único — outro pode ocup
   );
 });
 
-test("rejeita expediente com fecha <= abre", () => {
+test("rejeita expediente do profissional com fecha <= abre", () => {
   assert.throws(
     () =>
       conn
-        .prepare("UPDATE expediente SET abre = ?, fecha = ? WHERE dia = 1")
-        .run("10:00", "10:00"),
+        .prepare(
+          "UPDATE expediente_barbeiro SET abre = ?, fecha = ? WHERE barbeiro_id = ? AND dia = 1",
+        )
+        .run("10:00", "10:00", barbeiro),
     /CHECK constraint failed/,
   );
   assert.throws(
     () =>
       conn
-        .prepare("UPDATE expediente SET abre = ?, fecha = ? WHERE dia = 1")
-        .run("10:30", "10:00"),
+        .prepare(
+          "UPDATE expediente_barbeiro SET abre = ?, fecha = ? WHERE barbeiro_id = ? AND dia = 1",
+        )
+        .run("10:30", "10:00", barbeiro),
     /CHECK constraint failed/,
   );
 });
 
-test("rejeita expediente com dia fora de 0..6 e horário em formato errado", () => {
+test("rejeita expediente do profissional com dia fora de 0..6 e horário em formato errado", () => {
   assert.throws(
     () =>
       conn
-        .prepare("INSERT INTO expediente (dia, abre, fecha) VALUES (7, ?, ?)")
-        .run("09:00", "18:00"),
+        .prepare(
+          "INSERT INTO expediente_barbeiro (barbeiro_id, dia, abre, fecha) VALUES (?, 7, ?, ?)",
+        )
+        .run(barbeiro, "09:00", "18:00"),
     /CHECK constraint failed/,
   );
   assert.throws(
     () =>
-      conn.prepare("UPDATE expediente SET abre = ? WHERE dia = 1").run("9:00"),
+      conn
+        .prepare(
+          "UPDATE expediente_barbeiro SET abre = ? WHERE barbeiro_id = ? AND dia = 1",
+        )
+        .run("9:00", barbeiro),
     /CHECK constraint failed/,
+  );
+});
+
+test("expediente_barbeiro nasce semeado com o padrão ao criar o profissional", () => {
+  const linhas = conn
+    .prepare(
+      "SELECT dia, aberto, abre, fecha FROM expediente_barbeiro WHERE barbeiro_id = ? ORDER BY dia",
+    )
+    .all(barbeiro);
+  assert.equal(linhas.length, 7);
+  assert.deepEqual(linhas[0], {
+    dia: 0,
+    aberto: 0,
+    abre: "09:00",
+    fecha: "18:00",
+  });
+  assert.deepEqual(linhas[1], {
+    dia: 1,
+    aberto: 1,
+    abre: "09:00",
+    fecha: "20:00",
+  });
+  assert.deepEqual(linhas[6], {
+    dia: 6,
+    aberto: 1,
+    abre: "08:00",
+    fecha: "18:00",
+  });
+});
+
+test("apagar o profissional leva junto o expediente e as folgas recorrentes (ON DELETE CASCADE)", () => {
+  conn
+    .prepare(
+      "INSERT INTO folgas_recorrentes (barbeiro_id, dia_semana) VALUES (?, 1)",
+    )
+    .run(barbeiro);
+  conn.prepare("DELETE FROM barbeiros WHERE id = ?").run(barbeiro);
+  assert.equal(
+    conn
+      .prepare(
+        "SELECT COUNT(*) AS n FROM expediente_barbeiro WHERE barbeiro_id = ?",
+      )
+      .get(barbeiro).n,
+    0,
+  );
+  assert.equal(
+    conn
+      .prepare(
+        "SELECT COUNT(*) AS n FROM folgas_recorrentes WHERE barbeiro_id = ?",
+      )
+      .get(barbeiro).n,
+    0,
   );
 });
 

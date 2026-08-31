@@ -7,12 +7,18 @@ export const dynamic = "force-dynamic";
 const ROTA = "GET /api/public";
 
 /** Tudo que o fluxo de agendamento precisa, em uma requisição só. */
-export const GET = comLog(ROTA, async () => {
+export const GET = comLog(ROTA, async (request) => {
   const config = lerConfig();
   const barbeiros = listarBarbeiros({ somenteAtivos: true });
   const servicos = listarServicos({ somenteAtivos: true }).filter(
     (s) => s.barbeiros.length > 0,
   );
+
+  // `?barbeiro=<id>` filtra os dias disponíveis para aquele profissional
+  // (o expediente agora é individual); sem o parâmetro, `dias` é a união de
+  // todos os profissionais ativos.
+  const barbeiroId =
+    Number(new URL(request.url).searchParams.get("barbeiro")) || null;
 
   return Response.json({
     fuso: FUSO,
@@ -37,6 +43,6 @@ export const GET = comLog(ROTA, async () => {
       bio: b.bio,
       foto: b.foto,
     })),
-    dias: diasDisponiveis(Number(config.dias_futuros) || 30),
+    dias: diasDisponiveis(Number(config.dias_futuros) || 30, barbeiroId),
   });
 });

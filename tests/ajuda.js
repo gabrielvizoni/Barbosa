@@ -31,7 +31,13 @@ export function limparMovimentacao(conn = getDb()) {
   );
 }
 
-/** Sobrescreve o expediente de um dia (0=domingo..6=sábado) para o teste. */
+/**
+ * Sobrescreve o expediente de um dia (0=domingo..6=sábado) para TODOS os
+ * profissionais já criados no teste. O expediente virou individual por
+ * profissional (migration 7), mas a maioria dos testes só quer "esse dia
+ * está aberto das X às Y para quem eu criei aqui" — por isso o helper
+ * mantém a assinatura antiga e aplica a todos. Chame `criarBarbeiro` antes.
+ */
 export function definirExpediente(
   dia,
   { aberto = 1, abre = "09:00", fecha = "20:00" } = {},
@@ -39,7 +45,7 @@ export function definirExpediente(
 ) {
   conn
     .prepare(
-      "UPDATE expediente SET aberto = ?, abre = ?, fecha = ? WHERE dia = ?",
+      "UPDATE expediente_barbeiro SET aberto = ?, abre = ?, fecha = ? WHERE dia = ?",
     )
     .run(aberto ? 1 : 0, abre, fecha, dia);
 }

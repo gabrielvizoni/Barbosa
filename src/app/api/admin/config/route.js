@@ -1,12 +1,5 @@
 import { exigirSessao, modoBootstrap } from "@/lib/auth";
-import {
-  getDb,
-  lerConfig,
-  lerExpediente,
-  salvarConfig,
-  salvarExpediente,
-} from "@/lib/db";
-import { validarExpediente } from "@/lib/validacao";
+import { getDb, lerConfig, salvarConfig } from "@/lib/db";
 import { FUSO } from "@/lib/slots";
 import { lerCorpoJson } from "@/lib/requisicao";
 import { comLog } from "@/lib/log";
@@ -45,7 +38,6 @@ export const GET = comLog("GET /api/admin/config", async (request) => {
   if (negado) return negado;
   return Response.json({
     config: configPublica(),
-    expediente: lerExpediente(),
     modoBootstrap: modoBootstrap(),
     fuso: FUSO,
   });
@@ -77,32 +69,5 @@ export const PUT = comLog("PUT /api/admin/config", async (request) => {
     }
   }
 
-  if (Array.isArray(corpo.expediente)) {
-    const dias = corpo.expediente
-      .filter((d) => Number.isInteger(Number(d.dia)))
-      .map((d) => ({
-        dia: Number(d.dia),
-        aberto: d.aberto ? 1 : 0,
-        abre: /^\d{2}:\d{2}$/.test(d.abre) ? d.abre : "09:00",
-        fecha: /^\d{2}:\d{2}$/.test(d.fecha) ? d.fecha : "20:00",
-      }));
-
-    if (dias.length) {
-      const { ok, erros } = validarExpediente(dias);
-      if (!ok) {
-        return Response.json(
-          {
-            erro: `Expediente inválido: ${erros.map((e) => e.mensagem).join(" ")}`,
-          },
-          { status: 400 },
-        );
-      }
-      salvarExpediente(dias);
-    }
-  }
-
-  return Response.json({
-    config: configPublica(),
-    expediente: lerExpediente(),
-  });
+  return Response.json({ config: configPublica() });
 });

@@ -12,7 +12,7 @@ navegador) **não** é testada automaticamente — é uma escolha, revista abaix
 - **Runner nativo do Node** (`node --test`). Sem Jest, sem Vitest, sem
   dependência de teste além do `prettier` (que é de formatação).
 - Comando: `npm test` → `node --import ./tests/register-hooks.mjs --test "tests/*.test.js"`.
-- Estado atual: **136 testes, 136 passando, 0 falhando** (`npm test` executado).
+- Estado atual: **155 testes, 155 passando, 0 falhando** (`npm test` executado).
 - Duração típica: ~1,3 s.
 
 Ao mudar a contagem, atualize também o número no `README.md` da raiz (badge e
@@ -35,23 +35,24 @@ de **componente** React.
 
 ## 3. Cobertura por arquivo
 
-| Arquivo                            | Foco                                                                                                                         |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `tests/slots.test.js`              | `horariosLivres`: expediente, duração, passo, antecedência, bloqueios, dia fechado, slot fora da grade.                      |
-| `tests/agendamentos.test.js`       | Criar/remarcar/excluir: validação, conflito, snapshot de nome e preço, `origem` público × painel.                            |
-| `tests/estado-agendamento.test.js` | Máquina de estados: todas as transições legais e ilegais; concluir com data futura.                                          |
-| `tests/concorrencia.test.js`       | Corrida de escrita: só um dos dois agendamentos simultâneos grava.                                                           |
-| `tests/auth.test.js`               | Sessão de bootstrap: assinatura HMAC, expiração, `sessao_versao`, hash `scrypt` (formato novo e legado).                     |
-| `tests/auth-barbeiro.test.js`      | Login por barbeiro (migration 6): `autenticarBarbeiro`, tokens de recuperação, troca de senha/e-mail, invalidação de sessão. |
-| `tests/autorizacao.test.js`        | `exigirSessao`: 401 sem sessão, trava da senha inicial, checagem de `Origin` (CSRF), rotas dinâmicas `[recurso]`.            |
-| `tests/log-login.test.js`          | Registro de tentativas de login no log estruturado.                                                                          |
-| `tests/validacao.test.js`          | `validar`: campos obrigatórios, faixas, formato de data/hora, e-mail, telefone.                                              |
-| `tests/upload.test.js`             | Detecção de tipo por assinatura (magic number); rejeição de arquivo renomeado.                                               |
-| `tests/requisicao.test.js`         | Leitura de corpo JSON, corpo vazio, JSON malformado, verificação de `Origin`.                                                |
-| `tests/datas-cliente.test.js`      | Dias disponíveis e utilidades de data no fuso da barbearia.                                                                  |
-| `tests/db.test.js`                 | Abertura da conexão, PRAGMAs, recusa de subir com versão de schema errada.                                                   |
-| `tests/resumo.test.js`             | Agregados do `GET /api/admin/resumo`: agrupamento por mês, somas de recebido e a receber.                                    |
-| `tests/log.test.js`                | Formato do log estruturado.                                                                                                  |
+| Arquivo                             | Foco                                                                                                                                                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/slots.test.js`               | `horariosLivres`: expediente, duração, passo, antecedência, bloqueios, dia fechado, slot fora da grade.                                                                                                                                          |
+| `tests/expediente-barbeiro.test.js` | Expediente individual por profissional e folgas recorrentes (migration 7): helpers de `db`, `horariosLivres`/`diasDisponiveis` por profissional e a união, rotas `GET`/`PUT /api/admin/barbeiros/[id]/expediente` e `GET /api/public?barbeiro=`. |
+| `tests/agendamentos.test.js`        | Criar/remarcar/excluir: validação, conflito, snapshot de nome e preço, `origem` público × painel.                                                                                                                                                |
+| `tests/estado-agendamento.test.js`  | Máquina de estados: todas as transições legais e ilegais; concluir com data futura.                                                                                                                                                              |
+| `tests/concorrencia.test.js`        | Corrida de escrita: só um dos dois agendamentos simultâneos grava.                                                                                                                                                                               |
+| `tests/auth.test.js`                | Sessão de bootstrap: assinatura HMAC, expiração, `sessao_versao`, hash `scrypt` (formato novo e legado).                                                                                                                                         |
+| `tests/auth-barbeiro.test.js`       | Login por barbeiro (migration 6): `autenticarBarbeiro`, tokens de recuperação, troca de senha/e-mail, invalidação de sessão.                                                                                                                     |
+| `tests/autorizacao.test.js`         | `exigirSessao`: 401 sem sessão, trava da senha inicial, checagem de `Origin` (CSRF), rotas dinâmicas `[recurso]`.                                                                                                                                |
+| `tests/log-login.test.js`           | Registro de tentativas de login no log estruturado.                                                                                                                                                                                              |
+| `tests/validacao.test.js`           | `validar`: campos obrigatórios, faixas, formato de data/hora, e-mail, telefone.                                                                                                                                                                  |
+| `tests/upload.test.js`              | Detecção de tipo por assinatura (magic number); rejeição de arquivo renomeado.                                                                                                                                                                   |
+| `tests/requisicao.test.js`          | Leitura de corpo JSON, corpo vazio, JSON malformado, verificação de `Origin`.                                                                                                                                                                    |
+| `tests/datas-cliente.test.js`       | Dias disponíveis e utilidades de data no fuso da barbearia.                                                                                                                                                                                      |
+| `tests/db.test.js`                  | Abertura da conexão, PRAGMAs, recusa de subir com versão de schema errada; `CHECK`s do schema; _trigger_ de expediente padrão e `ON DELETE CASCADE` do profissional.                                                                             |
+| `tests/resumo.test.js`              | Agregados do `GET /api/admin/resumo`: agrupamento por mês, somas de recebido e a receber.                                                                                                                                                        |
+| `tests/log.test.js`                 | Formato do log estruturado.                                                                                                                                                                                                                      |
 
 Helpers (não são suites): `tests/ajuda.js`, `tests/register-hooks.mjs`,
 `tests/module-hooks.mjs`, `tests/fake-next-headers.mjs`,

@@ -26,10 +26,12 @@ let barbeiro2;
 beforeEach(() => {
   conn = bancoDeTeste();
   limparMovimentacao(conn);
-  definirExpediente(1, { aberto: 1, abre: "09:00", fecha: "20:00" }, conn); // segunda
   salvarConfig({ intervalo_min: "30", antecedencia_min: "60" });
+  // Os barbeiros precisam existir antes: o expediente é individual e o
+  // gatilho de migration 7 só semeia expediente_barbeiro no INSERT do barbeiro.
   barbeiro1 = criarBarbeiro("Barbeiro 1", conn);
   barbeiro2 = criarBarbeiro("Barbeiro 2", conn);
+  definirExpediente(1, { aberto: 1, abre: "09:00", fecha: "20:00" }, conn); // segunda
 });
 
 test("dia sem expediente devolve lista vazia", () => {

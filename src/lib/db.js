@@ -64,18 +64,86 @@ export function salvarConfig(pares) {
   tx(Object.entries(pares));
 }
 
-export function lerExpediente() {
-  return getDb().prepare("SELECT * FROM expediente ORDER BY dia").all();
+/** Os 7 dias de expediente de um profissional, em ordem (0 = domingo). */
+export function lerExpedienteBarbeiro(barbeiroId) {
+  return getDb()
+    .prepare(
+      "SELECT dia, aberto, abre, fecha FROM expediente_barbeiro WHERE barbeiro_id = ? ORDER BY dia",
+    )
+    .all(barbeiroId);
 }
 
-export function salvarExpediente(dias) {
+/** Grava o expediente semanal de um profissional — UPSERT por (barbeiro, dia). */
+export function salvarExpedienteBarbeiro(barbeiroId, dias) {
   const stmt = getDb().prepare(
-    "UPDATE expediente SET aberto = ?, abre = ?, fecha = ? WHERE dia = ?",
+    `INSERT INTO expediente_barbeiro (barbeiro_id, dia, aberto, abre, fecha)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(barbeiro_id, dia)
+       DO UPDATE SET aberto = excluded.aberto, abre = excluded.abre, fecha = excluded.fecha`,
   );
   const tx = getDb().transaction((lista) => {
-    for (const d of lista) stmt.run(d.aberto ? 1 : 0, d.abre, d.fecha, d.dia);
+    for (const d of lista)
+      stmt.run(barbeiroId, d.dia, d.aberto ? 1 : 0, d.abre, d.fecha);
   });
   tx(dias);
+}
+
+/** Dias da semana (0 = domingo) em que o profissional tem folga recorrente. */
+export function listarFolgasRecorrentes(barbeiroId) {
+  return getDb()
+    .prepare(
+      "SELECT dia_semana FROM folgas_recorrentes WHERE barbeiro_id = ? ORDER BY dia_semana",
+    )
+    .all(barbeiroId)
+    .map((f) => f.dia_semana);
+}
+
+/** Substitui todas as folgas recorrentes de um profissional pela lista informada. */
+export function definirFolgasRecorrentes(barbeiroId, diasSemana) {
+  const conn = getDb();
+  const unicos = [...new Set((diasSemana || []).map(Number))].filter(
+    (d) => Number.isInteger(d) && d >= 0 && d <= 6,
+  );
+  const tx = conn.transaction(() => {
+    conn
+      .prepare("DELETE FROM folgas_recorrentes WHERE barbeiro_id = ?")
+      .run(barbeiroId);
+    const stmt = conn.prepare(
+      "INSERT INTO folgas_recorrentes (barbeiro_id, dia_semana) VALUES (?, ?)",
+    );
+    for (const dia of unicos) stmt.run(barbeiroId, dia);
+  });
+  tx();
+}
+
+/**
+ * Resumo do expediente para o site público: a união dos profissionais
+ * ativos. Um dia da semana é "aberto" se ao menos um profissional ativo
+ * atende nele (e não está de folga recorrente); a faixa exibida vai do menor
+ * `abre` ao maior `fecha` entre eles. Mantém o formato `{ dia, aberto, abre,
+ * fecha }` que `resumirExpediente()` na página inicial espera.
+ */
+export function expedienteResumoPublico() {
+  return getDb()
+    .prepare(
+      `SELECT eb.dia,
+              MAX(CASE WHEN eb.aberto = 1 AND fr.dia_semana IS NULL THEN 1 ELSE 0 END) AS aberto,
+              MIN(CASE WHEN eb.aberto = 1 AND fr.dia_semana IS NULL THEN eb.abre END) AS abre,
+              MAX(CASE WHEN eb.aberto = 1 AND fr.dia_semana IS NULL THEN eb.fecha END) AS fecha
+       FROM expediente_barbeiro eb
+       JOIN barbeiros b ON b.id = eb.barbeiro_id AND b.ativo = 1
+       LEFT JOIN folgas_recorrentes fr
+         ON fr.barbeiro_id = eb.barbeiro_id AND fr.dia_semana = eb.dia
+       GROUP BY eb.dia
+       ORDER BY eb.dia`,
+    )
+    .all()
+    .map((r) => ({
+      dia: r.dia,
+      aberto: r.aberto,
+      abre: r.abre ?? "09:00",
+      fecha: r.fecha ?? "20:00",
+    }));
 }
 
 /** Serviços com a lista de barbeiros que os executam. */

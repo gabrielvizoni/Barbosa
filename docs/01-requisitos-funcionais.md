@@ -79,15 +79,16 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 | RF-31 | Adicionar e editar profissional (nome, função, bio, foto, ordem).                               | `ADM` | E    | `[IMPLEMENTADO]` |
 | RF-32 | Ativar e desativar profissional — o desativado some do site, mas os atendimentos antigos ficam. | `ADM` | E    | `[IMPLEMENTADO]` |
 | RF-33 | Definir quais serviços cada profissional realiza.                                               | `ADM` | E    | `[IMPLEMENTADO]` |
-| RF-34 | Configurar horário de trabalho e folgas por profissional.                                       | `ADM` | I    | `[PARCIAL]`      |
+| RF-34 | Configurar horário de trabalho e folgas por profissional.                                       | `ADM` | I    | `[IMPLEMENTADO]` |
 | RF-35 | Consultar o histórico de atendimentos e o faturamento individual do profissional.               | `ADM` | I    | `[PARCIAL]`      |
 | RF-36 | Cada profissional tem login próprio (e-mail, senha, papel).                                     | `ADM` | I    | `[IMPLEMENTADO]` |
 
-> RF-34: cada profissional terá o próprio expediente semanal e as próprias
-> folgas recorrentes; o bloqueio manual (`bloqueios`) continua para exceções
-> pontuais. Hoje o expediente é global por dia da semana (`expediente`) — a
-> individualização por profissional ainda não existe e implica mudança no
-> modelo de dados.
+> RF-34: cada profissional tem o próprio expediente semanal
+> (`expediente_barbeiro`) e as próprias folgas recorrentes
+> (`folgas_recorrentes`), editáveis em Horários e folgas; o bloqueio manual
+> (`bloqueios`) continua para exceções de uma data pontual. Um profissional
+> novo nasce com o expediente padrão (domingo fechado, seg–sex 09–20, sábado
+> 08–18) e já fica agendável.
 > RF-35: o Financeiro já mostra desempenho por profissional; falta a visão de
 > histórico de atendimentos dedicada.
 
@@ -173,21 +174,21 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 
 ## Módulo 11 — Configurações
 
-| ID    | Requisito                                                                             | Ator  | Prio | Situação         |
-| ----- | ------------------------------------------------------------------------------------- | ----- | ---- | ---------------- |
-| RF-76 | Editar a identidade da barbearia: logo, nome, slogan, WhatsApp, endereço e Instagram. | `ADM` | E    | `[IMPLEMENTADO]` |
-| RF-77 | Configurar o intervalo (granularidade) entre os horários oferecidos.                  | `ADM` | I    | `[IMPLEMENTADO]` |
-| RF-78 | Configurar a antecedência mínima para agendar.                                        | `ADM` | I    | `[IMPLEMENTADO]` |
-| RF-79 | Configurar quantos dias à frente o cliente pode agendar.                              | `ADM` | I    | `[IMPLEMENTADO]` |
-| RF-80 | Ativar e desativar a confirmação automática dos agendamentos.                         | `ADM` | I    | `[IMPLEMENTADO]` |
-| RF-81 | Configurar o expediente de cada dia da semana (aberto/fechado, abre, fecha).          | `ADM` | E    | `[IMPLEMENTADO]` |
-| RF-82 | Bloquear horários e dias (folgas), por profissional ou para a barbearia toda.         | `ADM` | E    | `[IMPLEMENTADO]` |
-| RF-83 | Botões rápidos "saí por 1 hora", "saí por 2 horas" e "fechar o resto do dia".         | `ADM` | D    | `[IMPLEMENTADO]` |
+| ID    | Requisito                                                                                      | Ator  | Prio | Situação         |
+| ----- | ---------------------------------------------------------------------------------------------- | ----- | ---- | ---------------- |
+| RF-76 | Editar a identidade da barbearia: logo, nome, slogan, WhatsApp, endereço e Instagram.          | `ADM` | E    | `[IMPLEMENTADO]` |
+| RF-77 | Configurar o intervalo (granularidade) entre os horários oferecidos.                           | `ADM` | I    | `[IMPLEMENTADO]` |
+| RF-78 | Configurar a antecedência mínima para agendar.                                                 | `ADM` | I    | `[IMPLEMENTADO]` |
+| RF-79 | Configurar quantos dias à frente o cliente pode agendar.                                       | `ADM` | I    | `[IMPLEMENTADO]` |
+| RF-80 | Ativar e desativar a confirmação automática dos agendamentos.                                  | `ADM` | I    | `[IMPLEMENTADO]` |
+| RF-81 | Configurar o expediente de cada dia da semana (aberto/fechado, abre, fecha), por profissional. | `ADM` | E    | `[IMPLEMENTADO]` |
+| RF-82 | Bloquear horários e dias (folgas), por profissional ou para a barbearia toda.                  | `ADM` | E    | `[IMPLEMENTADO]` |
+| RF-83 | Botões rápidos "saí por 1 hora", "saí por 2 horas" e "fechar o resto do dia".                  | `ADM` | D    | `[IMPLEMENTADO]` |
 
-> RF-81: hoje o expediente é uma grade global da barbearia por dia da semana.
-> Na situação alvo ele passa a ser **individual por profissional** (RF-34), com
-> **folgas recorrentes** próprias de cada profissional; o bloqueio pontual de
-> RF-82 continua para exceções de data.
+> RF-81: o expediente é **individual por profissional** (RF-34), com **folgas
+> recorrentes** próprias de cada um; o bloqueio pontual de RF-82 continua para
+> exceções de data. O "Horário de funcionamento" exibido no site é a **união**
+> dos expedientes dos profissionais ativos (um dia abre se ao menos um atende).
 
 ## Módulo 12 — Autenticação e controle de acesso
 

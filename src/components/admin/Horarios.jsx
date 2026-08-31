@@ -51,8 +51,11 @@ export default function Horarios({ avisar, tratarErro, aoAlterar }) {
   const { fuso, nome } = usePainelConfig();
   const [expediente, setExpediente] = useState([]);
   const [expedienteOriginal, setExpedienteOriginal] = useState([]);
+  const [folgas, setFolgas] = useState([]);
+  const [folgasOriginal, setFolgasOriginal] = useState([]);
   const [bloqueios, setBloqueios] = useState([]);
   const [barbeiros, setBarbeiros] = useState([]);
+  const [profissional, setProfissional] = useState(""); // id do profissional cujo expediente está aberto
   const [editando, setEditando] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [bloqueando, setBloqueando] = useState(false);
@@ -61,29 +64,62 @@ export default function Horarios({ avisar, tratarErro, aoAlterar }) {
   const [liberando, setLiberando] = useState(null); // bloqueio em confirmação de liberação, ou null
 
   const carregar = useCallback(() => {
-    api("config")
-      .then((r) => {
-        setExpediente(r.expediente);
-        setExpedienteOriginal(r.expediente);
-      })
-      .catch(tratarErro);
     api("bloqueios")
       .then((r) => setBloqueios(r.itens))
       .catch(tratarErro);
     api("barbeiros")
-      .then((r) => setBarbeiros(r.itens.filter((b) => b.ativo)))
+      .then((r) => {
+        const ativos = r.itens.filter((b) => b.ativo);
+        setBarbeiros(ativos);
+        setProfissional((atual) =>
+          atual && ativos.some((b) => String(b.id) === String(atual))
+            ? atual
+            : ativos[0]
+              ? String(ativos[0].id)
+              : "",
+        );
+      })
       .catch(tratarErro);
   }, [tratarErro]);
 
   useEffect(carregar, [carregar]);
 
+  // O expediente é individual por profissional (migration 7): ao trocar de
+  // profissional no seletor, recarrega os 7 dias e as folgas recorrentes dele.
+  useEffect(() => {
+    if (!profissional) {
+      setExpediente([]);
+      setExpedienteOriginal([]);
+      setFolgas([]);
+      setFolgasOriginal([]);
+      return;
+    }
+    let cancelado = false;
+    api(`barbeiros/${profissional}/expediente`)
+      .then((r) => {
+        if (cancelado) return;
+        setExpediente(r.expediente);
+        setExpedienteOriginal(r.expediente);
+        setFolgas(r.folgas);
+        setFolgasOriginal(r.folgas);
+      })
+      .catch((erro) => {
+        if (!cancelado) tratarErro(erro);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [profissional, tratarErro]);
+
   // Editar o expediente e trocar de tela sem salvar descartava tudo em
   // silêncio — agora o painel avisa antes de sair (ver PainelAdmin.jsx).
+  const expedienteSujo =
+    JSON.stringify(expediente) !== JSON.stringify(expedienteOriginal) ||
+    JSON.stringify([...folgas].sort()) !==
+      JSON.stringify([...folgasOriginal].sort());
   useEffect(() => {
-    aoAlterar?.(
-      JSON.stringify(expediente) !== JSON.stringify(expedienteOriginal),
-    );
-  }, [expediente, expedienteOriginal, aoAlterar]);
+    aoAlterar?.(expedienteSujo);
+  }, [expedienteSujo, aoAlterar]);
 
   function mudarDia(dia, campo, valor) {
     setExpediente((atual) =>
@@ -91,11 +127,24 @@ export default function Horarios({ avisar, tratarErro, aoAlterar }) {
     );
   }
 
+  function alternarFolga(dia) {
+    setFolgas((atual) =>
+      atual.includes(dia) ? atual.filter((d) => d !== dia) : [...atual, dia],
+    );
+  }
+
   async function salvarExpediente() {
+    if (!profissional) return;
     setSalvando(true);
     try {
-      await api("config", { method: "PUT", body: { expediente } });
-      setExpedienteOriginal(expediente);
+      const r = await api(`barbeiros/${profissional}/expediente`, {
+        method: "PUT",
+        body: { expediente, folgas },
+      });
+      setExpediente(r.expediente);
+      setExpedienteOriginal(r.expediente);
+      setFolgas(r.folgas);
+      setFolgasOriginal(r.folgas);
       avisar("Expediente salvo.");
     } catch (erro) {
       tratarErro(erro);
@@ -226,56 +275,112 @@ export default function Horarios({ avisar, tratarErro, aoAlterar }) {
       <div className="duas-colunas">
         <section className="bloco">
           <h2>Expediente da semana</h2>
-          {expediente.map((d) => (
-            <div className="linha-dia" key={d.dia}>
-              <label
-                className="caixa"
+          {barbeiros.length === 0 ? (
+            <Vazio titulo="Nenhum profissional ativo">
+              Cadastre a equipe em Profissionais para definir o expediente de
+              cada um.
+            </Vazio>
+          ) : (
+            <>
+              <label className="campo">
+                <span>Profissional</span>
+                <select
+                  className="entrada"
+                  value={profissional}
+                  onChange={(e) => setProfissional(e.target.value)}
+                >
+                  {barbeiros.map((b) => (
+                    <option key={b.id} value={String(b.id)}>
+                      {b.nome}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {expediente.map((d) => (
+                <div className="linha-dia" key={d.dia}>
+                  <label
+                    className="caixa"
+                    style={{
+                      border: "none",
+                      background: "transparent",
+                      padding: 0,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!d.aberto}
+                      onChange={(e) =>
+                        mudarDia(d.dia, "aberto", e.target.checked ? 1 : 0)
+                      }
+                    />
+                    {NOMES[d.dia]}
+                  </label>
+                  {d.aberto ? (
+                    <div className="horas-dia">
+                      <input
+                        type="time"
+                        className="entrada mono"
+                        value={d.abre}
+                        onChange={(e) =>
+                          mudarDia(d.dia, "abre", e.target.value)
+                        }
+                      />
+                      <span>até</span>
+                      <input
+                        type="time"
+                        className="entrada mono"
+                        value={d.fecha}
+                        onChange={(e) =>
+                          mudarDia(d.dia, "fecha", e.target.value)
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <span style={{ color: "var(--tinta-suave)", fontSize: 14 }}>
+                      Fechado
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              <h3 style={{ margin: "20px 0 6px", fontSize: 15 }}>
+                Folgas recorrentes
+              </h3>
+              <p
                 style={{
-                  border: "none",
-                  background: "transparent",
-                  padding: 0,
+                  margin: "0 0 10px",
+                  color: "var(--tinta-suave)",
+                  fontSize: 13.5,
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={!!d.aberto}
-                  onChange={(e) =>
-                    mudarDia(d.dia, "aberto", e.target.checked ? 1 : 0)
-                  }
-                />
-                {NOMES[d.dia]}
-              </label>
-              {d.aberto ? (
-                <div className="horas-dia">
-                  <input
-                    type="time"
-                    className="entrada mono"
-                    value={d.abre}
-                    onChange={(e) => mudarDia(d.dia, "abre", e.target.value)}
-                  />
-                  <span>até</span>
-                  <input
-                    type="time"
-                    className="entrada mono"
-                    value={d.fecha}
-                    onChange={(e) => mudarDia(d.dia, "fecha", e.target.value)}
-                  />
-                </div>
-              ) : (
-                <span style={{ color: "var(--tinta-suave)", fontSize: 14 }}>
-                  Fechado
-                </span>
-              )}
-            </div>
-          ))}
-          <button
-            className="btn btn-verde"
-            style={{ marginTop: 18 }}
-            onClick={salvarExpediente}
-            disabled={salvando}
-          >
-            {salvando ? "Salvando…" : "Salvar expediente"}
-          </button>
+                Dias da semana em que esse profissional nunca atende — separado
+                dos bloqueios de uma data pontual.
+              </p>
+              <div className="agenda-filtros" style={{ marginBottom: 0 }}>
+                {NOMES.map((rotulo, dia) => (
+                  <button
+                    type="button"
+                    key={dia}
+                    className={`pilula ${folgas.includes(dia) ? "ativa" : ""}`}
+                    aria-pressed={folgas.includes(dia)}
+                    onClick={() => alternarFolga(dia)}
+                  >
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                className="btn btn-verde"
+                style={{ marginTop: 18 }}
+                onClick={salvarExpediente}
+                disabled={salvando || !expedienteSujo}
+              >
+                {salvando ? "Salvando…" : "Salvar expediente"}
+              </button>
+            </>
+          )}
         </section>
 
         <section className="bloco">

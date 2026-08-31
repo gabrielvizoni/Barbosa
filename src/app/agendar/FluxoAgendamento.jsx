@@ -196,6 +196,24 @@ export default function FluxoAgendamento() {
 
   useEffect(carregarDados, []);
 
+  // O expediente é individual por profissional: assim que ele é escolhido,
+  // recarrega os dias disponíveis dele (o passo da Data vem logo depois).
+  useEffect(() => {
+    if (!barbeiro) return;
+    let cancelado = false;
+    fetch(`/api/public?barbeiro=${barbeiro.id}`)
+      .then((r) => r.json())
+      .then((r) => {
+        if (!cancelado) {
+          setDados((d) => (d ? { ...d, dias: r.dias || [] } : d));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, [barbeiro]);
+
   // Ao entrar no passo de horário, busca o que está livre.
   useEffect(() => {
     if (passo !== 3 || !servico || !barbeiro || !data) return;

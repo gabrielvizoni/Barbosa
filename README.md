@@ -3,7 +3,7 @@
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white)
-![Testes](https://img.shields.io/badge/testes-136%20passando-2e7d32)
+![Testes](https://img.shields.io/badge/testes-155%20passando-2e7d32)
 ![Autenticação](https://img.shields.io/badge/autentica%C3%A7%C3%A3o-sem%20biblioteca-c6a02c)
 ![Status](https://img.shields.io/badge/status-pr%C3%A9--lan%C3%A7amento-8a2be2)
 
@@ -16,7 +16,7 @@ biblioteca de autenticação. Roda localmente; ainda não foi para produção.
 > (5-step wizard, live slot availability, double-booking-safe writes) plus a complete admin panel
 > (schedule, staff, services, pricing, financial dashboard, image uploads). Auth is hand-built:
 > scrypt password hashing, HMAC-signed session cookies, timing-safe comparisons, and a
-> self-contained SQLite rate limiter — no bcrypt, no Redis, no NextAuth. 136 tests on Node's
+> self-contained SQLite rate limiter — no bcrypt, no Redis, no NextAuth. 155 tests on Node's
 > built-in runner. Runs locally; not yet deployed to production. The prose below is in Portuguese
 > (Brazilian client and commit history); the code and the engineering decisions carry across.
 
@@ -36,7 +36,7 @@ O histórico de commits conta essa história em ordem.
 |                                 |                                                                        |
 | ------------------------------- | ---------------------------------------------------------------------- |
 | Agendamento do cliente          | **~6 cliques**, só nome + WhatsApp                                     |
-| Testes automatizados            | **136**, no runner nativo do Node — zero framework de teste            |
+| Testes automatizados            | **155**, no runner nativo do Node — zero framework de teste            |
 | Dependências de autenticação    | **0** — só o módulo `crypto` do Node                                   |
 | Dependências de runtime (total) | 6 (`next`, `react`, `react-dom`, `better-sqlite3`, `sharp`, `animejs`) |
 | Migrations versionadas          | 6, com trava de boot por versão                                        |
@@ -161,7 +161,7 @@ paleta, tipografia, espaçamento e raios de borda vivem como CSS custom properti
 | Imagens      | **sharp**                                 | Reprocessa todo upload: redimensiona e converte para WebP no servidor.                                             |
 | Animação     | **anime.js**                              | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`.                                                |
 | Autenticação | **zero dependências**                     | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante.                                              |
-| Testes       | **runner nativo do Node** (`node --test`) | 136 testes, sem Jest nem Vitest.                                                                                   |
+| Testes       | **runner nativo do Node** (`node --test`) | 155 testes, sem Jest nem Vitest.                                                                                   |
 
 ---
 
@@ -171,7 +171,7 @@ paleta, tipografia, espaçamento e raios de borda vivem como CSS custom properti
 npm test
 ```
 
-136 testes no runner embutido do Node, cobrindo a lógica que não pode quebrar:
+155 testes no runner embutido do Node, cobrindo a lógica que não pode quebrar:
 
 - **Concorrência** — dois agendamentos disputando o mesmo horário em processos separados; só um grava.
 - **Autenticação e sessão** — assinatura do cookie, expiração, versão de sessão, hash `scrypt` (formato novo e legado).
@@ -214,7 +214,7 @@ src/
   middleware.js                 CSP com nonce + headers de segurança
 scripts/
   migrate.js                    `npm run migrate` — aplica as migrations pendentes
-tests/                          136 testes no runner nativo do Node
+tests/                          155 testes no runner nativo do Node
 ```
 
 ---

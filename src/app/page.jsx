@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
+  expedienteResumoPublico,
   lerConfig,
-  lerExpediente,
   listarBarbeiros,
   listarProdutos,
   listarServicos,
@@ -24,7 +24,11 @@ const NOMES_DIAS = [
   "Sábado",
 ];
 
-/** Agrupa dias seguidos com o mesmo horário: "Segunda a sexta: 9h às 20h". */
+/**
+ * Agrupa dias seguidos com o mesmo horário: "Segunda a sexta: 9h às 20h".
+ * A entrada é a união dos expedientes dos profissionais ativos
+ * (ver `expedienteResumoPublico` em `src/lib/db.js`).
+ */
 function resumirExpediente(expediente) {
   const linhas = [];
   let grupo = null;
@@ -61,7 +65,7 @@ export default function PaginaInicial() {
   const servicos = todosServicos.filter((s) => s.barbeiros.length > 0);
   const produtos = listarProdutos({ somenteAtivos: true });
   const barbeiros = listarBarbeiros({ somenteAtivos: true });
-  const expediente = resumirExpediente(lerExpediente());
+  const expediente = resumirExpediente(expedienteResumoPublico());
   const nome = config.nome_barbearia || NOME_PADRAO;
   const linkInstagram = config.instagram
     ? `https://instagram.com/${config.instagram}`
@@ -279,19 +283,21 @@ export default function PaginaInicial() {
                     </div>
                   </div>
                 ) : null}
-                <div className="contato-item">
-                  <span className="icone">
-                    <Relogio width={17} height={17} />
-                  </span>
-                  <div>
-                    <h4>Horário de funcionamento</h4>
-                    {expediente.map((linha) => (
-                      <p key={linha.nome}>
-                        {linha.nome}: {linha.horas}
-                      </p>
-                    ))}
+                {expediente.length > 0 ? (
+                  <div className="contato-item">
+                    <span className="icone">
+                      <Relogio width={17} height={17} />
+                    </span>
+                    <div>
+                      <h4>Horário de funcionamento</h4>
+                      {expediente.map((linha) => (
+                        <p key={linha.nome}>
+                          {linha.nome}: {linha.horas}
+                        </p>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null}
                 {linkInstagram ? (
                   <div className="contato-item">
                     <span className="icone">
@@ -388,21 +394,23 @@ export default function PaginaInicial() {
               ) : null}
             </div>
 
-            <div>
-              <h4>Horário de funcionamento</h4>
-              <ul>
-                {expediente.map((linha) => (
-                  <li key={linha.nome}>
-                    <Relogio
-                      width={13}
-                      height={13}
-                      style={{ opacity: 0.6, flexShrink: 0 }}
-                    />
-                    {linha.nome}: {linha.horas}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            {expediente.length > 0 ? (
+              <div>
+                <h4>Horário de funcionamento</h4>
+                <ul>
+                  {expediente.map((linha) => (
+                    <li key={linha.nome}>
+                      <Relogio
+                        width={13}
+                        height={13}
+                        style={{ opacity: 0.6, flexShrink: 0 }}
+                      />
+                      {linha.nome}: {linha.horas}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
 
             <div>
               <h4>Onde estamos</h4>

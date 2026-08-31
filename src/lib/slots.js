@@ -106,8 +106,9 @@ export function rotuloMesCurto(data) {
 
 /**
  * Horários livres de um barbeiro em uma data, considerando:
- * expediente do dia, duração do serviço, agendamentos já marcados,
- * bloqueios (ausências) e a antecedência mínima configurada.
+ * o expediente daquele profissional no dia da semana, as folgas recorrentes
+ * dele, a duração do serviço, os agendamentos já marcados, os bloqueios
+ * (ausências pontuais) e a antecedência mínima configurada.
  */
 export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const conn = getDb();
@@ -116,10 +117,21 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
   const antecedencia = Math.max(0, Number(config.antecedencia_min) || 0);
   const duracao = Math.max(5, Number(duracaoMin) || 30);
 
+  const diaSemana = diaDaSemana(data);
+
   const dia = conn
-    .prepare("SELECT * FROM expediente WHERE dia = ?")
-    .get(diaDaSemana(data));
+    .prepare(
+      "SELECT aberto, abre, fecha FROM expediente_barbeiro WHERE barbeiro_id = ? AND dia = ?",
+    )
+    .get(barbeiroId, diaSemana);
   if (!dia || !dia.aberto) return [];
+
+  const folga = conn
+    .prepare(
+      "SELECT 1 FROM folgas_recorrentes WHERE barbeiro_id = ? AND dia_semana = ?",
+    )
+    .get(barbeiroId, diaSemana);
+  if (folga) return [];
 
   const abre = paraMinutos(dia.abre);
   const fecha = paraMinutos(dia.fecha);
@@ -166,14 +178,50 @@ export function horariosLivres({ barbeiroId, duracaoMin, data }) {
 }
 
 /**
- * Datas dos próximos dias em que a barbearia abre — sempre tenta entregar
+ * Datas dos próximos dias com atendimento — sempre tenta entregar
  * `quantidade` datas de verdade (pulando os dias fechados), até um teto de
  * segurança para não rodar para sempre se a semana inteira estiver fechada.
+ *
+ * Com `barbeiroId`, considera só o expediente e as folgas recorrentes
+ * daquele profissional. Sem ele, devolve a união dos profissionais ativos:
+ * um dia entra se ao menos um deles atende nele.
  */
-export function diasDisponiveis(quantidade = 30) {
+export function diasDisponiveis(quantidade = 30, barbeiroId = null) {
   const conn = getDb();
-  const expediente = conn.prepare("SELECT * FROM expediente").all();
-  const abertoNoDia = new Map(expediente.map((e) => [e.dia, e.aberto]));
+
+  let abertoNoDia;
+  if (barbeiroId) {
+    const expediente = conn
+      .prepare(
+        "SELECT dia, aberto FROM expediente_barbeiro WHERE barbeiro_id = ?",
+      )
+      .all(barbeiroId);
+    const folgas = new Set(
+      conn
+        .prepare(
+          "SELECT dia_semana FROM folgas_recorrentes WHERE barbeiro_id = ?",
+        )
+        .all(barbeiroId)
+        .map((f) => f.dia_semana),
+    );
+    abertoNoDia = new Map(
+      expediente.map((e) => [e.dia, e.aberto && !folgas.has(e.dia) ? 1 : 0]),
+    );
+  } else {
+    const uniao = conn
+      .prepare(
+        `SELECT eb.dia,
+                MAX(CASE WHEN eb.aberto = 1 AND fr.dia_semana IS NULL THEN 1 ELSE 0 END) AS aberto
+         FROM expediente_barbeiro eb
+         JOIN barbeiros b ON b.id = eb.barbeiro_id AND b.ativo = 1
+         LEFT JOIN folgas_recorrentes fr
+           ON fr.barbeiro_id = eb.barbeiro_id AND fr.dia_semana = eb.dia
+         GROUP BY eb.dia`,
+      )
+      .all();
+    abertoNoDia = new Map(uniao.map((e) => [e.dia, e.aberto]));
+  }
+
   const hoje = agora().data;
   const datas = [];
   const tetoDeDiasVarridos = Math.max(quantidade * 3, 180);
