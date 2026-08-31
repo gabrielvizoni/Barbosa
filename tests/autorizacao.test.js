@@ -10,7 +10,7 @@ import path from "node:path";
 
 import { __resetCookies, __setCookie } from "./fake-next-headers.mjs";
 import { bancoDeTeste } from "./ajuda.js";
-import { construirToken, NOME_COOKIE } from "../src/lib/auth.js";
+import { construirTokenBootstrap, NOME_COOKIE } from "../src/lib/auth.js";
 import { salvarConfig } from "../src/lib/db.js";
 
 const METODOS_HTTP = ["GET", "POST", "PUT", "PATCH", "DELETE"];
@@ -43,6 +43,22 @@ const ROTAS_PROTEGIDAS = [
     metodos: ["PATCH", "DELETE"],
     params: { recurso: "servicos", id: "1" },
   },
+  { modulo: `${PREFIXO}bootstrap/route.js`, metodos: ["POST"], params: {} },
+  {
+    modulo: `${PREFIXO}perfil/route.js`,
+    metodos: ["GET", "PATCH"],
+    params: {},
+  },
+  {
+    modulo: `${PREFIXO}perfil/senha/route.js`,
+    metodos: ["POST"],
+    params: {},
+  },
+  {
+    modulo: `${PREFIXO}barbeiros/[id]/reenviar-convite/route.js`,
+    metodos: ["POST"],
+    params: { id: "1" },
+  },
 ];
 
 // Rotas que INTENCIONALMENTE não passam por exigirSessao() — cada uma precisa
@@ -65,6 +81,18 @@ const ROTAS_PUBLICAS_INTENCIONAIS = [
     metodos: ["POST"],
     motivo:
       "ação idempotente e sem dado sensível — encerrar uma sessão inexistente não deveria falhar",
+  },
+  {
+    modulo: `${PREFIXO}esqueci-senha/route.js`,
+    metodos: ["POST"],
+    motivo:
+      "fluxo público de recuperação de senha — sempre responde de forma genérica, nunca revela se o e-mail existe",
+  },
+  {
+    modulo: `${PREFIXO}redefinir-senha/route.js`,
+    metodos: ["POST"],
+    motivo:
+      "usa o próprio token de reset como credencial em vez de sessão — único endpoint que o consome",
   },
 ];
 
@@ -126,17 +154,18 @@ test("toda rota sob /api/admin/* está coberta por este arquivo", () => {
   );
 });
 
-// Com sessão válida mas ainda na senha inicial (nenhuma senha própria
-// cadastrada), o painel só pode trocar a senha e ler a configuração — todo
-// o resto responde 403, mesmo autenticado.
-function logar() {
+// Com sessão de bootstrap válida (nenhum admin com login definido ainda), o
+// painel só pode: trocar a senha de bootstrap, ler a configuração, listar
+// barbeiros (para escolher quem vira o primeiro admin) e concluir o próprio
+// bootstrap — todo o resto responde 403, mesmo autenticado.
+function logarBootstrap() {
   bancoDeTeste();
   salvarConfig({ sessao_versao: "1" });
-  __setCookie(NOME_COOKIE, construirToken("1", Date.now() + 60_000));
+  __setCookie(NOME_COOKIE, construirTokenBootstrap("1", Date.now() + 60_000));
 }
 
-test("GET /api/admin/resumo responde 403 com sessão válida enquanto a senha ainda é a inicial", async () => {
-  logar();
+test("GET /api/admin/resumo responde 403 com sessão de bootstrap", async () => {
+  logarBootstrap();
   const { GET } = await import(`${PREFIXO}resumo/route.js`);
   const resposta = await GET(
     new Request("http://localhost/api/admin/resumo", { method: "GET" }),
@@ -144,8 +173,8 @@ test("GET /api/admin/resumo responde 403 com sessão válida enquanto a senha ai
   assert.equal(resposta.status, 403);
 });
 
-test("GET /api/admin/config continua liberado com sessão válida e senha inicial", async () => {
-  logar();
+test("GET /api/admin/config continua liberado com sessão de bootstrap", async () => {
+  logarBootstrap();
   const { GET } = await import(`${PREFIXO}config/route.js`);
   const resposta = await GET(
     new Request("http://localhost/api/admin/config", { method: "GET" }),
@@ -153,8 +182,8 @@ test("GET /api/admin/config continua liberado com sessão válida e senha inicia
   assert.equal(resposta.status, 200);
 });
 
-test("PUT /api/admin/config responde 403 com sessão válida e senha inicial (só o GET é permitido)", async () => {
-  logar();
+test("PUT /api/admin/config responde 403 com sessão de bootstrap (só o GET é permitido)", async () => {
+  logarBootstrap();
   const { PUT } = await import(`${PREFIXO}config/route.js`);
   const resposta = await PUT(
     new Request("http://localhost/api/admin/config", {
@@ -165,8 +194,8 @@ test("PUT /api/admin/config responde 403 com sessão válida e senha inicial (s�
   assert.equal(resposta.status, 403);
 });
 
-test("POST /api/admin/senha não é bloqueado pela trava da senha inicial", async () => {
-  logar();
+test("POST /api/admin/senha não é bloqueado pela trava de bootstrap", async () => {
+  logarBootstrap();
   const { POST } = await import(`${PREFIXO}senha/route.js`);
   const resposta = await POST(
     new Request("http://localhost/api/admin/senha", {
@@ -176,4 +205,39 @@ test("POST /api/admin/senha não é bloqueado pela trava da senha inicial", asyn
   );
   // Passa pela trava (não é 403) — o corpo vazio ainda falha a validação de senha atual, e tudo bem.
   assert.notEqual(resposta.status, 403);
+});
+
+test("GET /api/admin/barbeiros continua liberado com sessão de bootstrap (dropdown do primeiro admin)", async () => {
+  logarBootstrap();
+  const { GET } = await import(`${PREFIXO}[recurso]/route.js`);
+  const resposta = await GET(
+    new Request("http://localhost/api/admin/barbeiros", { method: "GET" }),
+    { params: { recurso: "barbeiros" } },
+  );
+  assert.equal(resposta.status, 200);
+});
+
+test("POST /api/admin/bootstrap não é bloqueado pela trava de bootstrap", async () => {
+  logarBootstrap();
+  const { POST } = await import(`${PREFIXO}bootstrap/route.js`);
+  const resposta = await POST(
+    new Request("http://localhost/api/admin/bootstrap", {
+      method: "POST",
+      body: "{}",
+    }),
+  );
+  // Passa pela trava (não é 403 por causa dela) — corpo vazio falha a validação, e tudo bem.
+  assert.notEqual(resposta.status, 403);
+});
+
+test("POST /api/admin/perfil/senha é bloqueado pela trava de bootstrap (ainda não existe barbeiro logado)", async () => {
+  logarBootstrap();
+  const { POST } = await import(`${PREFIXO}perfil/senha/route.js`);
+  const resposta = await POST(
+    new Request("http://localhost/api/admin/perfil/senha", {
+      method: "POST",
+      body: "{}",
+    }),
+  );
+  assert.equal(resposta.status, 403);
 });

@@ -1,8 +1,4 @@
-import {
-  exigirSessao,
-  senhaBootstrapConfere,
-  trocarSenhaBootstrap,
-} from "@/lib/auth";
+import { exigirSessao, sessaoAtual, trocarSenhaPropria } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { lerCorpoJson } from "@/lib/requisicao";
 import { comLog } from "@/lib/log";
@@ -12,22 +8,20 @@ export const dynamic = "force-dynamic";
 
 const MINIMO = 6;
 
-export const POST = comLog("POST /api/admin/senha", async (request) => {
+export const POST = comLog("POST /api/admin/perfil/senha", async (request) => {
   const negado = exigirSessao(request);
   if (negado) return negado;
+
+  const sessao = sessaoAtual();
+  if (!sessao || sessao.tipo !== "barbeiro") {
+    return Response.json({ erro: "Ação não permitida." }, { status: 403 });
+  }
 
   const corpo = await lerCorpoJson(request);
   if (!corpo) {
     return Response.json({ erro: "JSON inválido." }, { status: 400 });
   }
   const { senhaAtual, novaSenha, confirmacao } = corpo;
-
-  if (!(await senhaBootstrapConfere(senhaAtual))) {
-    return Response.json(
-      { erro: "A senha atual está incorreta." },
-      { status: 400 },
-    );
-  }
 
   const nova = String(novaSenha ?? "");
   if (nova.length < MINIMO) {
@@ -42,15 +36,27 @@ export const POST = comLog("POST /api/admin/senha", async (request) => {
       { status: 400 },
     );
   }
-  if (await senhaBootstrapConfere(nova)) {
+  if (nova === String(senhaAtual ?? "")) {
     return Response.json(
       { erro: "A senha nova é igual à atual." },
       { status: 400 },
     );
   }
 
-  await trocarSenhaBootstrap(nova);
+  const resultado = await trocarSenhaPropria(
+    sessao.barbeiroId,
+    senhaAtual,
+    nova,
+  );
+  if (!resultado.ok) {
+    return Response.json({ erro: resultado.erro }, { status: 400 });
+  }
+
   // Nunca a senha nem o hash — só o fato de que ela mudou.
-  registrarAuditoria(getDb(), { acao: "trocar_senha", tabela: "config" });
+  registrarAuditoria(getDb(), {
+    acao: "trocar_senha",
+    tabela: "barbeiros",
+    registroId: sessao.barbeiroId,
+  });
   return Response.json({ ok: true });
 });

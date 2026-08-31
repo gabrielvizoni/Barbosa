@@ -1,4 +1,4 @@
-import { exigirSessao, usandoSenhaInicial } from "@/lib/auth";
+import { exigirSessao, modoBootstrap } from "@/lib/auth";
 import {
   getDb,
   lerConfig,
@@ -46,7 +46,7 @@ export const GET = comLog("GET /api/admin/config", async (request) => {
   return Response.json({
     config: configPublica(),
     expediente: lerExpediente(),
-    senhaInicial: usandoSenhaInicial(),
+    modoBootstrap: modoBootstrap(),
     fuso: FUSO,
   });
 });

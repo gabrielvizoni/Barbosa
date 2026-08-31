@@ -13,14 +13,16 @@ import Horarios from "@/components/admin/Horarios";
 import Financeiro from "@/components/admin/Financeiro";
 import Configuracoes from "@/components/admin/Configuracoes";
 import {
+  Cadeado,
   Caixa,
   Calendario,
   Casa,
-  Cadeado,
-  Dinheiro,
+  Email,
   Engrenagem,
   Equipe,
   Grafico,
+  Olho,
+  OlhoFechado,
   Pausa,
   Sair,
   Tesoura,
@@ -47,15 +49,143 @@ const SECOES = [
   },
 ];
 
+const SENHA_MINIMA = 6;
+
+/** Link de redefinir senha chega como /admin?token=... — lido uma única vez, no primeiro render. */
+function pegarTokenDaUrl() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("token") || "";
+}
+
+// Componentes de apoio das telas de acesso (login, bootstrap, redefinir
+// senha) — definidos FORA de PainelAdmin de propósito. Um componente
+// declarado dentro de outro muda de identidade a cada render do pai, e o
+// React desmonta e remonta a árvore inteira dele; num campo de senha isso
+// derruba o foco a cada tecla digitada (mesma causa-raiz do bug corrigido no
+// Modal — ver src/components/admin/base.jsx).
+
+/** Painel de marca (lado esquerdo) das telas de acesso — mesmo conteúdo em todas. */
+function PainelMarca({ nome }) {
+  return (
+    <div className="acesso-marca">
+      <div className="acesso-marca-brilho" aria-hidden="true" />
+      <div className="acesso-marca-conteudo">
+        <div className="acesso-marca-logo">
+          <span className="acesso-marca-poste" aria-hidden="true" />
+          <span className="acesso-marca-nome">{nome || NOME_PADRAO}</span>
+        </div>
+        <span className="sobrenome" style={{ margin: 0 }}>
+          Autenticação segura
+        </span>
+        <h1>
+          Bem-<em>vindo!</em>
+        </h1>
+        <p className="acesso-marca-texto">
+          Agenda, financeiro e equipe reunidos em um único painel — com o mesmo
+          cuidado de sempre.
+        </p>
+      </div>
+      <div className="acesso-marca-rodape">
+        Acesso restrito à equipe · conexão criptografada
+      </div>
+    </div>
+  );
+}
+
+/** Campo de senha com ícone de cadeado e alternância de mostrar/ocultar. */
+function CampoSenha({ label, valor, aoMudar, autoComplete, autoFocus }) {
+  const [mostrar, setMostrar] = useState(false);
+  return (
+    <label className="campo">
+      <span>{label}</span>
+      <div className="campo-com-icone tem-icone-direita">
+        <span className="icone-esquerda">
+          <Cadeado width={16} height={16} />
+        </span>
+        <input
+          className="entrada"
+          type={mostrar ? "text" : "password"}
+          value={valor}
+          onChange={(e) => aoMudar(e.target.value)}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+        />
+        <button
+          type="button"
+          className="icone-direita"
+          onClick={() => setMostrar((m) => !m)}
+          aria-label={mostrar ? "Ocultar senha" : "Mostrar senha"}
+        >
+          {mostrar ? (
+            <OlhoFechado width={16} height={16} />
+          ) : (
+            <Olho width={16} height={16} />
+          )}
+        </button>
+      </div>
+    </label>
+  );
+}
+
+/** Campo de e-mail com ícone de envelope — mesmo padrão visual do campo de senha. */
+function CampoEmail({ label, valor, aoMudar, autoComplete, autoFocus }) {
+  return (
+    <label className="campo">
+      <span>{label}</span>
+      <div className="campo-com-icone">
+        <span className="icone-esquerda">
+          <Email width={16} height={16} />
+        </span>
+        <input
+          className="entrada"
+          type="email"
+          value={valor}
+          onChange={(e) => aoMudar(e.target.value)}
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+        />
+      </div>
+    </label>
+  );
+}
+
 export default function PainelAdmin() {
-  const [estado, setEstado] = useState("verificando"); // verificando | fora | dentro
+  // verificando | fora | bootstrap | redefinir | dentro
+  const [estado, setEstado] = useState("verificando");
+  const [configuracaoInsegura, setConfiguracaoInsegura] = useState(false);
+  const [fuso, setFuso] = useState("America/Sao_Paulo");
+  const [nome, setNome] = useState("");
+  const [barbeiroLogado, setBarbeiroLogado] = useState(null);
+
+  // Login normal (e-mail + senha)
+  const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erroLogin, setErroLogin] = useState("");
   const [entrando, setEntrando] = useState(false);
-  const [configuracaoInsegura, setConfiguracaoInsegura] = useState(false);
-  const [senhaInicial, setSenhaInicial] = useState(false);
-  const [fuso, setFuso] = useState("America/Sao_Paulo");
-  const [nome, setNome] = useState("");
+
+  // "Esqueceu a senha?"
+  const [mostrarEsqueci, setMostrarEsqueci] = useState(false);
+  const [emailEsqueci, setEmailEsqueci] = useState("");
+  const [enviandoEsqueci, setEnviandoEsqueci] = useState(false);
+  const [mensagemEsqueci, setMensagemEsqueci] = useState("");
+
+  // Redefinir senha (chegando pelo link do e-mail)
+  const [tokenReset] = useState(pegarTokenDaUrl);
+  const [novaSenhaReset, setNovaSenhaReset] = useState("");
+  const [confirmacaoReset, setConfirmacaoReset] = useState("");
+  const [erroReset, setErroReset] = useState("");
+  const [redefinindo, setRedefinindo] = useState(false);
+  const [redefinido, setRedefinido] = useState(false);
+
+  // Bootstrap: escolher/cadastrar o primeiro admin
+  const [barbeirosBootstrap, setBarbeirosBootstrap] = useState([]);
+  const [escolhaBootstrap, setEscolhaBootstrap] = useState("novo");
+  const [nomeBootstrap, setNomeBootstrap] = useState("");
+  const [emailBootstrap, setEmailBootstrap] = useState("");
+  const [senhaBootstrap, setSenhaBootstrap] = useState("");
+  const [confirmacaoBootstrap, setConfirmacaoBootstrap] = useState("");
+  const [erroBootstrap, setErroBootstrap] = useState("");
+  const [enviandoBootstrap, setEnviandoBootstrap] = useState(false);
 
   const [secaoAtiva, setSecaoAtiva] = useState("visao");
   const [pendentes, setPendentes] = useState(0);
@@ -96,26 +226,44 @@ export default function PainelAdmin() {
       .catch(() => {});
   }, []);
 
+  const carregarBarbeirosBootstrap = useCallback(() => {
+    api("barbeiros")
+      .then((r) => setBarbeirosBootstrap(r.itens || []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
+    // Um link de redefinir senha vale para qualquer estado de sessão — nem
+    // precisa estar deslogado (ex.: pediu de outro navegador).
+    if (tokenReset) {
+      setEstado("redefinir");
+      return;
+    }
+
     fetch("/api/admin/sessao")
       .then((r) => r.json())
       .then(async (r) => {
         setConfiguracaoInsegura(!!r.configuracaoInsegura);
-        setSenhaInicial(!!r.senhaInicial);
-        // Busca o fuso ANTES de liberar a tela: assim nenhuma tela monta com
-        // o default e recalcula "hoje" depois, quando o valor de verdade chega.
-        if (r.autenticado) {
-          try {
-            const cfg = await api("config");
-            setFuso(cfg.fuso || "America/Sao_Paulo");
-          } catch {
-            // Sem acesso ao fuso real, segue com o default — melhor que travar a entrada.
-          }
+        if (r.configuracaoInsegura || !r.autenticado) {
+          setEstado("fora");
+          return;
         }
-        setEstado(r.autenticado ? "dentro" : "fora");
+        if (r.modoBootstrap) {
+          carregarBarbeirosBootstrap();
+          setEstado("bootstrap");
+          return;
+        }
+        setBarbeiroLogado(r.barbeiro);
+        try {
+          const cfg = await api("config");
+          setFuso(cfg.fuso || "America/Sao_Paulo");
+        } catch {
+          // Sem acesso ao fuso real, segue com o default — melhor que travar a entrada.
+        }
+        setEstado("dentro");
       })
       .catch(() => setEstado("fora"));
-  }, []);
+  }, [tokenReset, carregarBarbeirosBootstrap]);
 
   const avisar = useCallback((texto, tipo = "ok") => {
     setRecado({ texto, tipo });
@@ -150,10 +298,16 @@ export default function PainelAdmin() {
     setErroLogin("");
     setEntrando(true);
     try {
-      const r = await api("login", { method: "POST", body: { senha } });
+      await api("login", { method: "POST", body: { email, senha } });
       setSenha("");
-      setSenhaInicial(!!r.senhaInicial);
-      setEstado("dentro");
+      const r = await fetch("/api/admin/sessao").then((x) => x.json());
+      if (r.modoBootstrap) {
+        carregarBarbeirosBootstrap();
+        setEstado("bootstrap");
+      } else {
+        setBarbeiroLogado(r.barbeiro);
+        setEstado("dentro");
+      }
     } catch (erro) {
       setErroLogin(erro.message);
     } finally {
@@ -161,9 +315,90 @@ export default function PainelAdmin() {
     }
   }
 
+  async function pedirRecuperacao(evento) {
+    evento.preventDefault();
+    setEnviandoEsqueci(true);
+    try {
+      const r = await api("esqueci-senha", {
+        method: "POST",
+        body: { email: emailEsqueci },
+      });
+      setMensagemEsqueci(r.mensagem);
+    } catch (erro) {
+      // Mesmo um erro real (rate limit, JSON inválido) mostra uma mensagem —
+      // nunca deixa a tela em branco sem explicação nenhuma.
+      setMensagemEsqueci(erro.message);
+    } finally {
+      setEnviandoEsqueci(false);
+    }
+  }
+
+  async function confirmarRedefinicao(evento) {
+    evento.preventDefault();
+    setErroReset("");
+    if (novaSenhaReset.length < SENHA_MINIMA) {
+      return setErroReset(
+        `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`,
+      );
+    }
+    if (novaSenhaReset !== confirmacaoReset) {
+      return setErroReset("A confirmação não bate com a senha nova.");
+    }
+    setRedefinindo(true);
+    try {
+      await api("redefinir-senha", {
+        method: "POST",
+        body: {
+          token: tokenReset,
+          novaSenha: novaSenhaReset,
+          confirmacao: confirmacaoReset,
+        },
+      });
+      setRedefinido(true);
+    } catch (erro) {
+      setErroReset(erro.message);
+    } finally {
+      setRedefinindo(false);
+    }
+  }
+
+  async function concluirBootstrap(evento) {
+    evento.preventDefault();
+    setErroBootstrap("");
+    if (senhaBootstrap.length < SENHA_MINIMA) {
+      return setErroBootstrap(
+        `A senha precisa ter pelo menos ${SENHA_MINIMA} caracteres.`,
+      );
+    }
+    if (senhaBootstrap !== confirmacaoBootstrap) {
+      return setErroBootstrap("A confirmação não bate com a senha.");
+    }
+
+    setEnviandoBootstrap(true);
+    try {
+      const corpo = {
+        email: emailBootstrap,
+        senha: senhaBootstrap,
+        confirmacao: confirmacaoBootstrap,
+      };
+      if (escolhaBootstrap === "novo") corpo.nome = nomeBootstrap;
+      else corpo.barbeiroId = Number(escolhaBootstrap);
+
+      await api("bootstrap", { method: "POST", body: corpo });
+      const r = await fetch("/api/admin/sessao").then((x) => x.json());
+      setBarbeiroLogado(r.barbeiro);
+      setEstado("dentro");
+    } catch (erro) {
+      setErroBootstrap(erro.message);
+    } finally {
+      setEnviandoBootstrap(false);
+    }
+  }
+
   async function sair() {
     await api("logout", { method: "POST" }).catch(() => {});
     setSujo(false);
+    setBarbeiroLogado(null);
     setEstado("fora");
   }
 
@@ -177,17 +412,83 @@ export default function PainelAdmin() {
 
   if (configuracaoInsegura) {
     return (
-      <div className="portao">
-        <div className="portao-caixa">
-          <div className="portao-topo">
-            <span className="sobrenome">Painel administrativo</span>
-            <h1>{nome || NOME_PADRAO}</h1>
+      <div className="acesso">
+        <PainelMarca nome={nome} />
+        <div className="acesso-conteudo">
+          <div className="acesso-coluna">
+            <div className="acesso-cartao">
+              <div className="acesso-cartao-topo">
+                <span className="sobrenome">Painel administrativo</span>
+                <h1>{nome || NOME_PADRAO}</h1>
+              </div>
+              <div className="aviso aviso-erro">
+                O painel está indisponível: falta configurar o servidor com
+                segurança (<code>SESSION_SECRET</code>/
+                <code>ADMIN_PASSWORD</code>). Avise quem cuida da hospedagem — o
+                site público continua funcionando normalmente.
+              </div>
+            </div>
           </div>
-          <div className="portao-corpo">
-            <div className="aviso aviso-erro">
-              O painel está indisponível: falta configurar a variável{" "}
-              <code>SESSION_SECRET</code> no servidor. Avise quem cuida da
-              hospedagem — o site público continua funcionando normalmente.
+        </div>
+      </div>
+    );
+  }
+
+  if (estado === "redefinir") {
+    return (
+      <div className="acesso">
+        <PainelMarca nome={nome} />
+        <div className="acesso-conteudo">
+          <div className="acesso-coluna">
+            <div className="acesso-cartao">
+              <div className="acesso-cartao-topo">
+                <span className="sobrenome">Redefinir senha</span>
+                <h1>{nome || NOME_PADRAO}</h1>
+              </div>
+              {redefinido ? (
+                <>
+                  <div className="aviso">
+                    Senha definida! Já pode entrar com ela.
+                  </div>
+                  <a className="btn btn-verde btn-bloco" href="/admin">
+                    Ir para o login
+                  </a>
+                </>
+              ) : (
+                <form onSubmit={confirmarRedefinicao}>
+                  <p
+                    style={{
+                      marginTop: 0,
+                      color: "var(--tinta-suave)",
+                      fontSize: 14,
+                    }}
+                  >
+                    Escolha uma senha nova para sua conta.
+                  </p>
+                  {erroReset ? (
+                    <div className="aviso aviso-erro">{erroReset}</div>
+                  ) : null}
+                  <CampoSenha
+                    label="Senha nova"
+                    valor={novaSenhaReset}
+                    aoMudar={setNovaSenhaReset}
+                    autoFocus
+                    autoComplete="new-password"
+                  />
+                  <CampoSenha
+                    label="Repita a senha nova"
+                    valor={confirmacaoReset}
+                    aoMudar={setConfirmacaoReset}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    className="btn btn-verde btn-bloco"
+                    disabled={redefinindo}
+                  >
+                    {redefinindo ? "Salvando…" : "Definir senha"}
+                  </button>
+                </form>
+              )}
             </div>
           </div>
         </div>
@@ -197,31 +498,106 @@ export default function PainelAdmin() {
 
   if (estado === "fora") {
     return (
-      <div className="portao">
-        <div className="portao-caixa">
-          <div className="portao-topo">
-            <span className="sobrenome">Painel administrativo</span>
-            <h1>{nome || NOME_PADRAO}</h1>
+      <div className="acesso">
+        <PainelMarca nome={nome} />
+        <div className="acesso-conteudo">
+          <div className="acesso-coluna">
+            <div className="acesso-cartao">
+              <div className="acesso-cartao-topo">
+                <span className="sobrenome">Painel administrativo</span>
+                <h1>{nome || NOME_PADRAO}</h1>
+              </div>
+
+              {mostrarEsqueci ? (
+                mensagemEsqueci ? (
+                  <>
+                    <div className="aviso">{mensagemEsqueci}</div>
+                    <button
+                      type="button"
+                      className="btn btn-contorno btn-bloco"
+                      onClick={() => {
+                        setMostrarEsqueci(false);
+                        setMensagemEsqueci("");
+                        setEmailEsqueci("");
+                      }}
+                    >
+                      Voltar para o login
+                    </button>
+                  </>
+                ) : (
+                  <form onSubmit={pedirRecuperacao}>
+                    <p
+                      style={{
+                        marginTop: 0,
+                        color: "var(--tinta-suave)",
+                        fontSize: 14,
+                      }}
+                    >
+                      Informe o e-mail cadastrado. Se ele existir, enviamos um
+                      link para redefinir a senha.
+                    </p>
+                    <CampoEmail
+                      label="E-mail"
+                      valor={emailEsqueci}
+                      aoMudar={setEmailEsqueci}
+                      autoFocus
+                      autoComplete="email"
+                    />
+                    <button
+                      className="btn btn-verde btn-bloco"
+                      disabled={enviandoEsqueci}
+                    >
+                      {enviandoEsqueci ? "Enviando…" : "Enviar link"}
+                    </button>
+                    <button
+                      type="button"
+                      className="link-simples"
+                      style={{ marginTop: 14, display: "block" }}
+                      onClick={() => setMostrarEsqueci(false)}
+                    >
+                      Voltar
+                    </button>
+                  </form>
+                )
+              ) : (
+                <form onSubmit={entrar}>
+                  {erroLogin ? (
+                    <div className="aviso aviso-erro">{erroLogin}</div>
+                  ) : null}
+                  <CampoEmail
+                    label="E-mail"
+                    valor={email}
+                    aoMudar={setEmail}
+                    autoFocus
+                    autoComplete="username"
+                  />
+                  <CampoSenha
+                    label="Senha"
+                    valor={senha}
+                    aoMudar={setSenha}
+                    autoComplete="current-password"
+                  />
+                  <button
+                    className="btn btn-verde btn-bloco"
+                    disabled={entrando}
+                  >
+                    {entrando ? "Entrando…" : "Entrar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="link-simples"
+                    style={{ marginTop: 14, display: "block" }}
+                    onClick={() => setMostrarEsqueci(true)}
+                  >
+                    Esqueceu a senha?
+                  </button>
+                </form>
+              )}
+            </div>
+            <p className="acesso-ajuda">
+              Problemas para entrar? Fale com quem administra o servidor.
+            </p>
           </div>
-          <form className="portao-corpo" onSubmit={entrar}>
-            {erroLogin ? (
-              <div className="aviso aviso-erro">{erroLogin}</div>
-            ) : null}
-            <label className="campo">
-              <span>Senha</span>
-              <input
-                className="entrada"
-                type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                autoFocus
-                autoComplete="current-password"
-              />
-            </label>
-            <button className="btn btn-verde btn-bloco" disabled={entrando}>
-              {entrando ? "Entrando…" : "Entrar"}
-            </button>
-          </form>
         </div>
         {recado ? (
           <div className={`recado ${recado.tipo === "erro" ? "erro" : ""}`}>
@@ -232,10 +608,98 @@ export default function PainelAdmin() {
     );
   }
 
-  // Enquanto a senha ainda for a inicial, só Configurações fica acessível —
-  // é lá que está o formulário de troca de senha.
-  const secaoEfetiva = senhaInicial ? "config" : secaoAtiva;
-  const secao = SECOES.find((s) => s.id === secaoEfetiva) || SECOES[0];
+  if (estado === "bootstrap") {
+    return (
+      <div className="acesso">
+        <PainelMarca nome={nome} />
+        <div className="acesso-conteudo">
+          <div className="acesso-coluna" style={{ maxWidth: 420 }}>
+            <div className="acesso-cartao">
+              <div className="acesso-cartao-topo">
+                <span className="sobrenome">Configuração inicial</span>
+                <h1>{nome || NOME_PADRAO}</h1>
+              </div>
+              <form onSubmit={concluirBootstrap}>
+                <p
+                  style={{
+                    marginTop: 0,
+                    color: "var(--tinta-suave)",
+                    fontSize: 14,
+                  }}
+                >
+                  Escolha quem vai ser o primeiro administrador do painel.
+                  Depois disso, a senha compartilhada deixa de funcionar — cada
+                  pessoa passa a entrar com o próprio e-mail e senha.
+                </p>
+                {erroBootstrap ? (
+                  <div className="aviso aviso-erro">{erroBootstrap}</div>
+                ) : null}
+
+                {barbeirosBootstrap.length > 0 ? (
+                  <label className="campo">
+                    <span>Quem é você?</span>
+                    <select
+                      className="entrada"
+                      value={escolhaBootstrap}
+                      onChange={(e) => setEscolhaBootstrap(e.target.value)}
+                    >
+                      <option value="novo">
+                        Cadastrar um novo profissional
+                      </option>
+                      {barbeirosBootstrap.map((b) => (
+                        <option key={b.id} value={String(b.id)}>
+                          {b.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                {escolhaBootstrap === "novo" ? (
+                  <label className="campo">
+                    <span>Nome</span>
+                    <input
+                      className="entrada"
+                      value={nomeBootstrap}
+                      onChange={(e) => setNomeBootstrap(e.target.value)}
+                      autoFocus
+                    />
+                  </label>
+                ) : null}
+
+                <CampoEmail
+                  label="Seu e-mail"
+                  valor={emailBootstrap}
+                  aoMudar={setEmailBootstrap}
+                  autoComplete="username"
+                />
+                <CampoSenha
+                  label="Escolha uma senha"
+                  valor={senhaBootstrap}
+                  aoMudar={setSenhaBootstrap}
+                  autoComplete="new-password"
+                />
+                <CampoSenha
+                  label="Repita a senha"
+                  valor={confirmacaoBootstrap}
+                  aoMudar={setConfirmacaoBootstrap}
+                  autoComplete="new-password"
+                />
+                <button
+                  className="btn btn-verde btn-bloco"
+                  disabled={enviandoBootstrap}
+                >
+                  {enviandoBootstrap ? "Salvando…" : "Concluir configuração"}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const secao = SECOES.find((s) => s.id === secaoAtiva) || SECOES[0];
   const Tela = secao.Tela;
 
   return (
@@ -246,49 +710,37 @@ export default function PainelAdmin() {
           <strong>{nome || NOME_PADRAO}</strong>
         </div>
 
-        {senhaInicial ? (
-          <div className="aviso-lateral" style={{ margin: "0 16px 12px" }}>
-            <Cadeado
-              width={14}
-              height={14}
-              style={{ flexShrink: 0, marginTop: 1 }}
-            />
-            Defina uma senha própria para liberar o resto do painel.
-          </div>
-        ) : null}
-
         <div className="lateral-menu">
-          {SECOES.map(({ id, rotulo, Icone }) => {
-            const bloqueado = senhaInicial && id !== "config";
-            return (
-              <button
-                key={id}
-                className={`item-menu ${id === secaoEfetiva ? "ativo" : ""}`}
-                onClick={() => (bloqueado ? null : pedirTrocaSecao(id))}
-                disabled={bloqueado}
-                title={
-                  bloqueado ? "Defina uma senha própria primeiro" : undefined
-                }
-                aria-disabled={bloqueado}
-              >
-                <Icone width={17} height={17} />
-                {rotulo}
-                {id === "agenda" && pendentes > 0 ? (
-                  <span className="contador">{pendentes}</span>
-                ) : null}
-                {bloqueado ? (
-                  <Cadeado
-                    width={13}
-                    height={13}
-                    style={{ marginLeft: "auto", opacity: 0.6 }}
-                  />
-                ) : null}
-              </button>
-            );
-          })}
+          {SECOES.map(({ id, rotulo, Icone }) => (
+            <button
+              key={id}
+              className={`item-menu ${id === secaoAtiva ? "ativo" : ""}`}
+              onClick={() => pedirTrocaSecao(id)}
+            >
+              <Icone width={17} height={17} />
+              {rotulo}
+              {id === "agenda" && pendentes > 0 ? (
+                <span className="contador">{pendentes}</span>
+              ) : null}
+            </button>
+          ))}
         </div>
 
         <div className="lateral-base">
+          {barbeiroLogado ? (
+            <div
+              style={{
+                padding: "0 14px 10px",
+                fontSize: 12.5,
+                color: "rgba(247,243,234,0.6)",
+              }}
+            >
+              Logado como{" "}
+              <strong style={{ color: "var(--creme-alto)" }}>
+                {barbeiroLogado.nome}
+              </strong>
+            </div>
+          ) : null}
           <button className="item-menu" onClick={sair}>
             <Sair width={17} height={17} />
             Sair
@@ -302,7 +754,6 @@ export default function PainelAdmin() {
             avisar={avisar}
             tratarErro={tratarErro}
             aoMudar={atualizarPendentes}
-            aoTrocarSenha={() => setSenhaInicial(false)}
             aoAlterar={setSujo}
           />
         </ConfigProvider>

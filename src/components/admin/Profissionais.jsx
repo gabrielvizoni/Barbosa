@@ -3,15 +3,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, CampoImagem, Modal, ModalConfirmacao, Vazio } from "./base";
 import { iniciais } from "@/lib/format";
-import { Lapis, Lixeira, Mais } from "@/components/Icones";
+import { Email, Lapis, Lixeira, Mais } from "@/components/Icones";
 
-const VAZIO = { nome: "", funcao: "", bio: "", foto: "", ativo: 1, ordem: 0 };
+const VAZIO = {
+  nome: "",
+  funcao: "",
+  bio: "",
+  foto: "",
+  ativo: 1,
+  ordem: 0,
+  email: "",
+};
 
 export default function Profissionais({ avisar, tratarErro }) {
   const [itens, setItens] = useState([]);
   const [editando, setEditando] = useState(null);
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(null);
+  const [enviandoConvite, setEnviandoConvite] = useState(false);
 
   const carregar = useCallback(() => {
     api("barbeiros")
@@ -73,6 +82,23 @@ export default function Profissionais({ avisar, tratarErro }) {
       avisar(r.mensagem || "Profissional excluído.");
     } catch (erro) {
       tratarErro(erro);
+    }
+  }
+
+  // Quem cadastra o e-mail de outro barbeiro nunca digita a senha dele —
+  // isso só dispara o link de convite (mesmo mecanismo do "esqueci a
+  // senha"), para a própria pessoa escolher a senha.
+  async function enviarConvite() {
+    setEnviandoConvite(true);
+    try {
+      await api(`barbeiros/${editando.id}/reenviar-convite`, {
+        method: "POST",
+      });
+      avisar(`Convite enviado para ${editando.email}.`);
+    } catch (erro) {
+      avisar(erro.message, "erro");
+    } finally {
+      setEnviandoConvite(false);
     }
   }
 
@@ -248,6 +274,39 @@ export default function Profissionais({ avisar, tratarErro }) {
               }
               placeholder="Aparece no site, embaixo do nome."
             />
+          </label>
+
+          <label className="campo">
+            <span>E-mail de login no painel</span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="entrada"
+                type="email"
+                value={editando.email}
+                onChange={(e) =>
+                  setEditando({ ...editando, email: e.target.value })
+                }
+                placeholder="nome@exemplo.com"
+                style={{ flex: 1 }}
+              />
+              {editando.id ? (
+                <button
+                  type="button"
+                  className="btn btn-contorno btn-mini"
+                  onClick={enviarConvite}
+                  disabled={!editando.email || enviandoConvite}
+                  title={
+                    editando.email
+                      ? "Envia um link para essa pessoa definir a própria senha"
+                      : "Informe o e-mail primeiro"
+                  }
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  <Email width={14} height={14} />
+                  {enviandoConvite ? "Enviando…" : "Enviar convite"}
+                </button>
+              ) : null}
+            </div>
           </label>
 
           <CampoImagem

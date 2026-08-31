@@ -2,6 +2,7 @@ import { exigirSessao } from "@/lib/auth";
 import {
   getDb,
   definirBarbeirosDoServico,
+  listarBarbeirosAdmin,
   listarBloqueios,
   listarServicos,
 } from "@/lib/db";
@@ -18,7 +19,10 @@ export const dynamic = "force-dynamic";
 export const RECURSOS = {
   barbeiros: {
     tabela: "barbeiros",
-    colunas: ["nome", "funcao", "bio", "foto", "ativo", "ordem"],
+    // senha_hash, login_ativo e papel ficam de FORA de propósito: só os
+    // endpoints dedicados de auth (bootstrap, perfil, reenviar-convite,
+    // redefinir-senha) podem gravar essas colunas — nunca esta rota genérica.
+    colunas: ["nome", "funcao", "bio", "foto", "ativo", "ordem", "email"],
     numericas: ["ativo", "ordem"],
     ordem: "ordem, id",
   },
@@ -101,6 +105,10 @@ export const GET = comLog(
       return Response.json({ itens: listarServicos() });
     if (params.recurso === "bloqueios")
       return Response.json({ itens: listarBloqueios() });
+    // Nunca SELECT * aqui: listarBarbeirosAdmin() garante que senha_hash
+    // nunca sai para o navegador, mesmo com colunas novas adicionadas depois.
+    if (params.recurso === "barbeiros")
+      return Response.json({ itens: listarBarbeirosAdmin() });
 
     const itens = getDb()
       .prepare(`SELECT * FROM ${recurso.tabela} ORDER BY ${recurso.ordem}`)

@@ -85,6 +85,23 @@ export function verificarAmbiente() {
     }
   }
 
+  // Em modo "console", o link de redefinir senha só vai para o log do
+  // servidor — ninguém de fora recebe o e-mail de verdade. Bom para
+  // desenvolvimento, uma porta fechada por engano se esquecido em produção.
+  if (!process.env.EMAIL_PROVIDER || process.env.EMAIL_PROVIDER === "console") {
+    problemas.push(
+      'EMAIL_PROVIDER está em "console" (ou não definido) — configure "resend" (RESEND_API_KEY, EMAIL_REMETENTE) para o fluxo de redefinir senha enviar e-mails de verdade.',
+    );
+  }
+
+  // Sem isso, o link de redefinir senha teria que ser montado a partir do
+  // header Host da requisição — risco de host-header injection no e-mail.
+  if (!process.env.APP_URL || !/^https?:\/\//.test(process.env.APP_URL)) {
+    problemas.push(
+      "APP_URL não está definido (ou não é uma URL absoluta) — necessário para montar o link de redefinir senha.",
+    );
+  }
+
   const dirBanco = path.dirname(process.env.DATABASE_PATH || "./data/app.db");
   if (!diretorioGravavel(dirBanco)) {
     problemas.push(`Diretório do banco (${dirBanco}) não é gravável.`);

@@ -307,6 +307,63 @@ export const migrations = [
       `);
     },
   },
+
+  {
+    versao: 6,
+    descricao:
+      "login individual por barbeiro (e-mail, senha, papel) e reset de senha",
+    up(conn) {
+      const garantirColuna = (tabela, coluna, definicao) => {
+        const existe = conn
+          .prepare(`PRAGMA table_info(${tabela})`)
+          .all()
+          .some((c) => c.name === coluna);
+        if (!existe)
+          conn.exec(`ALTER TABLE ${tabela} ADD COLUMN ${coluna} ${definicao}`);
+      };
+
+      // `login_ativo` é independente de `ativo`: o segundo controla se o
+      // barbeiro aparece no site/agendamento, o primeiro se ele consegue
+      // entrar no painel — desligar um não deveria desligar o outro.
+      garantirColuna("barbeiros", "email", "TEXT NOT NULL DEFAULT ''");
+      garantirColuna("barbeiros", "senha_hash", "TEXT NOT NULL DEFAULT ''");
+      garantirColuna("barbeiros", "login_ativo", "INTEGER NOT NULL DEFAULT 1");
+      garantirColuna("barbeiros", "papel", "TEXT NOT NULL DEFAULT 'barbeiro'");
+      // Contador de invalidação de sessão POR barbeiro — substitui, para
+      // sessões autenticadas como barbeiro, o config.sessao_versao global
+      // (que continua existindo, só para as sessões de bootstrap).
+      garantirColuna(
+        "barbeiros",
+        "sessao_versao",
+        "INTEGER NOT NULL DEFAULT 1",
+      );
+
+      conn.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_barbeiros_email
+          ON barbeiros(lower(email))
+          WHERE email <> '';
+
+        CREATE TABLE IF NOT EXISTS reset_senha_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          barbeiro_id INTEGER NOT NULL REFERENCES barbeiros(id) ON DELETE CASCADE,
+          token_hash TEXT NOT NULL,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          expira_em TEXT NOT NULL,
+          usado_em TEXT,
+          ip_solicitante TEXT NOT NULL DEFAULT ''
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_reset_token_hash ON reset_senha_tokens(token_hash);
+        CREATE INDEX IF NOT EXISTS idx_reset_barbeiro_expira ON reset_senha_tokens(barbeiro_id, expira_em);
+      `);
+
+      // Upgrade de uma instalação existente: todo barbeiro que já estava
+      // cadastrado nasce promovido a admin (ninguém perde acesso — hoje
+      // todo mundo já usa a mesma senha com acesso total). Continuam sem
+      // e-mail/senha próprios até completar o bootstrap ou receber um
+      // convite, então isso sozinho não tira o sistema do modo bootstrap.
+      conn.exec(`UPDATE barbeiros SET papel = 'admin'`);
+    },
+  },
 ];
 
 /** Maior número de versão declarado — o que o banco precisa ter para subir. */

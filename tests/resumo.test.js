@@ -4,10 +4,8 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { bancoDeTeste, criarBarbeiro } from "./ajuda.js";
-import { getDb, salvarConfig } from "../src/lib/db.js";
-import { gerarHash } from "../src/lib/auth.js";
-import { construirToken, NOME_COOKIE } from "../src/lib/auth.js";
+import { bancoDeTeste, criarBarbeiro, criarBarbeiroComLogin } from "./ajuda.js";
+import { construirTokenBarbeiro, NOME_COOKIE } from "../src/lib/auth.js";
 import { __resetCookies, __setCookie } from "./fake-next-headers.mjs";
 
 let conn;
@@ -18,12 +16,13 @@ beforeEach(async () => {
     "DELETE FROM agendamentos; DELETE FROM barbeiros; DELETE FROM servicos;",
   );
   __resetCookies();
-  // Senha própria já cadastrada, para não cair na trava da senha inicial.
-  await salvarConfig({
-    senha_hash: await gerarHash("senha-de-teste-99"),
-    sessao_versao: "1",
-  });
-  __setCookie(NOME_COOKIE, construirToken("1", Date.now() + 60_000));
+  // Sessão de barbeiro admin com login já definido — sem isso, modoBootstrap()
+  // continua true e a trava de bootstrap bloqueia estas rotas com 403.
+  const adminId = await criarBarbeiroComLogin({ papel: "admin" }, conn);
+  __setCookie(
+    NOME_COOKIE,
+    construirTokenBarbeiro(adminId, "1", Date.now() + 60_000),
+  );
 });
 
 /** Insere um agendamento com todas as colunas exigidas pelas CHECK constraints. */

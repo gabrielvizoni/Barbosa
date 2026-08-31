@@ -7,19 +7,18 @@ import { mascararTelefone, somenteDigitos } from "@/lib/format";
 const SENHAS_VAZIAS = { atual: "", nova: "", confirmacao: "" };
 const SENHA_MINIMA = 6;
 
-export default function Configuracoes({
-  avisar,
-  tratarErro,
-  aoTrocarSenha,
-  aoAlterar,
-}) {
+export default function Configuracoes({ avisar, tratarErro, aoAlterar }) {
   const [aba, setAba] = useState("dados");
   const [config, setConfig] = useState(null);
   const [configOriginal, setConfigOriginal] = useState(null);
   const [salvando, setSalvando] = useState(false);
 
+  const [perfil, setPerfil] = useState(null);
+  const [emailForm, setEmailForm] = useState({ email: "", senhaAtual: "" });
+  const [erroEmail, setErroEmail] = useState("");
+  const [trocandoEmail, setTrocandoEmail] = useState(false);
+
   const [senhas, setSenhas] = useState(SENHAS_VAZIAS);
-  const [senhaInicial, setSenhaInicial] = useState(false);
   const [erroSenha, setErroSenha] = useState("");
   const [trocando, setTrocando] = useState(false);
 
@@ -28,26 +27,54 @@ export default function Configuracoes({
       .then((r) => {
         setConfig(r.config);
         setConfigOriginal(r.config);
-        setSenhaInicial(!!r.senhaInicial);
-        // Com a senha inicial, é a aba que precisa de ação — abre nela direto.
-        if (r.senhaInicial) setAba("senha");
       })
       .catch(tratarErro);
+    api("perfil")
+      .then((r) => {
+        setPerfil(r);
+        setEmailForm({ email: r.email, senhaAtual: "" });
+      })
+      .catch(() => {});
   }, [tratarErro]);
 
-  // "Salvar configurações" e "Trocar senha" são ações independentes — o
+  // "Salvar configurações" e "Minha conta" são ações independentes — o
   // usuário preenchia a senha nova, clicava em "Salvar configurações", via
   // "Configurações salvas" e achava que tinha trocado a senha (não tinha).
   // Separadas em abas, cada botão só existe dentro da ação que ele executa.
   // Também avisa o painel quando há campo editado e não salvo, em qualquer
-  // uma das duas abas, para não descartar em silêncio ao trocar de seção.
+  // uma das abas, para não descartar em silêncio ao trocar de seção.
   const configSujo =
     !!configOriginal &&
     JSON.stringify(config) !== JSON.stringify(configOriginal);
+  const emailSujo = !!perfil && emailForm.email !== perfil.email;
   const senhaSuja = !!(senhas.atual || senhas.nova || senhas.confirmacao);
   useEffect(() => {
-    aoAlterar?.(configSujo || senhaSuja);
-  }, [configSujo, senhaSuja, aoAlterar]);
+    aoAlterar?.(configSujo || emailSujo || senhaSuja);
+  }, [configSujo, emailSujo, senhaSuja, aoAlterar]);
+
+  async function trocarEmail() {
+    setErroEmail("");
+    if (!emailForm.email.trim()) return setErroEmail("Informe o e-mail.");
+    if (!emailForm.senhaAtual) {
+      return setErroEmail("Informe sua senha atual para confirmar.");
+    }
+
+    setTrocandoEmail(true);
+    try {
+      await api("perfil", {
+        method: "PATCH",
+        body: { email: emailForm.email, senhaAtual: emailForm.senhaAtual },
+      });
+      setPerfil((p) => ({ ...p, email: emailForm.email }));
+      setEmailForm((f) => ({ ...f, senhaAtual: "" }));
+      avisar("E-mail atualizado.");
+    } catch (erro) {
+      if (erro.status === 401) return tratarErro(erro);
+      setErroEmail(erro.message);
+    } finally {
+      setTrocandoEmail(false);
+    }
+  }
 
   async function trocarSenha() {
     setErroSenha("");
@@ -68,7 +95,7 @@ export default function Configuracoes({
 
     setTrocando(true);
     try {
-      await api("senha", {
+      await api("perfil/senha", {
         method: "POST",
         body: {
           senhaAtual: senhas.atual,
@@ -77,9 +104,6 @@ export default function Configuracoes({
         },
       });
       setSenhas(SENHAS_VAZIAS);
-      setSenhaInicial(false);
-      setAba("dados");
-      aoTrocarSenha?.();
       avisar("Senha trocada. Use a nova no próximo acesso.");
     } catch (erro) {
       if (erro.status === 401) return tratarErro(erro);
@@ -148,7 +172,7 @@ export default function Configuracoes({
           className={`pilula ${aba === "senha" ? "ativa" : ""}`}
           onClick={() => setAba("senha")}
         >
-          Senha do painel{senhaInicial ? " •" : ""}
+          Minha conta{emailSujo || senhaSuja ? " •" : ""}
         </button>
       </div>
 
@@ -309,14 +333,62 @@ export default function Configuracoes({
         hidden={aba !== "senha"}
       >
         <section className="bloco">
-          <h2>Senha do painel</h2>
+          <h2>E-mail de login</h2>
 
-          {senhaInicial ? (
-            <div className="aviso">
-              Você ainda está usando a senha inicial, a mesma que veio na
-              instalação. Defina uma senha sua agora.
-            </div>
+          {erroEmail ? (
+            <div className="aviso aviso-erro">{erroEmail}</div>
           ) : null}
+
+          <div className="linha-campos">
+            <label className="campo">
+              <span>E-mail</span>
+              <input
+                className="entrada"
+                type="email"
+                value={emailForm.email}
+                onChange={(e) =>
+                  setEmailForm({ ...emailForm, email: e.target.value })
+                }
+                autoComplete="username"
+              />
+            </label>
+            <label className="campo">
+              <span>Sua senha atual</span>
+              <input
+                className="entrada"
+                type="password"
+                value={emailForm.senhaAtual}
+                onChange={(e) =>
+                  setEmailForm({ ...emailForm, senhaAtual: e.target.value })
+                }
+                autoComplete="current-password"
+              />
+            </label>
+          </div>
+
+          <button
+            className="btn btn-verde"
+            onClick={trocarEmail}
+            disabled={trocandoEmail}
+          >
+            {trocandoEmail ? "Salvando…" : "Salvar e-mail"}
+          </button>
+
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--tinta-suave)",
+              marginTop: 12,
+              marginBottom: 0,
+            }}
+          >
+            Confirma com a senha atual — é o e-mail que você usa para entrar e
+            para receber o link de redefinir senha.
+          </p>
+        </section>
+
+        <section className="bloco">
+          <h2>Trocar senha</h2>
 
           {erroSenha ? (
             <div className="aviso aviso-erro">{erroSenha}</div>

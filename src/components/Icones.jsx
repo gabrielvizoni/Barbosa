@@ -165,6 +165,28 @@ export const Cadeado = (p) => (
   </svg>
 );
 
+export const Email = (p) => (
+  <svg {...base} {...p}>
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m4 6 8 6 8-6" />
+  </svg>
+);
+
+export const Olho = (p) => (
+  <svg {...base} {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const OlhoFechado = (p) => (
+  <svg {...base} {...p}>
+    <path d="M3 3l18 18" />
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M6.1 6.1C3.87 7.65 2 12 2 12s3.5 7 10 7c1.52 0 2.9-.38 4.1-.94M17.94 17.94C20.1 16.35 22 12 22 12s-1.15-2.3-3.24-4.24" />
+  </svg>
+);
+
 export const Pausa = (p) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="12" r="9" />

@@ -1,13 +1,27 @@
 import crypto from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
-import { lerConfig, salvarConfig } from "./db";
+import {
+  lerConfig,
+  salvarConfig,
+  buscarBarbeiroPorId,
+  buscarBarbeiroPorEmail,
+  existeAdminComSenha,
+  criarBarbeiroAdmin,
+  promoverBarbeiroAAdmin,
+  definirLoginBarbeiro,
+  criarTokenReset,
+  buscarTokenResetValido,
+  marcarTokenResetUsado,
+  apagarTokensResetPendentes,
+} from "./db";
 import { segredoDeSessaoValido, senhaInicialValida } from "./config-ambiente";
 
 const scrypt = promisify(crypto.scrypt);
 
 const NOME_COOKIE = "admin_sessao";
 const DURACAO_SEGUNDOS = 60 * 60 * 12; // 12 horas
+const MINUTOS_EXPIRACAO_RESET = 30;
 
 /**
  * Em produção, exige um SESSION_SECRET de verdade: presente, com pelo menos
@@ -24,10 +38,10 @@ export function sessaoConfiguradaComSeguranca() {
 }
 
 /**
- * Mesma ideia, para a senha inicial: em produção, ADMIN_PASSWORD precisa
- * estar definido e não ser um dos valores de exemplo do .env.example. Só
- * importa enquanto ninguém cadastrou uma senha própria — depois disso o
- * .env deixa de valer (ver senhaConfere()).
+ * Mesma ideia, para a senha de bootstrap: em produção, ADMIN_PASSWORD
+ * precisa estar definido e não ser um dos valores de exemplo do
+ * .env.example. Só importa enquanto o bootstrap não foi concluído — depois
+ * disso o .env deixa de valer (ver senhaBootstrapConfere()).
  */
 export function senhaInicialConfiguradaComSeguranca() {
   return (
@@ -39,8 +53,7 @@ export function senhaInicialConfiguradaComSeguranca() {
 /** As duas checagens acima juntas — usada para decidir se o login pode nem tentar. */
 export function autenticacaoConfiguradaComSeguranca() {
   if (!sessaoConfiguradaComSeguranca()) return false;
-  if (usandoSenhaInicial() && !senhaInicialConfiguradaComSeguranca())
-    return false;
+  if (modoBootstrap() && !senhaInicialConfiguradaComSeguranca()) return false;
   return true;
 }
 
@@ -70,21 +83,14 @@ function iguais(a, b) {
 }
 
 /* -------------------------------------------------------------------------
-   Senha
+   Senha (hash)
 
-   A senha fica no banco, guardada como hash scrypt — nem o painel nem um
-   backup do arquivo revelam a senha em texto.
-
-   Enquanto o barbeiro não tiver definido a dele, vale a do .env
-   (ADMIN_PASSWORD). Isso serve para o primeiro acesso e para destravar o
-   painel caso a senha se perca: apague o hash do banco e o .env volta a valer
-   — desde que ADMIN_PASSWORD esteja configurado com segurança (ver acima).
+   scrypt síncrono trava o único thread do Node por ~100ms a cada tentativa —
+   sob carga de login isso derruba o site inteiro. Os parâmetros de custo vão
+   gravados no próprio hash (formato `scrypt$N$r$p$sal$hash`) para poder
+   mudar no futuro sem invalidar senha já definida.
    ------------------------------------------------------------------------- */
 
-// scrypt síncrono trava o único thread do Node por ~100ms a cada tentativa —
-// sob carga de login isso derruba o site inteiro. Os parâmetros de custo vão
-// gravados no próprio hash (formato `scrypt$N$r$p$sal$hash`) para poder
-// mudar no futuro sem invalidar senha já definida.
 const SCRYPT_N = 16384;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
@@ -144,29 +150,41 @@ async function conferirHash(senha, guardado) {
   return crypto.timingSafeEqual(derivada, esperado);
 }
 
-export async function senhaConfere(tentativa) {
+// Hash formatado, com os mesmos parâmetros de custo de gerarHash(), mas com
+// sal e derivada fixos (nunca corresponde a nenhuma senha real). Usado só
+// para rodar o scrypt contra ALGO quando o e-mail não existe ou o barbeiro
+// não tem senha própria ainda — sem isso, autenticarBarbeiro() responderia
+// bem mais rápido para e-mails desconhecidos do que para incorretos,
+// revelando por timing quais e-mails têm conta no painel.
+const HASH_DUMMY = `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${"00".repeat(16)}$${"00".repeat(SCRYPT_TAMANHO_CHAVE)}`;
+
+/* -------------------------------------------------------------------------
+   Senha de bootstrap (a única, compartilhada, do modo transitório)
+
+   Fica em config.senha_hash — hash scrypt, nunca a senha em texto. Enquanto
+   ninguém completou o bootstrap (ver modoBootstrap()), vale a senha do .env
+   (ADMIN_PASSWORD): serve para o primeiro acesso e para destravar o painel
+   caso a senha se perca (apague o hash do banco e o .env volta a valer) —
+   desde que ADMIN_PASSWORD esteja configurado com segurança (ver acima).
+   ------------------------------------------------------------------------- */
+
+export async function senhaBootstrapConfere(tentativa) {
   const texto = String(tentativa ?? "");
   if (!texto) return false;
 
   const { senha_hash: guardado } = lerConfig();
   if (guardado) return conferirHash(texto, guardado);
 
-  // Sem senha própria cadastrada ainda: só aceita a do .env quando ela está
-  // configurada com segurança — nunca um valor hardcoded no código-fonte.
   if (!senhaInicialConfiguradaComSeguranca()) return false;
   return iguais(texto, process.env.ADMIN_PASSWORD);
 }
 
-/** True quando a senha ainda é a do .env — o painel avisa para trocar. */
-export function usandoSenhaInicial() {
-  return !lerConfig().senha_hash;
-}
-
 /**
- * Grava a senha nova e derruba todas as outras sessões abertas, bumpando a
- * versão que vai assinada no cookie. Quem trocou continua logado.
+ * Grava a senha de bootstrap nova e derruba as outras sessões de bootstrap
+ * abertas, bumpando config.sessao_versao. Sem efeito nas sessões já
+ * autenticadas como barbeiro (essas usam barbeiros.sessao_versao).
  */
-export async function trocarSenha(nova) {
+export async function trocarSenhaBootstrap(nova) {
   const versao = Number(lerConfig().sessao_versao || 1) + 1;
   salvarConfig({
     senha_hash: await gerarHash(nova),
@@ -176,27 +194,176 @@ export async function trocarSenha(nova) {
 }
 
 /* -------------------------------------------------------------------------
-   Sessão
+   Login individual por barbeiro
    ------------------------------------------------------------------------- */
 
-/**
- * Monta o valor assinado do cookie de sessão a partir da versão e do
- * instante de expiração — extraído à parte de criarSessao() para poder ser
- * exercitado em teste sem depender do contexto de requisição do Next
- * (next/headers só funciona dentro de uma rota/Server Component de verdade).
- */
-export function construirToken(versao, expiraEm) {
-  const carga = `admin.${versao}.${expiraEm}`;
-  return `${carga}.${assinar(carga)}`;
+/** True enquanto não existir nenhum barbeiro admin com login já definido — condição de saída do bootstrap. */
+export function modoBootstrap() {
+  return !existeAdminComSenha();
 }
 
-/** Nome do cookie de sessão — exportado só para uso nos testes. */
+/**
+ * Autentica um barbeiro pelo e-mail. Sempre roda o scrypt contra ALGUM hash
+ * (o real ou o dummy) antes de responder — e-mail inexistente, login
+ * desativado e senha errada devem levar o mesmo tempo, para não vazar por
+ * timing quais e-mails têm conta.
+ */
+export async function autenticarBarbeiro(email, senha) {
+  const texto = String(senha ?? "");
+  const barbeiro = buscarBarbeiroPorEmail(email);
+
+  if (!barbeiro || !barbeiro.login_ativo) {
+    await conferirHash(texto || " ", HASH_DUMMY);
+    return { ok: false };
+  }
+
+  const confere = await conferirHash(texto, barbeiro.senha_hash || HASH_DUMMY);
+  if (!confere) return { ok: false };
+
+  return { ok: true, barbeiro };
+}
+
+/** Troca a própria senha (exige a atual) — deixa quem trocou logado, com uma sessão já na versão nova. */
+export async function trocarSenhaPropria(barbeiroId, senhaAtual, novaSenha) {
+  const barbeiro = buscarBarbeiroPorId(barbeiroId);
+  if (!barbeiro) return { ok: false, erro: "Barbeiro não encontrado." };
+
+  const confere = await conferirHash(
+    String(senhaAtual ?? ""),
+    barbeiro.senha_hash || HASH_DUMMY,
+  );
+  if (!confere) return { ok: false, erro: "A senha atual está incorreta." };
+
+  definirLoginBarbeiro(barbeiroId, { senhaHash: await gerarHash(novaSenha) });
+  criarSessaoBarbeiro(barbeiroId);
+  return { ok: true };
+}
+
+/**
+ * Troca o próprio e-mail (exige a senha atual) — sem isso, uma sessão
+ * sequestrada poderia redirecionar em silêncio a recuperação de senha para
+ * um e-mail que o atacante controla.
+ */
+export async function trocarEmailProprio(barbeiroId, senhaAtual, novoEmail) {
+  const barbeiro = buscarBarbeiroPorId(barbeiroId);
+  if (!barbeiro) return { ok: false, erro: "Barbeiro não encontrado." };
+
+  const confere = await conferirHash(
+    String(senhaAtual ?? ""),
+    barbeiro.senha_hash || HASH_DUMMY,
+  );
+  if (!confere) return { ok: false, erro: "A senha atual está incorreta." };
+
+  const email = String(novoEmail ?? "")
+    .trim()
+    .toLowerCase();
+  try {
+    definirLoginBarbeiro(barbeiroId, { email });
+  } catch (e) {
+    if (String(e?.code ?? "").startsWith("SQLITE_CONSTRAINT")) {
+      return { ok: false, erro: "Esse e-mail já está em uso." };
+    }
+    throw e;
+  }
+  criarSessaoBarbeiro(barbeiroId);
+  return { ok: true };
+}
+
+/**
+ * Conclui o bootstrap: cria (sem barbeiroId) ou promove (com barbeiroId) o
+ * primeiro admin com login definido. Bumpa config.sessao_versao — cinturão e
+ * suspensórios além de tokenValido() já rejeitar qualquer token de bootstrap
+ * assim que modoBootstrap() vira false, independente de versão.
+ */
+export async function concluirBootstrap({ barbeiroId, nome, email, senha }) {
+  const emailNormalizado = String(email ?? "")
+    .trim()
+    .toLowerCase();
+  const senhaHash = await gerarHash(senha);
+
+  let id;
+  try {
+    if (barbeiroId) {
+      const alterados = promoverBarbeiroAAdmin(barbeiroId, {
+        email: emailNormalizado,
+        senhaHash,
+      });
+      if (!alterados) return { ok: false, erro: "Barbeiro não encontrado." };
+      id = barbeiroId;
+    } else {
+      const nomeLimpo = String(nome ?? "").trim();
+      if (!nomeLimpo) return { ok: false, erro: "Informe o nome." };
+      id = criarBarbeiroAdmin({
+        nome: nomeLimpo,
+        email: emailNormalizado,
+        senhaHash,
+      });
+    }
+  } catch (e) {
+    if (String(e?.code ?? "").startsWith("SQLITE_CONSTRAINT")) {
+      return { ok: false, erro: "Esse e-mail já está em uso." };
+    }
+    throw e;
+  }
+
+  const versao = Number(lerConfig().sessao_versao || 1) + 1;
+  salvarConfig({ sessao_versao: String(versao) });
+
+  return { ok: true, barbeiroId: id };
+}
+
+/** Gera um token de reset de alta entropia, guarda só o hash (sha256) e devolve o token bruto — nunca persistido em texto puro. */
+export function gerarTokenReset(barbeiroId, ip) {
+  const bruto = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(bruto).digest("hex");
+  criarTokenReset({
+    barbeiroId,
+    tokenHash,
+    minutos: MINUTOS_EXPIRACAO_RESET,
+    ip,
+  });
+  return bruto;
+}
+
+/**
+ * Consome um token de reset: se válido (existe, não usado, não expirado),
+ * grava a senha nova, marca o token como usado, apaga qualquer outro token
+ * pendente do mesmo barbeiro e derruba as sessões abertas dele (bump em
+ * sessao_versao, dentro de definirLoginBarbeiro). Nunca diferencia, para
+ * quem chama, entre token inexistente/expirado/já usado.
+ */
+export async function consumirTokenReset(tokenBruto, novaSenha) {
+  const tokenHash = crypto
+    .createHash("sha256")
+    .update(String(tokenBruto ?? ""))
+    .digest("hex");
+  const registro = buscarTokenResetValido(tokenHash);
+  if (!registro) return { ok: false };
+
+  definirLoginBarbeiro(registro.barbeiro_id, {
+    senhaHash: await gerarHash(novaSenha),
+  });
+  marcarTokenResetUsado(registro.id);
+  apagarTokensResetPendentes(registro.barbeiro_id);
+
+  return { ok: true, barbeiroId: registro.barbeiro_id };
+}
+
+/* -------------------------------------------------------------------------
+   Sessão
+
+   Dois formatos de cookie, distinguíveis pelo primeiro campo:
+     bootstrap.<versaoGlobal>.<expiraEm>.<assinatura>
+     barbeiro.<barbeiroId>.<versao>.<expiraEm>.<assinatura>
+   O segundo é validado contra barbeiros.sessao_versao DAQUELE id, não mais
+   um contador global — trocar a senha de um barbeiro não derruba a sessão
+   dos outros.
+   ------------------------------------------------------------------------- */
+
 export { NOME_COOKIE };
 
-export function criarSessao() {
-  const versao = lerConfig().sessao_versao || "1";
-  const expiraEm = Date.now() + DURACAO_SEGUNDOS * 1000;
-  cookies().set(NOME_COOKIE, construirToken(versao, expiraEm), {
+function opcoesCookie() {
+  return {
     httpOnly: true,
     // Não existe fluxo do painel vindo de fora do próprio site — 'strict' não
     // quebra nada aqui e fecha a porta pra CSRF via navegação/formulário externo.
@@ -204,43 +371,119 @@ export function criarSessao() {
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: DURACAO_SEGUNDOS,
-  });
+  };
+}
+
+/** Monta o valor assinado do cookie de bootstrap — extraído à parte para poder ser exercitado em teste. */
+export function construirTokenBootstrap(versao, expiraEm) {
+  const carga = `bootstrap.${versao}.${expiraEm}`;
+  return `${carga}.${assinar(carga)}`;
+}
+
+/** Mesma ideia, para o cookie de um barbeiro autenticado. */
+export function construirTokenBarbeiro(barbeiroId, versao, expiraEm) {
+  const carga = `barbeiro.${barbeiroId}.${versao}.${expiraEm}`;
+  return `${carga}.${assinar(carga)}`;
+}
+
+export function criarSessao() {
+  const versao = lerConfig().sessao_versao || "1";
+  const expiraEm = Date.now() + DURACAO_SEGUNDOS * 1000;
+  cookies().set(
+    NOME_COOKIE,
+    construirTokenBootstrap(versao, expiraEm),
+    opcoesCookie(),
+  );
+}
+
+export function criarSessaoBarbeiro(barbeiroId) {
+  const barbeiro = buscarBarbeiroPorId(barbeiroId);
+  const versao = String(barbeiro?.sessao_versao ?? 1);
+  const expiraEm = Date.now() + DURACAO_SEGUNDOS * 1000;
+  cookies().set(
+    NOME_COOKIE,
+    construirTokenBarbeiro(barbeiroId, versao, expiraEm),
+    opcoesCookie(),
+  );
 }
 
 export function encerrarSessao() {
   cookies().set(NOME_COOKIE, "", { path: "/", maxAge: 0 });
 }
 
-/** Mesma verificação de sessaoValida(), mas recebendo o token diretamente. */
-export function tokenValido(token) {
-  if (!token) return false;
-
+/**
+ * Decodifica e valida um token, devolvendo null quando inválido ou
+ * { tipo: 'bootstrap' } | { tipo: 'barbeiro', barbeiroId, papel, nome, email }.
+ * Único lugar que entende os dois formatos de cookie — tokenValido() e
+ * sessaoAtual() são só fachadas em cima desta função.
+ */
+function decodificarSessao(token) {
+  if (!token) return null;
   const partes = token.split(".");
-  if (partes.length !== 4) return false;
 
-  const [dono, versao, expiraEm, assinatura] = partes;
-  const carga = `${dono}.${versao}.${expiraEm}`;
+  if (partes.length === 4 && partes[0] === "bootstrap") {
+    const [dono, versao, expiraEm, assinatura] = partes;
+    const carga = `${dono}.${versao}.${expiraEm}`;
+    if (!iguais(assinatura, assinar(carga))) return null;
+    if (Number(expiraEm) <= Date.now()) return null;
+    // O bootstrap fica desativado para sempre assim que o primeiro admin é
+    // criado — mesmo um cookie ainda "na versão certa" não deveria voltar a
+    // valer depois disso.
+    if (!modoBootstrap()) return null;
+    if (versao !== (lerConfig().sessao_versao || "1")) return null;
+    return { tipo: "bootstrap" };
+  }
 
-  if (!iguais(assinatura, assinar(carga))) return false;
-  if (Number(expiraEm) <= Date.now()) return false;
+  if (partes.length === 5 && partes[0] === "barbeiro") {
+    const [dono, idTexto, versao, expiraEm, assinatura] = partes;
+    const carga = `${dono}.${idTexto}.${versao}.${expiraEm}`;
+    if (!iguais(assinatura, assinar(carga))) return null;
+    if (Number(expiraEm) <= Date.now()) return null;
 
-  // Uma troca de senha invalida os cookies emitidos antes dela.
-  return versao === (lerConfig().sessao_versao || "1");
+    const barbeiro = buscarBarbeiroPorId(Number(idTexto));
+    if (!barbeiro || !barbeiro.login_ativo) return null;
+    if (versao !== String(barbeiro.sessao_versao)) return null;
+
+    return {
+      tipo: "barbeiro",
+      barbeiroId: barbeiro.id,
+      papel: barbeiro.papel,
+      nome: barbeiro.nome,
+      email: barbeiro.email,
+    };
+  }
+
+  return null;
+}
+
+/** Mesma verificação de sessaoValida(), mas recebendo o token diretamente — usado nos testes. */
+export function tokenValido(token) {
+  return decodificarSessao(token) !== null;
 }
 
 export function sessaoValida() {
   return tokenValido(cookies().get(NOME_COOKIE)?.value);
 }
 
+/** Quem está logado agora, e como — null sem sessão válida. */
+export function sessaoAtual() {
+  return decodificarSessao(cookies().get(NOME_COOKIE)?.value);
+}
+
 const METODOS_MUTACAO = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
-// Enquanto a senha ainda é a inicial (a do .env), o painel só deixa trocar a
-// senha e ler a configuração — o resto responde 403. A trava visual no
-// frontend (PainelAdmin.jsx) continua existindo, mas quem decide é aqui.
-function rotaPermitidaComSenhaInicial(request) {
+// Enquanto o bootstrap não foi concluído, o painel só deixa: trocar a senha
+// de bootstrap, ler a configuração, listar barbeiros (para o formulário
+// escolher quem vira o primeiro admin) e concluir o próprio bootstrap — todo
+// o resto responde 403. A trava visual no frontend (PainelAdmin.jsx) continua
+// existindo, mas quem decide é aqui.
+function rotaPermitidaEmBootstrap(request) {
   const { pathname } = new URL(request.url);
   if (pathname === "/api/admin/senha") return true;
+  if (pathname === "/api/admin/bootstrap") return true;
   if (pathname === "/api/admin/config" && request.method === "GET") return true;
+  if (pathname === "/api/admin/barbeiros" && request.method === "GET")
+    return true;
   return false;
 }
 
@@ -282,13 +525,11 @@ export function exigirSessao(request) {
     }
   }
 
-  if (
-    request &&
-    usandoSenhaInicial() &&
-    !rotaPermitidaComSenhaInicial(request)
-  ) {
+  if (request && modoBootstrap() && !rotaPermitidaEmBootstrap(request)) {
     return Response.json(
-      { erro: "Troque a senha inicial antes de continuar usando o painel." },
+      {
+        erro: "Conclua a configuração inicial antes de continuar usando o painel.",
+      },
       { status: 403 },
     );
   }

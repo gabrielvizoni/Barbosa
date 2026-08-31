@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import {
   sessaoValida,
   tokenValido,
-  construirToken,
+  construirTokenBootstrap,
   NOME_COOKIE,
-  senhaConfere,
+  senhaBootstrapConfere,
   gerarHash,
   sessaoConfiguradaComSeguranca,
   senhaInicialConfiguradaComSeguranca,
@@ -37,20 +37,20 @@ afterEach(() => {
 });
 
 test("cookie com assinatura inválida é rejeitado", () => {
-  const token = construirToken("1", Date.now() + 60_000);
+  const token = construirTokenBootstrap("1", Date.now() + 60_000);
   const adulterado = `${token.slice(0, -4)}0000`;
   __setCookie(NOME_COOKIE, adulterado);
   assert.equal(sessaoValida(), false);
 });
 
 test("cookie expirado é rejeitado", () => {
-  const expirado = construirToken("1", Date.now() - 1000);
+  const expirado = construirTokenBootstrap("1", Date.now() - 1000);
   __setCookie(NOME_COOKIE, expirado);
   assert.equal(sessaoValida(), false);
 });
 
 test("cookie com sessao_versao antiga é rejeitado depois de uma troca de senha", () => {
-  const token = construirToken("1", Date.now() + 60_000);
+  const token = construirTokenBootstrap("1", Date.now() + 60_000);
   __setCookie(NOME_COOKIE, token);
   assert.equal(sessaoValida(), true);
 
@@ -66,8 +66,8 @@ test("tokenValido rejeita valor sem o formato esperado (4 partes)", () => {
 
 test("conferirHash (via senhaConfere) aceita a senha correta e rejeita a errada", async () => {
   salvarConfig({ senha_hash: await gerarHash("minha-senha-forte") });
-  assert.equal(await senhaConfere("minha-senha-forte"), true);
-  assert.equal(await senhaConfere("senha-errada"), false);
+  assert.equal(await senhaBootstrapConfere("minha-senha-forte"), true);
+  assert.equal(await senhaBootstrapConfere("senha-errada"), false);
 });
 
 test("cookie assinado com o valor placeholder não deve ser aceito quando NODE_ENV=production", () => {
@@ -88,13 +88,13 @@ test("senha rejeitada quando ADMIN_PASSWORD ausente (sem senha própria, em prod
   assert.equal(senhaInicialConfiguradaComSeguranca(), false);
   // Sem senha_hash no banco (beforeEach não define uma) e sem ADMIN_PASSWORD válido:
   // nenhuma senha deveria ser aceita, nem uma vazia nem qualquer outra.
-  assert.equal(await senhaConfere("qualquer-coisa"), false);
+  assert.equal(await senhaBootstrapConfere("qualquer-coisa"), false);
 });
 
 test("senha rejeitada quando ADMIN_PASSWORD é o placeholder do .env.example, em produção", async () => {
   process.env.NODE_ENV = "production";
   process.env.ADMIN_PASSWORD = "troque-esta-senha";
-  assert.equal(await senhaConfere("troque-esta-senha"), false);
+  assert.equal(await senhaBootstrapConfere("troque-esta-senha"), false);
 });
 
 test("rate limit: X-Forwarded-For forjado é ignorado quando TRUST_PROXY não está definido", () => {

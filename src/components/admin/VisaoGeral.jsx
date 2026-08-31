@@ -46,17 +46,13 @@ function porExtenso(data) {
 export default function VisaoGeral({ tratarErro }) {
   const [resumo, setResumo] = useState(null);
   const [config, setConfig] = useState(null);
-  const [senhaInicial, setSenhaInicial] = useState(false);
   const [barbeiros, setBarbeiros] = useState(null);
   const [servicos, setServicos] = useState(null);
 
   useEffect(() => {
     api("resumo").then(setResumo).catch(tratarErro);
     api("config")
-      .then((r) => {
-        setConfig(r.config);
-        setSenhaInicial(!!r.senhaInicial);
-      })
+      .then((r) => setConfig(r.config))
       .catch(() => {});
     api("barbeiros")
       .then((r) => setBarbeiros(r.itens))
@@ -89,11 +85,6 @@ export default function VisaoGeral({ tratarErro }) {
   const passos =
     config && barbeiros && servicos
       ? [
-          {
-            chave: "senha",
-            rotulo: "Defina uma senha própria",
-            feito: !senhaInicial,
-          },
           {
             chave: "identidade",
             rotulo: "Preencha o nome e o WhatsApp da barbearia",

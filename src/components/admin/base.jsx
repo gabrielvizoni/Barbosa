@@ -33,6 +33,15 @@ const SELETOR_FOCAVEIS =
 export function Modal({ titulo, children, aoFechar, rodape }) {
   const caixa = useRef(null);
   const gatilhoAnterior = useRef(null);
+  // `aoFechar` guardado num ref: quem abre o modal sempre passa uma arrow
+  // function nova a cada render (`aoFechar={() => setX(null)}`), então
+  // digitar em qualquer campo do formulário re-renderiza o componente pai e
+  // troca a identidade de `aoFechar`. Se o efeito abaixo dependesse dela
+  // diretamente, ele rodaria de novo a cada tecla — e o `.focus()` no primeiro
+  // campo focável roubava o foco de volta, deixando impossível digitar mais
+  // de um caractere em qualquer campo que não fosse o primeiro do formulário.
+  const aoFecharRef = useRef(aoFechar);
+  aoFecharRef.current = aoFechar;
 
   useEffect(() => {
     gatilhoAnterior.current = document.activeElement;
@@ -42,7 +51,7 @@ export function Modal({ titulo, children, aoFechar, rodape }) {
     function aoTeclar(e) {
       if (e.key === "Escape") {
         e.preventDefault();
-        aoFechar();
+        aoFecharRef.current();
         return;
       }
       if (e.key !== "Tab" || !caixa.current) return;
@@ -66,7 +75,9 @@ export function Modal({ titulo, children, aoFechar, rodape }) {
       document.removeEventListener("keydown", aoTeclar);
       gatilhoAnterior.current?.focus?.();
     };
-  }, [aoFechar]);
+    // Só na abertura/fechamento do modal — nunca a cada render (ver o
+    // comentário no aoFecharRef acima).
+  }, []);
 
   return (
     <div

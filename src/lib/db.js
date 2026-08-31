@@ -110,11 +110,136 @@ export function definirBarbeirosDoServico(servicoId, barbeiroIds) {
   tx();
 }
 
+// Nunca inclui `senha_hash`, `email`, `login_ativo`, `papel` nem
+// `sessao_versao`: esta é a listagem que alimenta o site público (página
+// inicial e /api/public) — inclusive quando passada como prop de um Server
+// Component para um Client Component, o que serializa o objeto inteiro no
+// payload enviado ao navegador. Ver listarBarbeirosAdmin() para o painel.
+const COLUNAS_BARBEIRO_PUBLICAS = "id, nome, funcao, bio, foto, ativo, ordem";
+
 export function listarBarbeiros({ somenteAtivos = false } = {}) {
   const where = somenteAtivos ? "WHERE ativo = 1" : "";
   return getDb()
-    .prepare(`SELECT * FROM barbeiros ${where} ORDER BY ordem, id`)
+    .prepare(
+      `SELECT ${COLUNAS_BARBEIRO_PUBLICAS} FROM barbeiros ${where} ORDER BY ordem, id`,
+    )
     .all();
+}
+
+/** Mesma listagem, com as colunas de login que só o painel pode ver — nunca `senha_hash`. */
+export function listarBarbeirosAdmin({ somenteAtivos = false } = {}) {
+  const where = somenteAtivos ? "WHERE ativo = 1" : "";
+  return getDb()
+    .prepare(
+      `SELECT ${COLUNAS_BARBEIRO_PUBLICAS}, email, login_ativo, papel FROM barbeiros ${where} ORDER BY ordem, id`,
+    )
+    .all();
+}
+
+export function buscarBarbeiroPorId(id) {
+  return getDb().prepare("SELECT * FROM barbeiros WHERE id = ?").get(id);
+}
+
+export function buscarBarbeiroPorEmail(email) {
+  const texto = String(email ?? "").trim();
+  if (!texto) return undefined;
+  return getDb()
+    .prepare("SELECT * FROM barbeiros WHERE lower(email) = lower(?)")
+    .get(texto);
+}
+
+/** True quando já existe um admin com login definido — condição de saída do modo bootstrap. */
+export function existeAdminComSenha() {
+  return Boolean(
+    getDb()
+      .prepare(
+        "SELECT 1 FROM barbeiros WHERE papel = 'admin' AND senha_hash <> '' LIMIT 1",
+      )
+      .get(),
+  );
+}
+
+/** Bootstrap: cria um barbeiro novo já como admin, com login definido. */
+export function criarBarbeiroAdmin({ nome, email, senhaHash }) {
+  const { n: ordem } = getDb()
+    .prepare("SELECT COALESCE(MAX(ordem), 0) + 1 AS n FROM barbeiros")
+    .get();
+  const resultado = getDb()
+    .prepare(
+      `INSERT INTO barbeiros (nome, email, senha_hash, papel, ativo, ordem)
+       VALUES (?, ?, ?, 'admin', 1, ?)`,
+    )
+    .run(nome, email, senhaHash, ordem);
+  return Number(resultado.lastInsertRowid);
+}
+
+/** Bootstrap: promove um barbeiro já cadastrado a admin, definindo o login dele. */
+export function promoverBarbeiroAAdmin(id, { email, senhaHash }) {
+  return getDb()
+    .prepare(
+      "UPDATE barbeiros SET email = ?, senha_hash = ?, papel = 'admin' WHERE id = ?",
+    )
+    .run(email, senhaHash, id).changes;
+}
+
+/**
+ * Define e-mail e/ou senha de um barbeiro (troca própria ou reset) — sempre
+ * derruba as sessões abertas dele (bump em sessao_versao), mesmo quando só
+ * um dos dois campos é enviado.
+ */
+export function definirLoginBarbeiro(id, { email, senhaHash } = {}) {
+  const campos = [];
+  const valores = [];
+  if (email !== undefined) {
+    campos.push("email = ?");
+    valores.push(email);
+  }
+  if (senhaHash !== undefined) {
+    campos.push("senha_hash = ?");
+    valores.push(senhaHash);
+  }
+  campos.push("sessao_versao = sessao_versao + 1");
+  valores.push(id);
+  return getDb()
+    .prepare(`UPDATE barbeiros SET ${campos.join(", ")} WHERE id = ?`)
+    .run(...valores).changes;
+}
+
+/** Token de reset: expira_em é calculado pelo próprio SQLite, para bater exatamente com o formato de datetime('now') usado na comparação (ver buscarTokenResetValido). */
+export function criarTokenReset({ barbeiroId, tokenHash, minutos, ip }) {
+  const resultado = getDb()
+    .prepare(
+      `INSERT INTO reset_senha_tokens (barbeiro_id, token_hash, expira_em, ip_solicitante)
+       VALUES (?, ?, datetime('now', ?), ?)`,
+    )
+    .run(barbeiroId, tokenHash, `+${minutos} minutes`, ip || "");
+  return Number(resultado.lastInsertRowid);
+}
+
+/** Só devolve o token se ainda não foi usado e ainda não expirou — nunca diferencia os dois motivos para quem chama. */
+export function buscarTokenResetValido(tokenHash) {
+  return getDb()
+    .prepare(
+      `SELECT * FROM reset_senha_tokens
+       WHERE token_hash = ? AND usado_em IS NULL AND expira_em > datetime('now')`,
+    )
+    .get(tokenHash);
+}
+
+export function marcarTokenResetUsado(id) {
+  getDb()
+    .prepare(
+      "UPDATE reset_senha_tokens SET usado_em = datetime('now') WHERE id = ?",
+    )
+    .run(id);
+}
+
+export function apagarTokensResetPendentes(barbeiroId) {
+  getDb()
+    .prepare(
+      "DELETE FROM reset_senha_tokens WHERE barbeiro_id = ? AND usado_em IS NULL",
+    )
+    .run(barbeiroId);
 }
 
 export function listarProdutos({ somenteAtivos = false } = {}) {

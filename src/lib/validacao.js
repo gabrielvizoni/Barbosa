@@ -8,6 +8,7 @@
 
 const RE_DATA = /^\d{4}-\d{2}-\d{2}$/;
 const RE_HORA = /^\d{2}:\d{2}$/;
+const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function textoValido(valor, { max }) {
   const texto = String(valor ?? "");
@@ -48,6 +49,14 @@ export function horaValida(valor) {
   return h <= 23 && m <= 59 ? null : "não é um horário válido.";
 }
 
+/** E-mail em formato razoável. Vazio é aceito — nem todo barbeiro tem e-mail cadastrado ainda. */
+export function emailValido(valor) {
+  const texto = String(valor ?? "").trim();
+  if (!texto) return null;
+  if (texto.length > 160) return "não pode passar de 160 caracteres.";
+  return RE_EMAIL.test(texto) ? null : "não é um e-mail válido.";
+}
+
 const ESQUEMAS = {
   barbeiros: {
     obrigatorios: ["nome"],
@@ -57,6 +66,7 @@ const ESQUEMAS = {
       bio: (v) => textoValido(v, { max: 500 }),
       foto: (v) => textoValido(v, { max: 300 }),
       ordem: inteiroEntre(0, 9999),
+      email: emailValido,
     },
   },
   servicos: {

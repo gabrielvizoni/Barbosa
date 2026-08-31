@@ -9,6 +9,7 @@
 // subir o servidor de verdade.
 import { getDb, abrirConexao } from "../src/lib/db.js";
 import { aplicarMigrations } from "../src/lib/migrations.js";
+import { gerarHash } from "../src/lib/auth.js";
 
 let migrado = false;
 
@@ -76,6 +77,40 @@ export function criarBloqueio(
       "INSERT INTO bloqueios (barbeiro_id, data, inicio, fim, motivo) VALUES (?, ?, ?, ?, ?)",
     )
     .run(barbeiroId, data, inicio, fim, motivo);
+  return Number(resultado.lastInsertRowid);
+}
+
+/**
+ * Cria um barbeiro com login próprio já definido (senha real, hasheada).
+ * `ativo` (visibilidade no site/relatórios) começa em 0 de propósito: este
+ * helper serve para simular UMA SESSÃO autenticada nos testes de rota, sem
+ * poluir listagens/relatórios que filtram por `ativo` — `login_ativo` (a
+ * capacidade de entrar no painel) é uma coluna independente.
+ */
+export async function criarBarbeiroComLogin(
+  {
+    nome = "Barbeiro Teste",
+    email = "barbeiro@teste.com",
+    senha = "senha-de-teste-123",
+    papel = "barbeiro",
+    loginAtivo = 1,
+    ativo = 0,
+  } = {},
+  conn = getDb(),
+) {
+  const resultado = conn
+    .prepare(
+      `INSERT INTO barbeiros (nome, email, senha_hash, papel, login_ativo, ativo, ordem)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+    )
+    .run(
+      nome,
+      email,
+      await gerarHash(senha),
+      papel,
+      loginAtivo ? 1 : 0,
+      ativo ? 1 : 0,
+    );
   return Number(resultado.lastInsertRowid);
 }
 

@@ -1,8 +1,10 @@
 import {
   autenticacaoConfiguradaComSeguranca,
+  autenticarBarbeiro,
   criarSessao,
-  senhaConfere,
-  usandoSenhaInicial,
+  criarSessaoBarbeiro,
+  modoBootstrap,
+  senhaBootstrapConfere,
 } from "@/lib/auth";
 import {
   limiteAtingido,
@@ -64,16 +66,36 @@ export const POST = comLog(ROTA, async (request) => {
     return Response.json({ erro: "JSON inválido." }, { status: 400 });
   }
 
-  // Nunca logar a senha em si — nem em caso de erro.
-  if (!(await senhaConfere(corpo.senha))) {
+  // Enquanto o bootstrap não foi concluído, só o formato antigo (senha
+  // única) é aceito — não existe ainda nenhum barbeiro com login próprio.
+  if (modoBootstrap()) {
+    // Nunca logar a senha em si — nem em caso de erro.
+    if (!(await senhaBootstrapConfere(corpo.senha))) {
+      registrarTentativa(chave);
+      registrarTentativa(CHAVE_GLOBAL);
+      registrarAviso(ROTA, "login de bootstrap falho");
+      return Response.json({ erro: "Senha incorreta." }, { status: 401 });
+    }
+
+    limparTentativas(chave);
+    criarSessao();
+    registrarInfo(ROTA, "login de bootstrap bem-sucedido");
+    return Response.json({ ok: true, modoBootstrap: true });
+  }
+
+  const resultado = await autenticarBarbeiro(corpo.email, corpo.senha);
+  if (!resultado.ok) {
     registrarTentativa(chave);
     registrarTentativa(CHAVE_GLOBAL);
     registrarAviso(ROTA, "login falho");
-    return Response.json({ erro: "Senha incorreta." }, { status: 401 });
+    return Response.json(
+      { erro: "E-mail ou senha incorretos." },
+      { status: 401 },
+    );
   }
 
   limparTentativas(chave);
-  criarSessao();
+  criarSessaoBarbeiro(resultado.barbeiro.id);
   registrarInfo(ROTA, "login bem-sucedido");
-  return Response.json({ ok: true, senhaInicial: usandoSenhaInicial() });
+  return Response.json({ ok: true, modoBootstrap: false });
 });

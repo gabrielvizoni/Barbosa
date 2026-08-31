@@ -4,23 +4,28 @@ import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 
-import { bancoDeTeste } from "./ajuda.js";
+import { bancoDeTeste, criarBarbeiroComLogin } from "./ajuda.js";
 import { __resetCookies, __setCookie } from "./fake-next-headers.mjs";
-import { construirToken, NOME_COOKIE, gerarHash } from "../src/lib/auth.js";
-import { salvarConfig } from "../src/lib/db.js";
+import { construirTokenBarbeiro, NOME_COOKIE } from "../src/lib/auth.js";
 
 // Arquivos criados por este teste, para apagar no final — grava em
 // public/uploads de verdade (é o que a rota faz), então precisa limpar.
 const criados = [];
 
 beforeEach(async () => {
-  bancoDeTeste();
+  const conn = bancoDeTeste();
+  // Sem isso, o segundo teste tentaria cadastrar o mesmo e-mail de novo e
+  // esbarraria no índice único (ver criarBarbeiroComLogin em ajuda.js).
+  conn.exec("DELETE FROM barbeiros");
   __resetCookies();
-  // Sem senha própria definida, exigirSessao() bloqueia tudo com 403 exceto
-  // /api/admin/senha e o GET de /api/admin/config (Etapa 1, item 6) — o
-  // upload precisa de uma senha já trocada para não cair nessa trava.
-  salvarConfig({ senha_hash: await gerarHash("senha-de-teste-valida-99") });
-  __setCookie(NOME_COOKIE, construirToken("1", Date.now() + 60_000));
+  // Sem uma sessão de barbeiro admin com login definido, modoBootstrap()
+  // continua true e a trava de bootstrap bloqueia esta rota com 403 (só
+  // libera configuração inicial) — o upload precisa de acesso pleno.
+  const adminId = await criarBarbeiroComLogin({ papel: "admin" });
+  __setCookie(
+    NOME_COOKIE,
+    construirTokenBarbeiro(adminId, "1", Date.now() + 60_000),
+  );
 });
 
 after(() => {

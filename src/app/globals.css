@@ -2382,7 +2382,9 @@ table.tabela tbody tr:hover {
   width: 118px;
 }
 
-/* Entrada do painel */
+/* ---------- Entrada do painel (login, bootstrap, redefinir senha) ---------- */
+
+/* Fallback simples, usado só no instante de "verificando sessão". */
 .portao {
   min-height: 100vh;
   display: flex;
@@ -2392,29 +2394,192 @@ table.tabela tbody tr:hover {
   padding: 24px;
 }
 
-.portao-caixa {
+/* Layout em duas colunas: marca à esquerda, cartão de acesso à direita. */
+.acesso {
+  min-height: 100vh;
+  display: flex;
+}
+
+.acesso-marca {
+  width: 440px;
+  flex-shrink: 0;
+  background: var(--verde-900);
+  color: var(--creme-alto);
+  padding: 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.acesso-marca-brilho {
+  position: absolute;
+  left: -140px;
+  bottom: -160px;
+  width: 440px;
+  height: 440px;
+  border-radius: 50%;
+  background: var(--dourado);
+  opacity: 0.18;
+  filter: blur(90px);
+  pointer-events: none;
+}
+
+.acesso-marca-conteudo {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.acesso-marca-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.acesso-marca-poste {
+  width: 8px;
+  height: 30px;
+  border-radius: 4px;
+  background: var(--dourado);
+  flex-shrink: 0;
+}
+
+.acesso-marca-nome {
+  font-family: var(--fonte-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.acesso-marca h1 {
+  font-size: clamp(30px, 3.4vw, 38px);
+  line-height: 1.14;
+  letter-spacing: -0.01em;
+}
+
+.acesso-marca h1 em {
+  font-style: italic;
+  color: var(--dourado-claro);
+}
+
+.acesso-marca-texto {
+  margin: 0;
+  font-size: 15.5px;
+  line-height: 1.55;
+  color: rgba(247, 243, 234, 0.76);
+  max-width: 38ch;
+}
+
+.acesso-marca-rodape {
+  position: relative;
+  font-family: var(--fonte-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(247, 243, 234, 0.55);
+}
+
+.acesso-conteudo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--creme);
+  padding: 40px 24px;
+}
+
+.acesso-coluna {
   width: 100%;
   max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.acesso-cartao {
   background: var(--creme-alto);
   border-radius: var(--raio-g);
-  overflow: hidden;
   box-shadow: var(--sombra-forte);
+  padding: 36px 34px;
 }
 
-.portao-topo {
-  background: var(--verde-700);
-  color: var(--creme-alto);
-  padding: 26px 26px 22px;
+.acesso-cartao-topo {
   text-align: center;
+  margin-bottom: 24px;
 }
 
-.portao-topo h1 {
-  font-size: 25px;
+.acesso-cartao-topo h1 {
+  font-size: 23px;
   margin-top: 4px;
 }
 
-.portao-corpo {
-  padding: 26px;
+.acesso-ajuda {
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--tinta-suave);
+  line-height: 1.5;
+}
+
+/* Campo com ícone dentro (cadeado, e-mail, olho de mostrar/ocultar senha). */
+.campo-com-icone {
+  position: relative;
+}
+
+.campo-com-icone .entrada {
+  padding-left: 42px;
+}
+
+.campo-com-icone .icone-esquerda {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tinta-suave);
+  opacity: 0.7;
+  pointer-events: none;
+  display: flex;
+}
+
+.campo-com-icone .icone-direita {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--tinta-suave);
+  opacity: 0.7;
+  cursor: pointer;
+  display: flex;
+  border-radius: 6px;
+}
+
+.campo-com-icone .icone-direita:hover {
+  opacity: 1;
+  background: rgba(27, 23, 18, 0.05);
+}
+
+.campo-com-icone.tem-icone-direita .entrada {
+  padding-right: 40px;
+}
+
+@media (max-width: 860px) {
+  .acesso-marca {
+    display: none;
+  }
+  .acesso-conteudo {
+    padding: 32px 18px;
+  }
+  .acesso-cartao {
+    padding: 28px 24px;
+  }
 }
 
 /* Recado flutuante */

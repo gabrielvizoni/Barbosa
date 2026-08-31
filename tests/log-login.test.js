@@ -40,7 +40,10 @@ test("login falho gera uma linha de log, e essa linha não contém a senha", asy
 
   assert.equal(resposta.status, 401);
 
-  const linhaLogin = linhas.find((l) => l.msg === "login falho");
+  // Banco fresco, sem nenhum barbeiro admin: modoBootstrap() é true, então
+  // o login cai no branch de bootstrap (mensagem própria, para distinguir
+  // no log dos logins normais por e-mail/senha de barbeiro).
+  const linhaLogin = linhas.find((l) => l.msg === "login de bootstrap falho");
   assert.ok(
     linhaLogin,
     "deveria ter gerado uma linha de log para o login falho",
@@ -74,7 +77,9 @@ test("login bem-sucedido também gera log, sem a senha", async () => {
 
   assert.equal(resposta.status, 200);
 
-  const linhaLogin = linhas.find((l) => l.msg === "login bem-sucedido");
+  const linhaLogin = linhas.find(
+    (l) => l.msg === "login de bootstrap bem-sucedido",
+  );
   assert.ok(linhaLogin);
   assert.equal(linhaLogin.nivel, "info");
   assert.equal(JSON.stringify(linhaLogin).includes(senhaReal), false);
