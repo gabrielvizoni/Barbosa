@@ -15,21 +15,22 @@ acesso. Sem experimento destrutivo (a etapa é de boot/deploy).
 
 `getDb()` (`db.js:22-48`) faz, **na primeira chamada** (lazy, não no start do
 processo):
+
 1. `abrirConexao()` — `mkdirSync` do diretório, `new Database(DB_PATH)`,
    `PRAGMA journal_mode = WAL`, `PRAGMA foreign_keys = ON`.
 2. `versaoDoBanco(db) !== versaoEsperada()` → `throw "Banco de dados
-   desatualizado (versão X, esperada Y). Rode \"npm run migrate\" antes de
-   iniciar o servidor."`
+desatualizado (versão X, esperada Y). Rode \"npm run migrate\" antes de
+iniciar o servidor."`
 3. Se `NODE_ENV === "production"`: `verificarAmbiente()` → se a lista não for
    vazia → `throw "Configuração insegura para produção — corrija antes de
-   continuar:\n  - <problema>"`.
+continuar:\n  - <problema>"`.
 
-| Cenário | Falha barulhenta ou silenciosa? | A mensagem diz o que fazer? | Onde a mensagem aparece |
-|---|---|---|---|
-| **Banco desatualizado** | O processo **sobe normalmente**. A 1ª requisição que toca `getDb()` (ex.: `/api/public`) → `throw` → `comLog` → **500 genérico "Algo deu errado."** ao visitante. `/api/health` → 503 `{ok:false}`. | **Sim** — "Rode `npm run migrate` antes de iniciar o servidor." | Só no **stdout** (`registrarErro`). Não no terminal do `npm start`, não no corpo do 500, não no `/api/health`. |
-| **Disco cheio** | **Silenciosa.** `abrirConexao` pode lançar `ENOSPC` no `mkdirSync`/`new Database` → 500 genérico. Em operação, um `INSERT` com disco cheio → `SQLITE_FULL` → `tratarErroTransacao` não reconhece (só `SQLITE_CONSTRAINT*`) → rethrow → 500 genérico. **`/api/health` continua `{ok:true}`** — ver F32. | A mensagem crua (`database or disk is full`) vai só pro log. | stdout apenas. |
-| **`DATABASE_PATH` inválido** | O processo sobe. 1ª requisição → `new Database` lança `unable to open database file` → 500 genérico. Em produção, `verificarAmbiente()` **pega o caso "diretório pai não gravável"** com `"Diretório do banco (<dir>) não é gravável."` — mas ainda lançado dentro de `getDb()`, não no boot. Fora de produção, `verificarAmbiente` nem roda. | Em produção: **sim** ("... não é gravável"). Fora de produção: só o erro cru do SQLite. | stdout / 500 genérico. |
-| **`SESSION_SECRET` ausente (produção)** | O processo sobe. `verificarAmbiente()` retorna `["SESSION_SECRET não está definido."]` → `getDb()` lança em **toda** rota que toca o banco → **o site inteiro cai** (500 genérico), não só o painel. `login`/`sessao` respondem **503 com mensagem clara** ("O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem."). | **Sim**, tanto o `throw` de `getDb()` quanto o 503 do login. | 503 do login: bom, chega ao operador. `throw` de `getDb()`: stdout. |
+| Cenário                                 | Falha barulhenta ou silenciosa?                                                                                                                                                                                                                                                                                                                                                                        | A mensagem diz o que fazer?                                                             | Onde a mensagem aparece                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Banco desatualizado**                 | O processo **sobe normalmente**. A 1ª requisição que toca `getDb()` (ex.: `/api/public`) → `throw` → `comLog` → **500 genérico "Algo deu errado."** ao visitante. `/api/health` → 503 `{ok:false}`.                                                                                                                                                                                                    | **Sim** — "Rode `npm run migrate` antes de iniciar o servidor."                         | Só no **stdout** (`registrarErro`). Não no terminal do `npm start`, não no corpo do 500, não no `/api/health`. |
+| **Disco cheio**                         | **Silenciosa.** `abrirConexao` pode lançar `ENOSPC` no `mkdirSync`/`new Database` → 500 genérico. Em operação, um `INSERT` com disco cheio → `SQLITE_FULL` → `tratarErroTransacao` não reconhece (só `SQLITE_CONSTRAINT*`) → rethrow → 500 genérico. **`/api/health` continua `{ok:true}`** — ver F32.                                                                                                 | A mensagem crua (`database or disk is full`) vai só pro log.                            | stdout apenas.                                                                                                 |
+| **`DATABASE_PATH` inválido**            | O processo sobe. 1ª requisição → `new Database` lança `unable to open database file` → 500 genérico. Em produção, `verificarAmbiente()` **pega o caso "diretório pai não gravável"** com `"Diretório do banco (<dir>) não é gravável."` — mas ainda lançado dentro de `getDb()`, não no boot. Fora de produção, `verificarAmbiente` nem roda.                                                          | Em produção: **sim** ("... não é gravável"). Fora de produção: só o erro cru do SQLite. | stdout / 500 genérico.                                                                                         |
+| **`SESSION_SECRET` ausente (produção)** | O processo sobe. `verificarAmbiente()` retorna `["SESSION_SECRET não está definido."]` → `getDb()` lança em **toda** rota que toca o banco → **o site inteiro cai** (500 genérico), não só o painel. `login`/`sessao` respondem **503 com mensagem clara** ("O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem."). | **Sim**, tanto o `throw` de `getDb()` quanto o 503 do login.                            | 503 do login: bom, chega ao operador. `throw` de `getDb()`: stdout.                                            |
 
 ### Veredito
 
@@ -120,15 +121,16 @@ na mão — e `DROP COLUMN` só existe em SQLite ≥ 3.35). → **F33**.
 
 **Não, em nenhum ponto que sustente carga.**
 
-| Estado que poderia ser "de processo" | Onde vive de verdade | Multi-processo? |
-|---|---|---|
-| Rate limit | tabela `limitador` (`limitador.js`) | **compartilhado** ✓ |
-| Sessão | token HMAC stateless, sem store no servidor (`auth.js`) | processo B valida token do A (mesmo `SESSION_SECRET`) ✓ |
-| `sessao_versao` | tabela `config` | compartilhado ✓ |
-| Conexão SQLite | singleton `db` **por processo** (`db.js:9`) | cada processo tem a sua ligação ao mesmo arquivo — WAL suporta 1 writer + N readers ✓ |
-| Nonce da CSP | `crypto.randomUUID()` por requisição (`middleware.js:19`) | sem estado ✓ |
+| Estado que poderia ser "de processo" | Onde vive de verdade                                      | Multi-processo?                                                                       |
+| ------------------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Rate limit                           | tabela `limitador` (`limitador.js`)                       | **compartilhado** ✓                                                                   |
+| Sessão                               | token HMAC stateless, sem store no servidor (`auth.js`)   | processo B valida token do A (mesmo `SESSION_SECRET`) ✓                               |
+| `sessao_versao`                      | tabela `config`                                           | compartilhado ✓                                                                       |
+| Conexão SQLite                       | singleton `db` **por processo** (`db.js:9`)               | cada processo tem a sua ligação ao mesmo arquivo — WAL suporta 1 writer + N readers ✓ |
+| Nonce da CSP                         | `crypto.randomUUID()` por requisição (`middleware.js:19`) | sem estado ✓                                                                          |
 
 **PM2 cluster / 2 containers funciona hoje**, desde que:
+
 - o **arquivo do banco** seja o mesmo (volume compartilhado, não só
   "persistente");
 - o **diretório `public/uploads/`** seja compartilhado — o README pede
@@ -163,6 +165,7 @@ já recomenda não adicionar; esta etapa reforça o porquê.
   rasgada** (cópia inconsistente).
 
 **Procedimentos corretos (nenhum documentado):**
+
 - `sqlite3 data/app.db ".backup data/backup.db"` (API de backup online,
   consistente, inclui o conteúdo do WAL); ou
 - `sqlite3 data/app.db "VACUUM INTO 'data/backup.db'"`; ou
@@ -187,6 +190,7 @@ agenda do negócio.
 ## 5. Entrega com banco zerado — primeiro acesso da dona
 
 Seed da migration 1:
+
 - `config`: nome/slogan/whatsapp/endereço/instagram/logo **vazios**;
   `intervalo_min=30`, `antecedencia_min=60`, `dias_futuros=90`,
   `confirmacao_automatica=1`, `sessao_versao=1`.
@@ -227,7 +231,7 @@ Simulação — a dona abre `/admin` pela primeira vez:
    Etapa 5 do plano ("white-label") era para deixar isso "digno"; é front-end,
    fora do escopo desta etapa, mas vale a conferência visual.
 
-**Coerente?** **Sim, no essencial.** O seed produz um estado vazio *usável*:
+**Coerente?** **Sim, no essencial.** O seed produz um estado vazio _usável_:
 troca de senha forçada, checklist de onboarding com boa cópia, `<Vazio>` em
 toda tela, defaults operacionais sãos. Arestas: a frase "fale pelo WhatsApp"
 sem número quando `whatsapp` está vazio, e o mural de zeros na Visão Geral
@@ -277,15 +281,15 @@ carregar um campo `motivo` curto e não-sensível (`"migracao"` / `"disco"` /
 `log.js` escreve `{ ts, nivel, rota, msg, ...contexto }` no stdout. Todo
 `contexto` passado no código:
 
-| Chamada | Contexto | PII? |
-|---|---|---|
-| `registrarInfo(ROTA, "agendamento criado", { agendamentoId })` | só o id | não |
-| `registrarInfo(ROTA_PATCH, 'status … mudou para "X"', { agendamentoId })` | id + status | não |
-| `registrarInfo(..., "agendamento remarcado"/"excluído", { agendamentoId })` | id | não |
-| `registrarAviso(ROTA, "login falho" / "login bem-sucedido")` | — | não (senha nunca; testado em `tests/log-login.test.js`) |
-| `registrarAviso(ROTA, "bloqueado por limite de tentativas")` | — | não (nem o IP) |
-| `registrarErro(ROTA, "banco indisponível", erro)` | `error.message` | pode conter **caminho de arquivo** (`unable to open database file: /data/app.db`) — dado operacional, não PII |
-| `comLog` catch → `registrarErro(rota, "erro não tratado", erro)` | `error.message` **sem stack** (`log.js:22-28`) | as mensagens de conflito com nome de cliente (`"X já atende Fulano…"`) são **capturadas por `tratarErroTransacao`** e viram `{ok:false}`, não são lançadas — não chegam aqui |
+| Chamada                                                                     | Contexto                                       | PII?                                                                                                                                                                         |
+| --------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `registrarInfo(ROTA, "agendamento criado", { agendamentoId })`              | só o id                                        | não                                                                                                                                                                          |
+| `registrarInfo(ROTA_PATCH, 'status … mudou para "X"', { agendamentoId })`   | id + status                                    | não                                                                                                                                                                          |
+| `registrarInfo(..., "agendamento remarcado"/"excluído", { agendamentoId })` | id                                             | não                                                                                                                                                                          |
+| `registrarAviso(ROTA, "login falho" / "login bem-sucedido")`                | —                                              | não (senha nunca; testado em `tests/log-login.test.js`)                                                                                                                      |
+| `registrarAviso(ROTA, "bloqueado por limite de tentativas")`                | —                                              | não (nem o IP)                                                                                                                                                               |
+| `registrarErro(ROTA, "banco indisponível", erro)`                           | `error.message`                                | pode conter **caminho de arquivo** (`unable to open database file: /data/app.db`) — dado operacional, não PII                                                                |
+| `comLog` catch → `registrarErro(rota, "erro não tratado", erro)`            | `error.message` **sem stack** (`log.js:22-28`) | as mensagens de conflito com nome de cliente (`"X já atende Fulano…"`) são **capturadas por `tratarErroTransacao`** e viram `{ok:false}`, não são lançadas — não chegam aqui |
 
 **Nome ou telefone de cliente não aparece em log nenhum.** Disciplina boa:
 id em vez de nome, senha nunca, stack nunca.
@@ -304,12 +308,12 @@ negócio**, público, não PII de cliente. → nota em **F35**.
 
 ### Retenção
 
-| Fonte | Retenção hoje | Sustentável? |
-|---|---|---|
-| **Logs (stdout)** | nenhuma no app; 100 % do host | ~7 MB/ano em regime normal (Etapa 6). **Sob ataque F19/F20, MB/hora** — cada request bloqueado gera uma linha (F27). Rotação no host não é mencionada no README. |
-| **`auditoria`** | **nenhuma** — nunca é podada, nenhuma tela lê | ~9 MB/ano, ~45 MB em 5 anos. Não atrapalha performance (nenhum caminho quente consulta; `idx_auditoria_tabela_registro` cobre busca por registro). Mas é uma tabela que só cresce, sem plano. → **F35** |
-| **`limitador`** | janela de 1 dia, limpeza amostrada a 1 % | sim — Etapa 6 §5 |
-| **Uploads** | `anterior`-delete cobre a troca; **não** cobre a pasta `"geral"`, nem imagem de cadastro excluído, nem troca sem `anterior` | poucos MB/ano de órfãos; o problema real é F23 (não sobrevive a deploy) |
+| Fonte             | Retenção hoje                                                                                                               | Sustentável?                                                                                                                                                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Logs (stdout)** | nenhuma no app; 100 % do host                                                                                               | ~7 MB/ano em regime normal (Etapa 6). **Sob ataque F19/F20, MB/hora** — cada request bloqueado gera uma linha (F27). Rotação no host não é mencionada no README.                                        |
+| **`auditoria`**   | **nenhuma** — nunca é podada, nenhuma tela lê                                                                               | ~9 MB/ano, ~45 MB em 5 anos. Não atrapalha performance (nenhum caminho quente consulta; `idx_auditoria_tabela_registro` cobre busca por registro). Mas é uma tabela que só cresce, sem plano. → **F35** |
+| **`limitador`**   | janela de 1 dia, limpeza amostrada a 1 %                                                                                    | sim — Etapa 6 §5                                                                                                                                                                                        |
+| **Uploads**       | `anterior`-delete cobre a troca; **não** cobre a pasta `"geral"`, nem imagem de cadastro excluído, nem troca sem `anterior` | poucos MB/ano de órfãos; o problema real é F23 (não sobrevive a deploy)                                                                                                                                 |
 
 **O que precisa de política de retenção, em ordem:** (1) logs — rotação no
 host no runbook + amostrar o log de bloqueio no código (F27); (2)
@@ -324,99 +328,99 @@ Formato: `ID | Severidade | Arquivo:linha | O que está errado | Quando quebra |
 
 ### F30 — Procedimento de backup documentado é errado para WAL; restauração não documentada
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P1** |
-| **Arquivo:linha** | `README.md:180-185` (seção "Backup"); ausência de rotina de backup no código / deploy |
-| **O que está errado** | O README manda "copie `data/app.db` periodicamente". Em WAL, os commits recentes vivem em `data/app.db-wal` e ainda não estão no arquivo principal — copiar só `app.db` num sistema vivo perde de minutos a dias de agendamentos, e um `cp` durante uma escrita pode capturar página rasgada. A restauração não é documentada — em especial, o passo obrigatório de **apagar `-wal`/`-shm` obsoletos** ao restaurar (senão: `database disk image is malformed`). É a única cópia da agenda do negócio. |
-| **Quando quebra** | O servidor morre, a dona (ou o cron) tem só um `app.db` copiado ao vivo → faltam as últimas horas/dias de agendamento, ou o arquivo está corrompido. Ou ela restaura o `app.db` sem remover o `-wal` antigo → o banco não abre. |
-| **Método de correção** | Documentar e automatizar UM procedimento consistente: `sqlite3 data/app.db ".backup <destino>"` ou `VACUUM INTO`, ou snapshot de volume, rodado por cron; incluir `public/uploads/` no mesmo backup. Escrever o runbook de **restauração** (parar o app → substituir `app.db` → apagar `app.db-wal` e `app.db-shm` → subir → conferir). Testar o restore num banco de verdade antes do go-live. |
-| **Esforço** | Baixo (script + doc) — o valor está no restore testado. |
-| **Risco de mexer** | Baixo (é doc + script à parte, não toca o app). |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Severidade**         | **P1**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Arquivo:linha**      | `README.md:180-185` (seção "Backup"); ausência de rotina de backup no código / deploy                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **O que está errado**  | O README manda "copie `data/app.db` periodicamente". Em WAL, os commits recentes vivem em `data/app.db-wal` e ainda não estão no arquivo principal — copiar só `app.db` num sistema vivo perde de minutos a dias de agendamentos, e um `cp` durante uma escrita pode capturar página rasgada. A restauração não é documentada — em especial, o passo obrigatório de **apagar `-wal`/`-shm` obsoletos** ao restaurar (senão: `database disk image is malformed`). É a única cópia da agenda do negócio. |
+| **Quando quebra**      | O servidor morre, a dona (ou o cron) tem só um `app.db` copiado ao vivo → faltam as últimas horas/dias de agendamento, ou o arquivo está corrompido. Ou ela restaura o `app.db` sem remover o `-wal` antigo → o banco não abre.                                                                                                                                                                                                                                                                        |
+| **Método de correção** | Documentar e automatizar UM procedimento consistente: `sqlite3 data/app.db ".backup <destino>"` ou `VACUUM INTO`, ou snapshot de volume, rodado por cron; incluir `public/uploads/` no mesmo backup. Escrever o runbook de **restauração** (parar o app → substituir `app.db` → apagar `app.db-wal` e `app.db-shm` → subir → conferir). Testar o restore num banco de verdade antes do go-live.                                                                                                        |
+| **Esforço**            | Baixo (script + doc) — o valor está no restore testado.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **Risco de mexer**     | Baixo (é doc + script à parte, não toca o app).                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ### F31 — Sem validação no boot; banco/config quebrado só aparece no 1º request como 500 genérico
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P2** |
-| **Arquivo:linha** | `src/lib/db.js:22-48` (checagem lazy dentro de `getDb()`); `src/lib/log.js:35-47` (`comLog` transforma o `throw` em 500 genérico); `src/app/api/health/route.js` |
-| **O que está errado** | `next start` sobe "com sucesso" mesmo com banco não migrado, `SESSION_SECRET` ausente ou `DATABASE_PATH` inválido. A falha é adiada para a 1ª requisição, chega ao visitante como "Algo deu errado." e ao operador só no stdout. Em produção, `SESSION_SECRET` ausente derruba o site público inteiro, não só o painel. |
-| **Quando quebra** | Deploy em que se esqueceu `npm run migrate` (ou uma migration nova foi adicionada e o operador redeployou sem rodar); ou a variável de ambiente não foi setada no host. Processo no ar, site 500, e ninguém percebe até um cliente reclamar — a menos que alguém esteja com o `tail -f` aberto. |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Severidade**         | **P2**                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Arquivo:linha**      | `src/lib/db.js:22-48` (checagem lazy dentro de `getDb()`); `src/lib/log.js:35-47` (`comLog` transforma o `throw` em 500 genérico); `src/app/api/health/route.js`                                                                                                                                                                                                                       |
+| **O que está errado**  | `next start` sobe "com sucesso" mesmo com banco não migrado, `SESSION_SECRET` ausente ou `DATABASE_PATH` inválido. A falha é adiada para a 1ª requisição, chega ao visitante como "Algo deu errado." e ao operador só no stdout. Em produção, `SESSION_SECRET` ausente derruba o site público inteiro, não só o painel.                                                                |
+| **Quando quebra**      | Deploy em que se esqueceu `npm run migrate` (ou uma migration nova foi adicionada e o operador redeployou sem rodar); ou a variável de ambiente não foi setada no host. Processo no ar, site 500, e ninguém percebe até um cliente reclamar — a menos que alguém esteja com o `tail -f` aberto.                                                                                        |
 | **Método de correção** | Um hook de startup (Next 14: `instrumentation.ts` / `register()`) que chama `getDb()` uma vez e, se lançar, escreve a mensagem no stderr e `process.exit(1)` — falha no boot, não no 1º request. Alternativa/adicional: o script de deploy roda `node -e "require('./src/lib/db.js').getDb()"` como pré-flight depois do `migrate`. E fazer `/api/health` distinguir os motivos (F32). |
-| **Esforço** | Baixo. |
-| **Risco de mexer** | Baixo — `instrumentation` roda 1×/processo; não muda o caminho de requisição. |
+| **Esforço**            | Baixo.                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Risco de mexer**     | Baixo — `instrumentation` roda 1×/processo; não muda o caminho de requisição.                                                                                                                                                                                                                                                                                                          |
 
 ### F32 — `/api/health` não detecta disco cheio nem filesystem somente-leitura, e não diz por que está 503
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P2** |
-| **Arquivo:linha** | `src/app/api/health/route.js:12-30`; `src/lib/config-ambiente.js:42-52` (`diretorioGravavel` usa `fs.accessSync(W_OK)` — permissão, não espaço) |
-| **O que está errado** | O health faz `SELECT 1` (leitura) + `access(W_OK)` (permissão). Um disco cheio ou um volume montado `ro` deixam a leitura passar e a permissão intacta → health responde `{ok:true}` enquanto toda escrita 500. E um 503 legítimo (banco não migrado, config insegura) volta só `{ok:false}` — o monitor não sabe se é migração, disco ou arquivo ausente. |
-| **Quando quebra** | O disco enche (logs sem rotação — F27 — são um jeito plausível de encher). O monitoramento continua verde. A dona descobre que o site parou de gravar agendamento quando um cliente liga reclamando. |
-| **Método de correção** | Trocar o check de gravabilidade por uma **escrita trivial** de verdade: INSERT + rollback numa linha de heartbeat, ou write+unlink de um tempfile no diretório do banco — pega `ENOSPC`/`EROFS`. Adicionar ao corpo do 503 um campo `motivo` curto e não-sensível (`"migracao"`/`"disco"`/`"config"`/`"banco"`). |
-| **Esforço** | Baixo. |
-| **Risco de mexer** | Baixo. |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Severidade**         | **P2**                                                                                                                                                                                                                                                                                                                                                     |
+| **Arquivo:linha**      | `src/app/api/health/route.js:12-30`; `src/lib/config-ambiente.js:42-52` (`diretorioGravavel` usa `fs.accessSync(W_OK)` — permissão, não espaço)                                                                                                                                                                                                            |
+| **O que está errado**  | O health faz `SELECT 1` (leitura) + `access(W_OK)` (permissão). Um disco cheio ou um volume montado `ro` deixam a leitura passar e a permissão intacta → health responde `{ok:true}` enquanto toda escrita 500. E um 503 legítimo (banco não migrado, config insegura) volta só `{ok:false}` — o monitor não sabe se é migração, disco ou arquivo ausente. |
+| **Quando quebra**      | O disco enche (logs sem rotação — F27 — são um jeito plausível de encher). O monitoramento continua verde. A dona descobre que o site parou de gravar agendamento quando um cliente liga reclamando.                                                                                                                                                       |
+| **Método de correção** | Trocar o check de gravabilidade por uma **escrita trivial** de verdade: INSERT + rollback numa linha de heartbeat, ou write+unlink de um tempfile no diretório do banco — pega `ENOSPC`/`EROFS`. Adicionar ao corpo do 503 um campo `motivo` curto e não-sensível (`"migracao"`/`"disco"`/`"config"`/`"banco"`).                                           |
+| **Esforço**            | Baixo.                                                                                                                                                                                                                                                                                                                                                     |
+| **Risco de mexer**     | Baixo.                                                                                                                                                                                                                                                                                                                                                     |
 
 ### F33 — Migração roda sem backup automático e sem caminho de rollback
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P2** |
-| **Arquivo:linha** | `scripts/migrate.js:13-16` (chama `aplicarMigrations` direto, sem cópia prévia); `src/lib/migrations.js` (só `up()`, nenhum `down()`); `README.md:172-178` (sequência de build sem passo de backup) |
-| **O que está errado** | Nada copia o `.db` antes de aplicar migrations. A migration 3 reconstrói 4 tabelas (drop + copia). Um bug ali commitaria dados corrompidos sem snapshot para voltar. Não há `down()` — voltar o código para antes de uma migration faz `getDb()` recusar subir ("versão X, esperada Y"), e a recuperação vira restore-de-backup (que pode não existir — F30) ou SQL manual. |
-| **Quando quebra** | Uma migration futura com bug, ou um rollback de deploy emergencial: o banco fica preso numa versão que o código não aceita, sem cópia anterior. |
-| **Método de correção** | `scripts/migrate.js` faz `sqlite3 ... ".backup"` (ou copia os 3 arquivos após `wal_checkpoint(TRUNCATE)`) para `data/pre-migracao-<timestamp>.db` **antes** de `aplicarMigrations`, e mantém as N últimas. Documentar que rollback = parar, restaurar o snapshot pré-migração, voltar o código. Opcional: escrever `down()` para as migrations reversíveis (2, 4, 5). |
-| **Esforço** | Baixo (backup no script) a médio (`down()`). |
-| **Risco de mexer** | Baixo. |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Severidade**         | **P2**                                                                                                                                                                                                                                                                                                                                                                      |
+| **Arquivo:linha**      | `scripts/migrate.js:13-16` (chama `aplicarMigrations` direto, sem cópia prévia); `src/lib/migrations.js` (só `up()`, nenhum `down()`); `README.md:172-178` (sequência de build sem passo de backup)                                                                                                                                                                         |
+| **O que está errado**  | Nada copia o `.db` antes de aplicar migrations. A migration 3 reconstrói 4 tabelas (drop + copia). Um bug ali commitaria dados corrompidos sem snapshot para voltar. Não há `down()` — voltar o código para antes de uma migration faz `getDb()` recusar subir ("versão X, esperada Y"), e a recuperação vira restore-de-backup (que pode não existir — F30) ou SQL manual. |
+| **Quando quebra**      | Uma migration futura com bug, ou um rollback de deploy emergencial: o banco fica preso numa versão que o código não aceita, sem cópia anterior.                                                                                                                                                                                                                             |
+| **Método de correção** | `scripts/migrate.js` faz `sqlite3 ... ".backup"` (ou copia os 3 arquivos após `wal_checkpoint(TRUNCATE)`) para `data/pre-migracao-<timestamp>.db` **antes** de `aplicarMigrations`, e mantém as N últimas. Documentar que rollback = parar, restaurar o snapshot pré-migração, voltar o código. Opcional: escrever `down()` para as migrations reversíveis (2, 4, 5).       |
+| **Esforço**            | Baixo (backup no script) a médio (`down()`).                                                                                                                                                                                                                                                                                                                                |
+| **Risco de mexer**     | Baixo.                                                                                                                                                                                                                                                                                                                                                                      |
 
 ### F34 — `npm run migrate` num servidor vivo é possível e sem aviso
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P3** |
-| **Arquivo:linha** | `scripts/migrate.js` (abre 2ª conexão ao mesmo arquivo, sem checar se o servidor está rodando) |
-| **O que está errado** | A migration 3 (`DROP TABLE` dentro de transação) pega o write lock e bloqueia as escritas do servidor por até `busy_timeout` (5 s); pode fazer o servidor 500 (`SQLITE_BUSY` não tratado — Etapa 2 F2 — ou "schema mudou"). Nada avisa contra rodar migrate com tráfego. |
-| **Quando quebra** | Operador aplica uma migration nova numa caixa em produção sem parar o serviço primeiro. Alguns segundos de 500 no agendamento público durante a transação. |
-| **Método de correção** | `scripts/migrate.js` avisa/aborta se detectar o servidor no ar (ex.: um lockfile que o app cria, ou checar a porta), ou o README deixa explícito "pare o app antes de `npm run migrate`". Amarra com a correção de `SQLITE_BUSY → 409/503` da Etapa 2 (F2). |
-| **Esforço** | Baixo. |
-| **Risco de mexer** | Baixo. |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Severidade**         | **P3**                                                                                                                                                                                                                                                                   |
+| **Arquivo:linha**      | `scripts/migrate.js` (abre 2ª conexão ao mesmo arquivo, sem checar se o servidor está rodando)                                                                                                                                                                           |
+| **O que está errado**  | A migration 3 (`DROP TABLE` dentro de transação) pega o write lock e bloqueia as escritas do servidor por até `busy_timeout` (5 s); pode fazer o servidor 500 (`SQLITE_BUSY` não tratado — Etapa 2 F2 — ou "schema mudou"). Nada avisa contra rodar migrate com tráfego. |
+| **Quando quebra**      | Operador aplica uma migration nova numa caixa em produção sem parar o serviço primeiro. Alguns segundos de 500 no agendamento público durante a transação.                                                                                                               |
+| **Método de correção** | `scripts/migrate.js` avisa/aborta se detectar o servidor no ar (ex.: um lockfile que o app cria, ou checar a porta), ou o README deixa explícito "pare o app antes de `npm run migrate`". Amarra com a correção de `SQLITE_BUSY → 409/503` da Etapa 2 (F2).              |
+| **Esforço**            | Baixo.                                                                                                                                                                                                                                                                   |
+| **Risco de mexer**     | Baixo.                                                                                                                                                                                                                                                                   |
 
 ### F35 — `auditoria` sem política de retenção; audit de config carrega telefone/endereço do negócio
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P3** |
-| **Arquivo:linha** | `src/lib/migrations.js:296-307` (tabela `auditoria`, nunca podada); `src/app/api/admin/config/route.js:69-77` (`antes`/`depois` incluem `whatsapp`/`endereco`/`nome_barbearia`) |
-| **O que está errado** | `auditoria` só cresce (~9 MB/ano), nenhuma tela lê, nenhum plano de arquivamento. Não é problema de performance, mas é uma tabela sem ciclo de vida. O audit de `PUT /api/admin/config` grava o WhatsApp e o endereço da barbearia em texto claro em `antes`/`depois` — dado do negócio (público), não PII de cliente, mas fica registrado em cada alteração. |
-| **Quando quebra** | Não "quebra" — acumula. Em 5+ anos, dezenas de MB de trilha que ninguém consulta e nunca foi arquivada. |
-| **Método de correção** | Definir janela de retenção (ex.: 24 meses on-line; export NDJSON do resto antes de apagar) e um job que a aplica. Se o WhatsApp/endereço não precisam estar no audit, trocar por um marcador ("config alterada: whatsapp, endereco") em vez do valor. |
-| **Esforço** | Baixo. |
-| **Risco de mexer** | Baixo. |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Severidade**         | **P3**                                                                                                                                                                                                                                                                                                                                                        |
+| **Arquivo:linha**      | `src/lib/migrations.js:296-307` (tabela `auditoria`, nunca podada); `src/app/api/admin/config/route.js:69-77` (`antes`/`depois` incluem `whatsapp`/`endereco`/`nome_barbearia`)                                                                                                                                                                               |
+| **O que está errado**  | `auditoria` só cresce (~9 MB/ano), nenhuma tela lê, nenhum plano de arquivamento. Não é problema de performance, mas é uma tabela sem ciclo de vida. O audit de `PUT /api/admin/config` grava o WhatsApp e o endereço da barbearia em texto claro em `antes`/`depois` — dado do negócio (público), não PII de cliente, mas fica registrado em cada alteração. |
+| **Quando quebra**      | Não "quebra" — acumula. Em 5+ anos, dezenas de MB de trilha que ninguém consulta e nunca foi arquivada.                                                                                                                                                                                                                                                       |
+| **Método de correção** | Definir janela de retenção (ex.: 24 meses on-line; export NDJSON do resto antes de apagar) e um job que a aplica. Se o WhatsApp/endereço não precisam estar no audit, trocar por um marcador ("config alterada: whatsapp, endereco") em vez do valor.                                                                                                         |
+| **Esforço**            | Baixo.                                                                                                                                                                                                                                                                                                                                                        |
+| **Risco de mexer**     | Baixo.                                                                                                                                                                                                                                                                                                                                                        |
 
 ### F36 — `scripts/migrate.js`: comentário obsoleto, `close()` fora de `finally`
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P3** |
-| **Arquivo:linha** | `scripts/migrate.js:1-2` (comentário diz `./data/barbosa.db`; código usa `./data/app.db`); `:13-16` (`conn.close()` não está em `finally`) |
-| **O que está errado** | O comentário mente sobre o caminho default — e `data/` do repo tem `app.db` **e** `barbosa.db` (com WAL grande), indício de que algo rodou contra o caminho errado em algum momento. Em erro de migração, o `conn.close()` não roda e sobram `-wal`/`-shm`. |
-| **Quando quebra** | Confusão do operador sobre qual arquivo é o banco de verdade; arquivos `-wal`/`-shm` órfãos depois de uma migração que falhou. |
-| **Método de correção** | Corrigir o comentário para `./data/app.db`. Pôr `aplicarMigrations` num `try` e `conn.close()` num `finally`. Apagar/renomear o `data/barbosa.db` obsoleto do repo (é git-ignored — só limpeza local). |
-| **Esforço** | Trivial. |
-| **Risco de mexer** | Nenhum. |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                                    |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Severidade**         | **P3**                                                                                                                                                                                                                                                      |
+| **Arquivo:linha**      | `scripts/migrate.js:1-2` (comentário diz `./data/barbosa.db`; código usa `./data/app.db`); `:13-16` (`conn.close()` não está em `finally`)                                                                                                                  |
+| **O que está errado**  | O comentário mente sobre o caminho default — e `data/` do repo tem `app.db` **e** `barbosa.db` (com WAL grande), indício de que algo rodou contra o caminho errado em algum momento. Em erro de migração, o `conn.close()` não roda e sobram `-wal`/`-shm`. |
+| **Quando quebra**      | Confusão do operador sobre qual arquivo é o banco de verdade; arquivos `-wal`/`-shm` órfãos depois de uma migração que falhou.                                                                                                                              |
+| **Método de correção** | Corrigir o comentário para `./data/app.db`. Pôr `aplicarMigrations` num `try` e `conn.close()` num `finally`. Apagar/renomear o `data/barbosa.db` obsoleto do repo (é git-ignored — só limpeza local).                                                      |
+| **Esforço**            | Trivial.                                                                                                                                                                                                                                                    |
+| **Risco de mexer**     | Nenhum.                                                                                                                                                                                                                                                     |
 
 ### F37 — Site público com config vazia convida "fale pelo WhatsApp" sem número
 
-| Campo | Conteúdo |
-|---|---|
-| **Severidade** | **P3** |
-| **Arquivo:linha** | `src/app/agendar/FluxoAgendamento.jsx:453-464` (estado "sem serviços" sugere WhatsApp) — depende de `dados.barbearia.whatsapp`, que no banco zerado é `""` |
-| **O que está errado** | No dia 1 (sem serviços cadastrados), o fluxo de agendamento mostra "Agenda ainda não está aberta… fale com a barbearia direto pelo WhatsApp" — mas `whatsapp` está vazio, então não há link nem número. A frase promete um canal inexistente. |
-| **Quando quebra** | Entre a entrega e o primeiro cadastro completo, qualquer visitante do site vê a mensagem sem ação possível. Some assim que a dona cadastra serviços. |
-| **Método de correção** | Condicionar a frase ao `whatsapp` estar preenchido (mostrar o link só quando houver número; texto neutro quando não houver). É front-end — anotar para a reescrita. |
-| **Esforço** | Trivial. |
-| **Risco de mexer** | Nenhum (front-end). |
+| Campo                  | Conteúdo                                                                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Severidade**         | **P3**                                                                                                                                                                                                                                        |
+| **Arquivo:linha**      | `src/app/agendar/FluxoAgendamento.jsx:453-464` (estado "sem serviços" sugere WhatsApp) — depende de `dados.barbearia.whatsapp`, que no banco zerado é `""`                                                                                    |
+| **O que está errado**  | No dia 1 (sem serviços cadastrados), o fluxo de agendamento mostra "Agenda ainda não está aberta… fale com a barbearia direto pelo WhatsApp" — mas `whatsapp` está vazio, então não há link nem número. A frase promete um canal inexistente. |
+| **Quando quebra**      | Entre a entrega e o primeiro cadastro completo, qualquer visitante do site vê a mensagem sem ação possível. Some assim que a dona cadastra serviços.                                                                                          |
+| **Método de correção** | Condicionar a frase ao `whatsapp` estar preenchido (mostrar o link só quando houver número; texto neutro quando não houver). É front-end — anotar para a reescrita.                                                                           |
+| **Esforço**            | Trivial.                                                                                                                                                                                                                                      |
+| **Risco de mexer**     | Nenhum (front-end).                                                                                                                                                                                                                           |
 
 ---
 

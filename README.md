@@ -33,15 +33,15 @@ O histórico de commits conta essa história em ordem.
 
 ## Em números
 
-| | |
-| --- | --- |
-| Agendamento do cliente | **~6 cliques**, só nome + WhatsApp |
-| Testes automatizados | **114**, no runner nativo do Node — zero framework de teste |
-| Dependências de autenticação | **0** — só o módulo `crypto` do Node |
+|                                 |                                                                        |
+| ------------------------------- | ---------------------------------------------------------------------- |
+| Agendamento do cliente          | **~6 cliques**, só nome + WhatsApp                                     |
+| Testes automatizados            | **114**, no runner nativo do Node — zero framework de teste            |
+| Dependências de autenticação    | **0** — só o módulo `crypto` do Node                                   |
 | Dependências de runtime (total) | 6 (`next`, `react`, `react-dom`, `better-sqlite3`, `sharp`, `animejs`) |
-| Migrations versionadas | 5, com trava de boot por versão |
-| Código | ~10 mil linhas de JS/JSX + ~2,5 mil de CSS num único design system |
-| Time | 1 pessoa, do schema do banco ao CSS |
+| Migrations versionadas          | 5, com trava de boot por versão                                        |
+| Código                          | ~10 mil linhas de JS/JSX + ~2,5 mil de CSS num único design system     |
+| Time                            | 1 pessoa, do schema do banco ao CSS                                    |
 
 ---
 
@@ -143,15 +143,15 @@ paleta, tipografia, espaçamento e raios de borda vivem como CSS custom properti
 
 ## Stack
 
-| Camada | Escolha | Por quê |
-| --- | --- | --- |
-| Framework | **Next.js 14** (App Router) | Server Components para dados, Route Handlers para as ações do painel, tudo num só projeto. |
-| UI | **React 18**, CSS puro | Sem biblioteca de componentes — cada peça (modal, calendário, gráficos) foi construída sob medida. |
-| Banco | **SQLite** via `better-sqlite3` | Um arquivo, zero infraestrutura para operar. Toda consulta usa _prepared statements_ — sem ORM, sem query builder. |
-| Imagens | **sharp** | Reprocessa todo upload: redimensiona e converte para WebP no servidor. |
-| Animação | **anime.js** | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`. |
-| Autenticação | **zero dependências** | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante. |
-| Testes | **runner nativo do Node** (`node --test`) | 114 testes, sem Jest nem Vitest. |
+| Camada       | Escolha                                   | Por quê                                                                                                            |
+| ------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Framework    | **Next.js 14** (App Router)               | Server Components para dados, Route Handlers para as ações do painel, tudo num só projeto.                         |
+| UI           | **React 18**, CSS puro                    | Sem biblioteca de componentes — cada peça (modal, calendário, gráficos) foi construída sob medida.                 |
+| Banco        | **SQLite** via `better-sqlite3`           | Um arquivo, zero infraestrutura para operar. Toda consulta usa _prepared statements_ — sem ORM, sem query builder. |
+| Imagens      | **sharp**                                 | Reprocessa todo upload: redimensiona e converte para WebP no servidor.                                             |
+| Animação     | **anime.js**                              | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`.                                                |
+| Autenticação | **zero dependências**                     | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante.                                              |
+| Testes       | **runner nativo do Node** (`node --test`) | 114 testes, sem Jest nem Vitest.                                                                                   |
 
 ---
 
@@ -239,13 +239,13 @@ senha vive no banco como hash `scrypt`, e a do `.env` deixa de valer.
 
 ### Variáveis de ambiente
 
-| Variável | Para que serve |
-| --- | --- |
-| `ADMIN_PASSWORD` | Senha **só do primeiro acesso**. Depois de trocada no painel, deixa de valer. |
+| Variável         | Para que serve                                                                                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ADMIN_PASSWORD` | Senha **só do primeiro acesso**. Depois de trocada no painel, deixa de valer.                                                                                   |
 | `SESSION_SECRET` | Assina o cookie de sessão. Gere um valor aleatório. **Obrigatório em produção** — com `NODE_ENV=production` e sem ele, o painel fica indisponível de propósito. |
-| `DATABASE_PATH` | Onde o banco fica salvo. Em produção, aponte para um disco persistente. |
-| `TZ` | `America/Sao_Paulo` — fuso usado para calcular os horários livres. |
-| `TRUST_PROXY` | `1` só se houver um proxy reverso confiável reescrevendo `X-Forwarded-For` / `X-Real-IP`. |
+| `DATABASE_PATH`  | Onde o banco fica salvo. Em produção, aponte para um disco persistente.                                                                                         |
+| `TZ`             | `America/Sao_Paulo` — fuso usado para calcular os horários livres.                                                                                              |
+| `TRUST_PROXY`    | `1` só se houver um proxy reverso confiável reescrevendo `X-Forwarded-For` / `X-Real-IP`.                                                                       |
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"

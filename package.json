@@ -12,7 +12,9 @@
     "build": "next build",
     "start": "next start",
     "migrate": "node scripts/migrate.js",
-    "test": "node --import ./tests/register-hooks.mjs --test \"tests/*.test.js\""
+    "test": "node --import ./tests/register-hooks.mjs --test \"tests/*.test.js\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "animejs": "^4.5.0",

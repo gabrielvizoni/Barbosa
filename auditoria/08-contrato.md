@@ -20,7 +20,7 @@ Extraído linha a linha das rotas em `src/app/api/**` + `src/lib/agendamentos.js
   resto é no fuso da barbearia) — ver Inconsistência I-9.
 - `ativo` e `aberto` são **inteiros `0|1`**, nunca booleanos JS.
 - Campos de texto não preenchidos vêm como `""` (schema `NOT NULL DEFAULT
-  ''`), nunca `null`. `null` só aparece onde é semântico (ver I-10).
+''`), nunca `null`. `null` só aparece onde é semântico (ver I-10).
 
 ## Tipos compartilhados
 
@@ -32,35 +32,40 @@ type ErroValidacao = { erro: string; erros: Record<string, string> }; // só nas
 type AgendamentoRow = {
   id: number;
   cliente_nome: string;
-  cliente_telefone: string;      // só dígitos
-  barbeiro_id: number | null;    // null teoricamente possível (ON DELETE SET NULL); na prática não ocorre
+  cliente_telefone: string; // só dígitos
+  barbeiro_id: number | null; // null teoricamente possível (ON DELETE SET NULL); na prática não ocorre
   servico_id: number | null;
-  barbeiro_nome: string;         // snapshot congelado; "" antes de ter sido setado
-  servico_nome: string;          // snapshot congelado
-  data: string;                  // "AAAA-MM-DD" (fuso da barbearia)
-  inicio: string;                // "HH:MM"
-  fim: string;                   // "HH:MM"
+  barbeiro_nome: string; // snapshot congelado; "" antes de ter sido setado
+  servico_nome: string; // snapshot congelado
+  data: string; // "AAAA-MM-DD" (fuso da barbearia)
+  inicio: string; // "HH:MM"
+  fim: string; // "HH:MM"
   duracao_min: number;
-  preco_centavos: number;        // snapshot congelado na criação; recotado na remarcação
+  preco_centavos: number; // snapshot congelado na criação; recotado na remarcação
   observacoes: string;
   status: "pendente" | "confirmado" | "concluido" | "cancelado";
-  criado_em: string;             // "AAAA-MM-DD HH:MM:SS" — UTC
-  excluido_em: string | null;    // sempre null nas respostas (toda leitura filtra excluido_em IS NULL)
+  criado_em: string; // "AAAA-MM-DD HH:MM:SS" — UTC
+  excluido_em: string | null; // sempre null nas respostas (toda leitura filtra excluido_em IS NULL)
 };
 
-type ExpedienteRow = { dia: number; aberto: 0 | 1; abre: string; fecha: string }; // abre/fecha "HH:MM"
+type ExpedienteRow = {
+  dia: number;
+  aberto: 0 | 1;
+  abre: string;
+  fecha: string;
+}; // abre/fecha "HH:MM"
 ```
 
 ## Respostas de `exigirSessao` (compartilhadas por `/api/admin/*`, exceto `login`, `logout`, `sessao`)
 
 Retornadas **antes** de qualquer lógica do endpoint, nesta ordem de checagem:
 
-| Status | Corpo | Condição |
-|---|---|---|
-| **503** | `{ "erro": "O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem." }` | `SESSION_SECRET` inválido em produção, ou (na senha inicial) `ADMIN_PASSWORD` inválido em produção |
-| **401** | `{ "erro": "Sessão expirada. Entre novamente." }` | Sem cookie `admin_sessao` válido (ausente, assinatura errada, expirado, `sessao_versao` antiga) |
-| **403** | `{ "erro": "Origem não permitida." }` | Método de mutação (POST/PUT/PATCH/DELETE) com header `Origin` presente cujo host ≠ header `Host` |
-| **403** | `{ "erro": "Troque a senha inicial antes de continuar usando o painel." }` | `usandoSenhaInicial()` é `true` **e** a rota não é `POST /api/admin/senha` nem `GET /api/admin/config` |
+| Status  | Corpo                                                                                                                                                  | Condição                                                                                               |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| **503** | `{ "erro": "O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem." }` | `SESSION_SECRET` inválido em produção, ou (na senha inicial) `ADMIN_PASSWORD` inválido em produção     |
+| **401** | `{ "erro": "Sessão expirada. Entre novamente." }`                                                                                                      | Sem cookie `admin_sessao` válido (ausente, assinatura errada, expirado, `sessao_versao` antiga)        |
+| **403** | `{ "erro": "Origem não permitida." }`                                                                                                                  | Método de mutação (POST/PUT/PATCH/DELETE) com header `Origin` presente cujo host ≠ header `Host`       |
+| **403** | `{ "erro": "Troque a senha inicial antes de continuar usando o painel." }`                                                                             | `usandoSenhaInicial()` é `true` **e** a rota não é `POST /api/admin/senha` nem `GET /api/admin/config` |
 
 Nas tabelas abaixo, "401/403/503 (`exigirSessao`)" refere-se a este bloco.
 
@@ -113,11 +118,11 @@ Nas tabelas abaixo, "401/403/503 (`exigirSessao`)" refere-se a este bloco.
 **Autenticação:** nenhuma.
 **Parâmetros (query string):**
 
-| Nome | Tipo | Obrigatório | Validação | Limites |
-|---|---|---|---|---|
-| `barbeiro` | number | sim | `Number(...)`; `0`/`NaN` → 400 | — |
-| `servico` | number | sim | `Number(...)`; `0`/`NaN` → 400 | — |
-| `data` | string | sim | regex `^\d{4}-\d{2}-\d{2}$` (**formato apenas** — `2024-99-99` passa) | — |
+| Nome       | Tipo   | Obrigatório | Validação                                                             | Limites |
+| ---------- | ------ | ----------- | --------------------------------------------------------------------- | ------- |
+| `barbeiro` | number | sim         | `Number(...)`; `0`/`NaN` → 400                                        | —       |
+| `servico`  | number | sim         | `Number(...)`; `0`/`NaN` → 400                                        | —       |
+| `data`     | string | sim         | regex `^\d{4}-\d{2}-\d{2}$` (**formato apenas** — `2024-99-99` passa) | —       |
 
 Não valida se o barbeiro existe / está ativo / executa o serviço (o grid sai
 mesmo para pares inválidos — ver `07`/Etapa 3 F12).
@@ -130,11 +135,11 @@ mesmo para pares inválidos — ver `07`/Etapa 3 F12).
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ horarios: string[] }` | ok |
-| 400 | `{ "erro": "Informe barbeiro, serviço e data." }` | `barbeiro`/`servico` falsy ou `data` fora do formato |
-| 404 | `{ "erro": "Serviço indisponível." }` | `servico` não existe ou `ativo = 0` |
+| Status | Corpo                                             | Condição                                             |
+| ------ | ------------------------------------------------- | ---------------------------------------------------- |
+| 200    | `{ horarios: string[] }`                          | ok                                                   |
+| 400    | `{ "erro": "Informe barbeiro, serviço e data." }` | `barbeiro`/`servico` falsy ou `data` fora do formato |
+| 404    | `{ "erro": "Serviço indisponível." }`             | `servico` não existe ou `ativo = 0`                  |
 
 ---
 
@@ -147,15 +152,15 @@ sucesso).
 
 **Parâmetros (corpo JSON):**
 
-| Nome | Tipo | Obrigatório | Validação | Limites |
-|---|---|---|---|---|
-| `cliente_nome` | string | sim | `trim()`, `length >= 2` | cortado em **80** caracteres |
-| `cliente_telefone` | string | sim | `somenteDigitos` → precisa ter **10 ou 11 dígitos** | — |
-| `barbeiro_id` | number | sim | `Number(...)`; precisa existir e `ativo = 1`; precisa estar vinculado ao serviço | — |
-| `servico_id` | number | sim | idem existência + `ativo = 1` | — |
-| `data` | string | sim | `dataValida` — `^\d{4}-\d{2}-\d{2}$` **+ data de calendário real** (`2024-02-30` falha) | — |
-| `inicio` | string | sim | `horaValida` — `^\d{2}:\d{2}$` + hora ≤ 23 e minuto ≤ 59; precisa estar em `horariosLivres(barbeiro, servico, data)` | — |
-| `observacoes` | — | — | **ignorado** nesta rota (só o encaixe do painel aceita) | — |
+| Nome               | Tipo   | Obrigatório | Validação                                                                                                            | Limites                      |
+| ------------------ | ------ | ----------- | -------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
+| `cliente_nome`     | string | sim         | `trim()`, `length >= 2`                                                                                              | cortado em **80** caracteres |
+| `cliente_telefone` | string | sim         | `somenteDigitos` → precisa ter **10 ou 11 dígitos**                                                                  | —                            |
+| `barbeiro_id`      | number | sim         | `Number(...)`; precisa existir e `ativo = 1`; precisa estar vinculado ao serviço                                     | —                            |
+| `servico_id`       | number | sim         | idem existência + `ativo = 1`                                                                                        | —                            |
+| `data`             | string | sim         | `dataValida` — `^\d{4}-\d{2}-\d{2}$` **+ data de calendário real** (`2024-02-30` falha)                              | —                            |
+| `inicio`           | string | sim         | `horaValida` — `^\d{2}:\d{2}$` + hora ≤ 23 e minuto ≤ 59; precisa estar em `horariosLivres(barbeiro, servico, data)` | —                            |
+| `observacoes`      | —      | —           | **ignorado** nesta rota (só o encaixe do painel aceita)                                                              | —                            |
 
 **Sucesso — 200** (⚠️ não 201 — ver I-1):
 
@@ -163,39 +168,39 @@ sucesso).
 {
   agendamento: {
     id: number;
-    cliente: string;         // ⚠️ nome do campo diverge de cliente_nome (I-8)
-    telefone: string;        // ⚠️ diverge de cliente_telefone
-    barbeiro: string;        // ⚠️ diverge de barbeiro_nome — é o snapshot do nome
-    servico: string;         // ⚠️ diverge de servico_nome
-    data: string;            // "AAAA-MM-DD"
-    inicio: string;          // "HH:MM"
-    fim: string;             // "HH:MM"
+    cliente: string; // ⚠️ nome do campo diverge de cliente_nome (I-8)
+    telefone: string; // ⚠️ diverge de cliente_telefone
+    barbeiro: string; // ⚠️ diverge de barbeiro_nome — é o snapshot do nome
+    servico: string; // ⚠️ diverge de servico_nome
+    data: string; // "AAAA-MM-DD"
+    inicio: string; // "HH:MM"
+    fim: string; // "HH:MM"
     duracao_min: number;
     preco_centavos: number;
-    observacoes: string;     // sempre "" nesta rota
-    status: "confirmado" | "pendente";  // "confirmado" se config.confirmacao_automatica === "1", senão "pendente"
-    barbearia: string;       // config.nome_barbearia (injetado pela rota)
-  };
-  whatsapp_barbearia: string;  // config.whatsapp
+    observacoes: string; // sempre "" nesta rota
+    status: "confirmado" | "pendente"; // "confirmado" se config.confirmacao_automatica === "1", senão "pendente"
+    barbearia: string; // config.nome_barbearia (injetado pela rota)
+  }
+  whatsapp_barbearia: string; // config.whatsapp
 }
 ```
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | shape acima | agendamento criado |
-| 400 | `{ "erro": "Não consegui ler os dados enviados." }` | JSON malformado (⚠️ mensagem diferente das outras rotas — I-3) |
-| 400 | `{ "erro": "Escreva o nome do cliente." }` | `cliente_nome` < 2 chars |
-| 400 | `{ "erro": "Informe um WhatsApp com DDD." }` | telefone não tem 10–11 dígitos |
-| 400 | `{ "erro": "Informe a data e o horário." }` | `data`/`inicio` fora do formato/calendário |
-| 400 | `{ "erro": "Esse serviço está desativado." }` | `servico.ativo = 0` |
-| 400 | `{ "erro": "Esse profissional está desativado." }` | `barbeiro.ativo = 0` |
-| 400 | `{ "erro": "<nome do barbeiro> não atende <nome do serviço>." }` | par não vinculado em `servico_barbeiro` |
-| 404 | `{ "erro": "Serviço ou profissional não encontrado." }` | `barbeiro_id` ou `servico_id` inexistente |
-| 409 | `{ "erro": "Esse horário acabou de ser ocupado. Escolha outro, por favor." }` | `inicio` não está em `horariosLivres` no momento da gravação |
-| 409 | `{ "erro": "Esse horário já está ocupado. Escolha outro, por favor." }` | violação do índice único parcial |
-| 429 | `{ "erro": "Muitos agendamentos em pouco tempo. Aguarde alguns minutos e tente de novo." }` | rate limit atingido |
+| Status | Corpo                                                                                       | Condição                                                       |
+| ------ | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 200    | shape acima                                                                                 | agendamento criado                                             |
+| 400    | `{ "erro": "Não consegui ler os dados enviados." }`                                         | JSON malformado (⚠️ mensagem diferente das outras rotas — I-3) |
+| 400    | `{ "erro": "Escreva o nome do cliente." }`                                                  | `cliente_nome` < 2 chars                                       |
+| 400    | `{ "erro": "Informe um WhatsApp com DDD." }`                                                | telefone não tem 10–11 dígitos                                 |
+| 400    | `{ "erro": "Informe a data e o horário." }`                                                 | `data`/`inicio` fora do formato/calendário                     |
+| 400    | `{ "erro": "Esse serviço está desativado." }`                                               | `servico.ativo = 0`                                            |
+| 400    | `{ "erro": "Esse profissional está desativado." }`                                          | `barbeiro.ativo = 0`                                           |
+| 400    | `{ "erro": "<nome do barbeiro> não atende <nome do serviço>." }`                            | par não vinculado em `servico_barbeiro`                        |
+| 404    | `{ "erro": "Serviço ou profissional não encontrado." }`                                     | `barbeiro_id` ou `servico_id` inexistente                      |
+| 409    | `{ "erro": "Esse horário acabou de ser ocupado. Escolha outro, por favor." }`               | `inicio` não está em `horariosLivres` no momento da gravação   |
+| 409    | `{ "erro": "Esse horário já está ocupado. Escolha outro, por favor." }`                     | violação do índice único parcial                               |
+| 429    | `{ "erro": "Muitos agendamentos em pouco tempo. Aguarde alguns minutos e tente de novo." }` | rate limit atingido                                            |
 
 Nenhum header `Retry-After` no 429 (ver I-12).
 
@@ -207,10 +212,10 @@ Nenhum header `Retry-After` no 429 (ver I-12).
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ "ok": true }` | `SELECT 1` no banco funcionou **e** `public/uploads` tem permissão de escrita |
-| 503 | `{ "ok": false }` | `SELECT 1` lançou (banco indisponível/não migrado/config insegura), **ou** `public/uploads` sem permissão de escrita |
+| Status | Corpo             | Condição                                                                                                             |
+| ------ | ----------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 200    | `{ "ok": true }`  | `SELECT 1` no banco funcionou **e** `public/uploads` tem permissão de escrita                                        |
+| 503    | `{ "ok": false }` | `SELECT 1` lançou (banco indisponível/não migrado/config insegura), **ou** `public/uploads` sem permissão de escrita |
 
 ⚠️ Corpo **não tem** campo `erro` (I-6). Não detecta disco cheio nem FS
 somente-leitura (Etapa 7 F32).
@@ -229,25 +234,28 @@ HttpOnly; SameSite=Strict; Path=/; Max-Age=43200` (+ `Secure` em produção).
 
 **Parâmetros (corpo JSON):**
 
-| Nome | Tipo | Obrigatório | Validação |
-|---|---|---|---|
-| `senha` | string | sim | comparada com o hash no banco (ou com `ADMIN_PASSWORD` se não houver hash); vazia → falha |
+| Nome    | Tipo   | Obrigatório | Validação                                                                                 |
+| ------- | ------ | ----------- | ----------------------------------------------------------------------------------------- |
+| `senha` | string | sim         | comparada com o hash no banco (ou com `ADMIN_PASSWORD` se não houver hash); vazia → falha |
 
 **Sucesso — 200:**
 
 ```ts
-{ ok: true; senhaInicial: boolean }   // senhaInicial = true quando ainda não há senha_hash no banco
+{
+  ok: true;
+  senhaInicial: boolean;
+} // senhaInicial = true quando ainda não há senha_hash no banco
 ```
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ ok: true, senhaInicial: boolean }` | senha correta |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 401 | `{ "erro": "Senha incorreta." }` | senha errada ou vazia |
-| 429 | `{ "erro": "Muitas tentativas. Aguarde alguns minutos e tente de novo." }` | rate limit por IP ou global |
-| 503 | `{ "erro": "O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem." }` | `SESSION_SECRET`/`ADMIN_PASSWORD` inválidos em produção |
+| Status | Corpo                                                                                                                                                  | Condição                                                |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| 200    | `{ ok: true, senhaInicial: boolean }`                                                                                                                  | senha correta                                           |
+| 400    | `{ "erro": "JSON inválido." }`                                                                                                                         | JSON malformado                                         |
+| 401    | `{ "erro": "Senha incorreta." }`                                                                                                                       | senha errada ou vazia                                   |
+| 429    | `{ "erro": "Muitas tentativas. Aguarde alguns minutos e tente de novo." }`                                                                             | rate limit por IP ou global                             |
+| 503    | `{ "erro": "O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem." }` | `SESSION_SECRET`/`ADMIN_PASSWORD` inválidos em produção |
 
 ---
 
@@ -260,10 +268,16 @@ HttpOnly; SameSite=Strict; Path=/; Max-Age=43200` (+ `Secure` em produção).
 
 ```ts
 // Forma A — servidor mal configurado (autenticacaoConfiguradaComSeguranca() === false):
-{ autenticado: false; configuracaoInsegura: true }         // ⚠️ sem o campo senhaInicial (I-7)
+{
+  autenticado: false;
+  configuracaoInsegura: true;
+} // ⚠️ sem o campo senhaInicial (I-7)
 
 // Forma B — normal:
-{ autenticado: boolean; senhaInicial: boolean }            // ⚠️ sem o campo configuracaoInsegura
+{
+  autenticado: boolean;
+  senhaInicial: boolean;
+} // ⚠️ sem o campo configuracaoInsegura
 // senhaInicial é sempre false quando autenticado === false; é o valor real quando autenticado === true
 ```
 
@@ -327,10 +341,10 @@ liberado).
 **Parâmetros (corpo JSON):** ambas as chaves são opcionais; enviar `{}` é
 válido e devolve o estado atual sem erro.
 
-| Nome | Tipo | Obrigatório | Validação | Limites |
-|---|---|---|---|---|
-| `config` | objeto | não | só chaves da whitelist são gravadas (`nome_barbearia`, `slogan`, `whatsapp`, `endereco`, `instagram`, `logo_url`, `intervalo_min`, `antecedencia_min`, `dias_futuros`, `confirmacao_automatica`, `onboarding_expediente_ok`); **nenhuma validação de faixa ou formato**; valor salvo como `String(v ?? "")` (objeto vira `"[object Object]"`, `null` vira `""`) | **nenhum** limite de comprimento (Etapa 5 F24) |
-| `expediente` | `ExpedienteRow[]` | não | itens com `dia` não-inteiro são descartados; `aberto` truthy→1; `abre`/`fecha` fora de `^\d{2}:\d{2}$` → default `"09:00"`/`"20:00"`; depois `validarExpediente` exige `fecha > abre` por dia | — |
+| Nome         | Tipo              | Obrigatório | Validação                                                                                                                                                                                                                                                                                                                                                       | Limites                                        |
+| ------------ | ----------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `config`     | objeto            | não         | só chaves da whitelist são gravadas (`nome_barbearia`, `slogan`, `whatsapp`, `endereco`, `instagram`, `logo_url`, `intervalo_min`, `antecedencia_min`, `dias_futuros`, `confirmacao_automatica`, `onboarding_expediente_ok`); **nenhuma validação de faixa ou formato**; valor salvo como `String(v ?? "")` (objeto vira `"[object Object]"`, `null` vira `""`) | **nenhum** limite de comprimento (Etapa 5 F24) |
+| `expediente` | `ExpedienteRow[]` | não         | itens com `dia` não-inteiro são descartados; `aberto` truthy→1; `abre`/`fecha` fora de `^\d{2}:\d{2}$` → default `"09:00"`/`"20:00"`; depois `validarExpediente` exige `fecha > abre` por dia                                                                                                                                                                   | —                                              |
 
 **Sucesso — 200:**
 
@@ -340,12 +354,12 @@ válido e devolve o estado atual sem erro.
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ config, expediente }` | ok (mesmo com `{}` no corpo) |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 400 | `{ "erro": "Expediente inválido: <mensagens juntadas por espaço>" }` | algum dia com `fecha <= abre` |
-| — | 401/403/503 (`exigirSessao`) | |
+| Status | Corpo                                                                | Condição                      |
+| ------ | -------------------------------------------------------------------- | ----------------------------- |
+| 200    | `{ config, expediente }`                                             | ok (mesmo com `{}` no corpo)  |
+| 400    | `{ "erro": "JSON inválido." }`                                       | JSON malformado               |
+| 400    | `{ "erro": "Expediente inválido: <mensagens juntadas por espaço>" }` | algum dia com `fecha <= abre` |
+| —      | 401/403/503 (`exigirSessao`)                                         |                               |
 
 ---
 
@@ -357,25 +371,25 @@ sessões) e reemite o cookie `admin_sessao` para esta sessão.
 
 **Parâmetros (corpo JSON):**
 
-| Nome | Tipo | Obrigatório | Validação |
-|---|---|---|---|
-| `senhaAtual` | string | sim | precisa bater com a senha vigente |
-| `novaSenha` | string | sim | `length >= 6`; precisa diferir da atual |
-| `confirmacao` | string | sim | precisa ser `=== novaSenha` |
+| Nome          | Tipo   | Obrigatório | Validação                               |
+| ------------- | ------ | ----------- | --------------------------------------- |
+| `senhaAtual`  | string | sim         | precisa bater com a senha vigente       |
+| `novaSenha`   | string | sim         | `length >= 6`; precisa diferir da atual |
+| `confirmacao` | string | sim         | precisa ser `=== novaSenha`             |
 
 **Sucesso — 200:** `{ ok: true }`.
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ ok: true }` | senha trocada |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 400 | `{ "erro": "A senha atual está incorreta." }` | `senhaAtual` não confere (⚠️ 400, não 401 — I-5) |
-| 400 | `{ "erro": "A senha nova precisa ter pelo menos 6 caracteres." }` | `novaSenha.length < 6` |
-| 400 | `{ "erro": "A confirmação não bate com a senha nova." }` | `confirmacao !== novaSenha` |
-| 400 | `{ "erro": "A senha nova é igual à atual." }` | `novaSenha` confere com a senha vigente |
-| — | 401/503 (`exigirSessao`) | — |
+| Status | Corpo                                                             | Condição                                         |
+| ------ | ----------------------------------------------------------------- | ------------------------------------------------ |
+| 200    | `{ ok: true }`                                                    | senha trocada                                    |
+| 400    | `{ "erro": "JSON inválido." }`                                    | JSON malformado                                  |
+| 400    | `{ "erro": "A senha atual está incorreta." }`                     | `senhaAtual` não confere (⚠️ 400, não 401 — I-5) |
+| 400    | `{ "erro": "A senha nova precisa ter pelo menos 6 caracteres." }` | `novaSenha.length < 6`                           |
+| 400    | `{ "erro": "A confirmação não bate com a senha nova." }`          | `confirmacao !== novaSenha`                      |
+| 400    | `{ "erro": "A senha nova é igual à atual." }`                     | `novaSenha` confere com a senha vigente          |
+| —      | 401/503 (`exigirSessao`)                                          | —                                                |
 
 ---
 
@@ -386,29 +400,31 @@ sessões) e reemite o cookie `admin_sessao` para esta sessão.
 
 **Parâmetros (campos do form):**
 
-| Nome | Tipo | Obrigatório | Validação | Limites |
-|---|---|---|---|---|
-| `arquivo` | File | sim | precisa ser `File`; magic number deve ser PNG/JPEG/GIF/WEBP; `sharp` precisa conseguir decodificar | **≤ 5 MB** (`arquivo.size`) |
-| `pasta` | string | não | se não for uma de `logo`/`barbeiros`/`servicos`/`produtos`, cai silenciosamente em `"geral"` | — |
-| `anterior` | string | não | só age se casar `^/uploads/(logo\|barbeiros\|servicos\|produtos)/[0-9a-f-]{36}\.webp$`; senão ignora | — |
+| Nome       | Tipo   | Obrigatório | Validação                                                                                            | Limites                     |
+| ---------- | ------ | ----------- | ---------------------------------------------------------------------------------------------------- | --------------------------- |
+| `arquivo`  | File   | sim         | precisa ser `File`; magic number deve ser PNG/JPEG/GIF/WEBP; `sharp` precisa conseguir decodificar   | **≤ 5 MB** (`arquivo.size`) |
+| `pasta`    | string | não         | se não for uma de `logo`/`barbeiros`/`servicos`/`produtos`, cai silenciosamente em `"geral"`         | —                           |
+| `anterior` | string | não         | só age se casar `^/uploads/(logo\|barbeiros\|servicos\|produtos)/[0-9a-f-]{36}\.webp$`; senão ignora | —                           |
 
 **Sucesso — 201:**
 
 ```ts
-{ url: string }   // "/uploads/<pasta>/<uuid>.webp"
+{
+  url: string;
+} // "/uploads/<pasta>/<uuid>.webp"
 ```
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 201 | `{ url: string }` | imagem processada e gravada |
-| 400 | `{ "erro": "Selecione uma imagem." }` | `arquivo` ausente ou não é `File` |
-| 400 | `{ "erro": "A imagem precisa ter até 5 MB." }` | `arquivo.size > 5 MB` |
-| 400 | `{ "erro": "Envie uma imagem JPG, PNG, WEBP ou GIF." }` | magic number não reconhecido |
-| 400 | `{ "erro": "Não consegui processar essa imagem." }` | `sharp` lançou |
-| — | 401/403/503 (`exigirSessao`) | — |
-| 500 | genérico | falha de escrita em disco (cheio / somente-leitura) |
+| Status | Corpo                                                   | Condição                                            |
+| ------ | ------------------------------------------------------- | --------------------------------------------------- |
+| 201    | `{ url: string }`                                       | imagem processada e gravada                         |
+| 400    | `{ "erro": "Selecione uma imagem." }`                   | `arquivo` ausente ou não é `File`                   |
+| 400    | `{ "erro": "A imagem precisa ter até 5 MB." }`          | `arquivo.size > 5 MB`                               |
+| 400    | `{ "erro": "Envie uma imagem JPG, PNG, WEBP ou GIF." }` | magic number não reconhecido                        |
+| 400    | `{ "erro": "Não consegui processar essa imagem." }`     | `sharp` lançou                                      |
+| —      | 401/403/503 (`exigirSessao`)                            | —                                                   |
+| 500    | genérico                                                | falha de escrita em disco (cheio / somente-leitura) |
 
 ---
 
@@ -419,13 +435,13 @@ sessões) e reemite o cookie `admin_sessao` para esta sessão.
 **Autenticação:** `exigirSessao` — **403 na senha inicial**.
 **Parâmetros (query string):** todos opcionais.
 
-| Nome | Tipo | Default | Efeito |
-|---|---|---|---|
-| `busca` | string | `""` | `trim()`; filtra `cliente_nome LIKE %busca% OR cliente_telefone LIKE %(só dígitos de busca)%` |
-| `status` | string | `""` | filtro exato `status = ?` — **sem validação** de valor |
-| `barbeiro` | number | `""` | `Number(...)` → filtro `barbeiro_id = ?` |
-| `data` | string | `""` | filtro exato `data = ?` — **sem validação de formato** |
-| `pagina` | number | `0` | `Math.max(0, Number(...) || 0)` — **0-indexado** |
+| Nome       | Tipo   | Default | Efeito                                                                                        |
+| ---------- | ------ | ------- | --------------------------------------------------------------------------------------------- |
+| `busca`    | string | `""`    | `trim()`; filtra `cliente_nome LIKE %busca% OR cliente_telefone LIKE %(só dígitos de busca)%` |
+| `status`   | string | `""`    | filtro exato `status = ?` — **sem validação** de valor                                        |
+| `barbeiro` | number | `""`    | `Number(...)` → filtro `barbeiro_id = ?`                                                      |
+| `data`     | string | `""`    | filtro exato `data = ?` — **sem validação de formato**                                        |
+| `pagina`   | number | `0`     | `Math.max(0, Number(...)                                                                      |     | 0)` — **0-indexado** |
 
 Sempre aplica `excluido_em IS NULL`.
 
@@ -449,37 +465,39 @@ Sempre aplica `excluido_em IS NULL`.
 **Autenticação:** `exigirSessao` — **403 na senha inicial**.
 **Parâmetros (corpo JSON):**
 
-| Nome | Tipo | Obrigatório | Validação | Limites |
-|---|---|---|---|---|
-| `cliente_nome` | string | sim | `trim()`, `length >= 2` | cortado em **80** |
-| `cliente_telefone` | string | **não** | se enviado, precisa ter 10–11 dígitos; se vazio, aceito | — |
-| `barbeiro_id` | number | sim | precisa existir e `ativo = 1`; precisa executar o serviço | — |
-| `servico_id` | number | sim | idem | — |
-| `data` | string | sim | `dataValida` (formato + calendário) | — |
-| `inicio` | string | sim | `horaValida`; **não** precisa estar em `horariosLivres` (encaixe fora do expediente é permitido); só não pode sobrepor outro atendimento nem bloqueio | — |
-| `observacoes` | string | não | `trim()` | cortado em **300** |
+| Nome               | Tipo   | Obrigatório | Validação                                                                                                                                             | Limites            |
+| ------------------ | ------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| `cliente_nome`     | string | sim         | `trim()`, `length >= 2`                                                                                                                               | cortado em **80**  |
+| `cliente_telefone` | string | **não**     | se enviado, precisa ter 10–11 dígitos; se vazio, aceito                                                                                               | —                  |
+| `barbeiro_id`      | number | sim         | precisa existir e `ativo = 1`; precisa executar o serviço                                                                                             | —                  |
+| `servico_id`       | number | sim         | idem                                                                                                                                                  | —                  |
+| `data`             | string | sim         | `dataValida` (formato + calendário)                                                                                                                   | —                  |
+| `inicio`           | string | sim         | `horaValida`; **não** precisa estar em `horariosLivres` (encaixe fora do expediente é permitido); só não pode sobrepor outro atendimento nem bloqueio | —                  |
+| `observacoes`      | string | não         | `trim()`                                                                                                                                              | cortado em **300** |
 
 **Sucesso — 201:**
 
 ```ts
-{ id: number }   // ⚠️ só o id — não devolve o agendamento criado (diverge do POST público — I-2)
+{
+  id: number;
+} // ⚠️ só o id — não devolve o agendamento criado (diverge do POST público — I-2)
 ```
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 201 | `{ id: number }` | criado |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 400 | `{ "erro": "Escreva o nome do cliente." }` | `cliente_nome` < 2 |
-| 400 | `{ "erro": "Telefone inválido — informe DDD + número, ou deixe em branco." }` | telefone presente mas sem 10–11 dígitos |
-| 400 | `{ "erro": "Informe a data e o horário." }` | `data`/`inicio` inválidos |
-| 400 | `{ "erro": "Esse serviço está desativado." }` / `"Esse profissional está desativado."` / `"<barbeiro> não atende <serviço>."` | idem POST público |
-| 404 | `{ "erro": "Serviço ou profissional não encontrado." }` | id inexistente |
-| 409 | `{ "erro": "<barbeiro> já atende <cliente> das <hh:mm> às <hh:mm>." }` | sobreposição com outro atendimento |
-| 409 | `{ "erro": "<barbeiro> está bloqueado (<motivo ou 'ausência'>) das <hh:mm> às <hh:mm>." }` | sobreposição com bloqueio |
-| 409 | `{ "erro": "Esse horário já está ocupado. Escolha outro, por favor." }` | índice único parcial |
-| — | 401/403/503 (`exigirSessao`) | — |
+| Status | Corpo                                                                                                                         | Condição                                |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| 201    | `{ id: number }`                                                                                                              | criado                                  |
+| 400    | `{ "erro": "JSON inválido." }`                                                                                                | JSON malformado                         |
+| 400    | `{ "erro": "Escreva o nome do cliente." }`                                                                                    | `cliente_nome` < 2                      |
+| 400    | `{ "erro": "Telefone inválido — informe DDD + número, ou deixe em branco." }`                                                 | telefone presente mas sem 10–11 dígitos |
+| 400    | `{ "erro": "Informe a data e o horário." }`                                                                                   | `data`/`inicio` inválidos               |
+| 400    | `{ "erro": "Esse serviço está desativado." }` / `"Esse profissional está desativado."` / `"<barbeiro> não atende <serviço>."` | idem POST público                       |
+| 404    | `{ "erro": "Serviço ou profissional não encontrado." }`                                                                       | id inexistente                          |
+| 409    | `{ "erro": "<barbeiro> já atende <cliente> das <hh:mm> às <hh:mm>." }`                                                        | sobreposição com outro atendimento      |
+| 409    | `{ "erro": "<barbeiro> está bloqueado (<motivo ou 'ausência'>) das <hh:mm> às <hh:mm>." }`                                    | sobreposição com bloqueio               |
+| 409    | `{ "erro": "Esse horário já está ocupado. Escolha outro, por favor." }`                                                       | índice único parcial                    |
+| —      | 401/403/503 (`exigirSessao`)                                                                                                  | —                                       |
 
 ⚠️ As mensagens 409 do encaixe **contêm o nome do outro cliente** — ok, é
 tela autenticada.
@@ -491,11 +509,11 @@ tela autenticada.
 **Autenticação:** `exigirSessao` — **403 na senha inicial**.
 **Parâmetros (corpo JSON):**
 
-| Nome | Tipo | Obrigatório | Validação |
-|---|---|---|---|
-| `barbeiro_id` | number | sim | `Number(...)` |
-| `servico_id` | number | sim | `Number(...)` — se não existir, devolve `{ horarios: [] }` (⚠️ não 404 — I-13) |
-| `data` | string | sim | **sem validação de formato** — passada direto a `horariosLivres` |
+| Nome          | Tipo   | Obrigatório | Validação                                                                      |
+| ------------- | ------ | ----------- | ------------------------------------------------------------------------------ |
+| `barbeiro_id` | number | sim         | `Number(...)`                                                                  |
+| `servico_id`  | number | sim         | `Number(...)` — se não existir, devolve `{ horarios: [] }` (⚠️ não 404 — I-13) |
+| `data`        | string | sim         | **sem validação de formato** — passada direto a `horariosLivres`               |
 
 **Sucesso — 200:** `{ horarios: string[] }` — `["HH:MM", ...]` ou `[]`.
 
@@ -514,18 +532,18 @@ existe) · 400 `{ "erro": "JSON inválido." }` · 401/403/503 (`exigirSessao`).
 
 **Modo A — mudança de status** (quando `status !== undefined`):
 
-| Nome | Tipo | Obrigatório | Validação |
-|---|---|---|---|
-| `status` | string | sim | uma de `pendente`/`confirmado`/`concluido`/`cancelado`; a transição precisa ser legal (`pendente→confirmado\|cancelado`; `confirmado→concluido\|cancelado`; `concluido→∅`; `cancelado→pendente\|confirmado`); `concluido` exige data não-futura |
+| Nome     | Tipo   | Obrigatório | Validação                                                                                                                                                                                                                                       |
+| -------- | ------ | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status` | string | sim         | uma de `pendente`/`confirmado`/`concluido`/`cancelado`; a transição precisa ser legal (`pendente→confirmado\|cancelado`; `confirmado→concluido\|cancelado`; `concluido→∅`; `cancelado→pendente\|confirmado`); `concluido` exige data não-futura |
 
 **Modo B — remarcação** (quando `status` ausente e algum de `data`/`inicio`/`barbeiro_id`/`servico_id` presente):
 
-| Nome | Tipo | Obrigatório | Validação |
-|---|---|---|---|
-| `data` | string | não (mantém a atual) | `dataValida` se enviado |
-| `inicio` | string | não | `horaValida` se enviado |
-| `barbeiro_id` | number | não | precisa existir, `ativo = 1`, executar o serviço |
-| `servico_id` | number | não | idem; recota `preco_centavos`/`duracao_min`/`fim` |
+| Nome          | Tipo   | Obrigatório          | Validação                                         |
+| ------------- | ------ | -------------------- | ------------------------------------------------- |
+| `data`        | string | não (mantém a atual) | `dataValida` se enviado                           |
+| `inicio`      | string | não                  | `horaValida` se enviado                           |
+| `barbeiro_id` | number | não                  | precisa existir, `ativo = 1`, executar o serviço  |
+| `servico_id`  | number | não                  | idem; recota `preco_centavos`/`duracao_min`/`fim` |
 
 O agendamento precisa estar em `pendente` ou `confirmado` (não `concluido`
 nem `cancelado`).
@@ -534,20 +552,20 @@ nem `cancelado`).
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ ok: true }` | mudança aplicada |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 400 | `{ "erro": "Nada para atualizar." }` | corpo sem `status` e sem nenhum campo de remarcação |
-| 400 | `{ "erro": "Status inválido." }` | `status` fora dos 4 valores |
-| 400 | `{ "erro": "Não é possível mudar de \"<atual>\" para \"<novo>\"." }` | transição ilegal |
-| 400 | `{ "erro": "Não é possível concluir um agendamento com data futura." }` | `status = "concluido"` com `data > hoje` |
-| 400 | `{ "erro": "Não é possível remarcar um agendamento concluido." }` / `"...cancelado." }` | remarcar em estado terminal |
-| 400 | `{ "erro": "Esse serviço está desativado." }` / `"Esse profissional está desativado."` / `"<b> não atende <s>."` / `"Informe a data e o horário."` | validação da remarcação |
-| 404 | `{ "erro": "Agendamento não encontrado." }` | `id` falsy, inexistente, ou soft-deleted |
-| 404 | `{ "erro": "Serviço ou profissional não encontrado." }` | novo `barbeiro_id`/`servico_id` inexistente |
-| 409 | `{ "erro": "<b> já atende <c> das ... às ..." }` / `"<b> está bloqueado (...) das ... às ..."` / `"Esse horário já está ocupado. Escolha outro, por favor."` | conflito ao remarcar / reabrir cancelado |
-| — | 401/403/503 (`exigirSessao`) | — |
+| Status | Corpo                                                                                                                                                        | Condição                                            |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
+| 200    | `{ ok: true }`                                                                                                                                               | mudança aplicada                                    |
+| 400    | `{ "erro": "JSON inválido." }`                                                                                                                               | JSON malformado                                     |
+| 400    | `{ "erro": "Nada para atualizar." }`                                                                                                                         | corpo sem `status` e sem nenhum campo de remarcação |
+| 400    | `{ "erro": "Status inválido." }`                                                                                                                             | `status` fora dos 4 valores                         |
+| 400    | `{ "erro": "Não é possível mudar de \"<atual>\" para \"<novo>\"." }`                                                                                         | transição ilegal                                    |
+| 400    | `{ "erro": "Não é possível concluir um agendamento com data futura." }`                                                                                      | `status = "concluido"` com `data > hoje`            |
+| 400    | `{ "erro": "Não é possível remarcar um agendamento concluido." }` / `"...cancelado." }`                                                                      | remarcar em estado terminal                         |
+| 400    | `{ "erro": "Esse serviço está desativado." }` / `"Esse profissional está desativado."` / `"<b> não atende <s>."` / `"Informe a data e o horário."`           | validação da remarcação                             |
+| 404    | `{ "erro": "Agendamento não encontrado." }`                                                                                                                  | `id` falsy, inexistente, ou soft-deleted            |
+| 404    | `{ "erro": "Serviço ou profissional não encontrado." }`                                                                                                      | novo `barbeiro_id`/`servico_id` inexistente         |
+| 409    | `{ "erro": "<b> já atende <c> das ... às ..." }` / `"<b> está bloqueado (...) das ... às ..."` / `"Esse horário já está ocupado. Escolha outro, por favor."` | conflito ao remarcar / reabrir cancelado            |
+| —      | 401/403/503 (`exigirSessao`)                                                                                                                                 | —                                                   |
 
 ---
 
@@ -561,11 +579,11 @@ nem `cancelado`).
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ ok: true }` | marcado como excluído |
-| 404 | `{ "erro": "Agendamento não encontrado." }` | `id` falsy, inexistente, ou já excluído |
-| — | 401/403/503 (`exigirSessao`) | — |
+| Status | Corpo                                       | Condição                                |
+| ------ | ------------------------------------------- | --------------------------------------- |
+| 200    | `{ ok: true }`                              | marcado como excluído                   |
+| 404    | `{ "erro": "Agendamento não encontrado." }` | `id` falsy, inexistente, ou já excluído |
+| —      | 401/403/503 (`exigirSessao`)                | —                                       |
 
 ---
 
@@ -610,23 +628,27 @@ encontrado.".
 **Parâmetros (corpo JSON)** — só colunas da whitelist do recurso são lidas
 (`filtrarCampos`); numéricas com lixo → `0` sem erro (Etapa 5 F25):
 
-| `recurso` | Campos aceitos | Obrigatório | Validação (`validar`, `criando: true`) |
-|---|---|---|---|
-| `barbeiros` | `nome`, `funcao`, `bio`, `foto`, `ativo`, `ordem` | `nome` | `nome` ≤ 80; `funcao` ≤ 60; `bio` ≤ 500; `foto` ≤ 300; `ordem` inteiro 0–9999 |
-| `servicos` | `nome`, `descricao`, `categoria`, `preco_centavos`, `duracao_min`, `imagem`, `ativo`, `ordem`, `barbeiros[]` | `nome` | `descricao` ≤ 500; `categoria` ≤ 60; `preco_centavos` inteiro 0–10 000 000; `duracao_min` inteiro 5–480; `imagem` ≤ 300; `ordem` 0–9999. `barbeiros[]` é lido fora de `validar` — `INSERT OR IGNORE` (ids inexistentes/inválidos são silenciosamente descartados) |
-| `produtos` | `nome`, `marca`, `preco_centavos`, `estoque`, `imagem`, `ativo` | `nome` | `marca` ≤ 60; `preco_centavos` 0–10 000 000; `estoque` inteiro 0–100 000; `imagem` ≤ 300 |
-| `bloqueios` | `barbeiro_id` (nullable), `data`, `inicio`, `fim`, `motivo` | `data`, `inicio`, `fim` | `data` formato+calendário; `inicio`/`fim` `HH:MM` válido; `fim > inicio`; `motivo` ≤ 200. `barbeiro_id` textual → coerção para `0` → **FK falha → 500** |
+| `recurso`   | Campos aceitos                                                                                               | Obrigatório             | Validação (`validar`, `criando: true`)                                                                                                                                                                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `barbeiros` | `nome`, `funcao`, `bio`, `foto`, `ativo`, `ordem`                                                            | `nome`                  | `nome` ≤ 80; `funcao` ≤ 60; `bio` ≤ 500; `foto` ≤ 300; `ordem` inteiro 0–9999                                                                                                                                                                                     |
+| `servicos`  | `nome`, `descricao`, `categoria`, `preco_centavos`, `duracao_min`, `imagem`, `ativo`, `ordem`, `barbeiros[]` | `nome`                  | `descricao` ≤ 500; `categoria` ≤ 60; `preco_centavos` inteiro 0–10 000 000; `duracao_min` inteiro 5–480; `imagem` ≤ 300; `ordem` 0–9999. `barbeiros[]` é lido fora de `validar` — `INSERT OR IGNORE` (ids inexistentes/inválidos são silenciosamente descartados) |
+| `produtos`  | `nome`, `marca`, `preco_centavos`, `estoque`, `imagem`, `ativo`                                              | `nome`                  | `marca` ≤ 60; `preco_centavos` 0–10 000 000; `estoque` inteiro 0–100 000; `imagem` ≤ 300                                                                                                                                                                          |
+| `bloqueios` | `barbeiro_id` (nullable), `data`, `inicio`, `fim`, `motivo`                                                  | `data`, `inicio`, `fim` | `data` formato+calendário; `inicio`/`fim` `HH:MM` válido; `fim > inicio`; `motivo` ≤ 200. `barbeiro_id` textual → coerção para `0` → **FK falha → 500**                                                                                                           |
 
 **Sucesso — 201:**
 
 ```ts
 // recurso != "bloqueios":
-{ id: number; atropelados: undefined }   // a chave "atropelados" fica ausente no JSON
+{
+  id: number;
+  atropelados: undefined;
+} // a chave "atropelados" fica ausente no JSON
 
 // recurso == "bloqueios":
 {
   id: number;
-  atropelados: Array<{                    // agendamentos ativos que caem dentro do intervalo bloqueado; [] se nenhum
+  atropelados: Array<{
+    // agendamentos ativos que caem dentro do intervalo bloqueado; [] se nenhum
     id: number;
     cliente_nome: string;
     cliente_telefone: string;
@@ -641,15 +663,15 @@ encontrado.".
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 201 | shape acima | criado |
-| 400 | `{ "erro": "<primeira mensagem>", "erros": { "<coluna>": "<mensagem>" } }` | falha de validação (⚠️ único formato de erro com mapa por campo — I-4) |
-| 400 | `{ "erro": "Nada para salvar." }` | nenhuma coluna conhecida no corpo |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 404 | `{ "erro": "Cadastro não encontrado." }` | `recurso` fora da lista |
-| — | 401/403/503 (`exigirSessao`) | — |
-| 500 | genérico | violação de FK/CHECK que a validação não pegou (ex.: `barbeiro_id` textual num bloqueio) |
+| Status | Corpo                                                                      | Condição                                                                                 |
+| ------ | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 201    | shape acima                                                                | criado                                                                                   |
+| 400    | `{ "erro": "<primeira mensagem>", "erros": { "<coluna>": "<mensagem>" } }` | falha de validação (⚠️ único formato de erro com mapa por campo — I-4)                   |
+| 400    | `{ "erro": "Nada para salvar." }`                                          | nenhuma coluna conhecida no corpo                                                        |
+| 400    | `{ "erro": "JSON inválido." }`                                             | JSON malformado                                                                          |
+| 404    | `{ "erro": "Cadastro não encontrado." }`                                   | `recurso` fora da lista                                                                  |
+| —      | 401/403/503 (`exigirSessao`)                                               | —                                                                                        |
+| 500    | genérico                                                                   | violação de FK/CHECK que a validação não pegou (ex.: `barbeiro_id` textual num bloqueio) |
 
 ---
 
@@ -670,14 +692,14 @@ gravado) não é pego pelo `validar` → `CHECK` do banco → **500** (Etapa 5 F
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ ok: true }` | atualizado (`changes > 0`) |
-| 400 | `{ "erro": "<msg>", "erros": {...} }` | falha de validação |
-| 400 | `{ "erro": "Nada para salvar." }` | nenhuma coluna conhecida no corpo |
-| 400 | `{ "erro": "JSON inválido." }` | JSON malformado |
-| 404 | `{ "erro": "Item não encontrado." }` | `recurso` inválido, `id` falsy, ou `UPDATE` afetou 0 linhas |
-| — | 401/403/503 (`exigirSessao`) | — |
+| Status | Corpo                                 | Condição                                                    |
+| ------ | ------------------------------------- | ----------------------------------------------------------- |
+| 200    | `{ ok: true }`                        | atualizado (`changes > 0`)                                  |
+| 400    | `{ "erro": "<msg>", "erros": {...} }` | falha de validação                                          |
+| 400    | `{ "erro": "Nada para salvar." }`     | nenhuma coluna conhecida no corpo                           |
+| 400    | `{ "erro": "JSON inválido." }`        | JSON malformado                                             |
+| 404    | `{ "erro": "Item não encontrado." }`  | `recurso` inválido, `id` falsy, ou `UPDATE` afetou 0 linhas |
+| —      | 401/403/503 (`exigirSessao`)          | —                                                           |
 
 ---
 
@@ -695,20 +717,25 @@ de apagar. Para `produtos` e `bloqueios`: sempre `DELETE` físico.
 
 ```ts
 // apagado de verdade:
-{ ok: true }
+{
+  ok: true;
+}
 
 // desativado por ter histórico (só barbeiros/servicos):
-{ ok: true; desativado: true;
-  mensagem: "Tem histórico de atendimento, então foi desativado em vez de excluído. Some do site e do agendamento." }
+{
+  ok: true;
+  desativado: true;
+  mensagem: "Tem histórico de atendimento, então foi desativado em vez de excluído. Some do site e do agendamento.";
+}
 ```
 
 **Status possíveis:**
 
-| Status | Corpo | Condição |
-|---|---|---|
-| 200 | `{ ok: true }` **ou** `{ ok: true, desativado: true, mensagem }` | apagado ou desativado |
-| 404 | `{ "erro": "Item não encontrado." }` | `recurso` inválido, `id` falsy, ou 0 linhas afetadas |
-| — | 401/403/503 (`exigirSessao`) | — |
+| Status | Corpo                                                            | Condição                                             |
+| ------ | ---------------------------------------------------------------- | ---------------------------------------------------- |
+| 200    | `{ ok: true }` **ou** `{ ok: true, desativado: true, mensagem }` | apagado ou desativado                                |
+| 404    | `{ "erro": "Item não encontrado." }`                             | `recurso` inválido, `id` falsy, ou 0 linhas afetadas |
+| —      | 401/403/503 (`exigirSessao`)                                     | —                                                    |
 
 ---
 
@@ -719,10 +746,10 @@ de apagar. Para `produtos` e `bloqueios`: sempre `DELETE` físico.
 **Autenticação:** `exigirSessao` — **403 na senha inicial**.
 **Parâmetros (query string):**
 
-| Nome | Tipo | Default | Validação |
-|---|---|---|---|
-| `mes` | string | mês atual (fuso da barbearia) | usado só se casar `^\d{4}-\d{2}$`, senão ignorado |
-| `comparar` | string | `mes` menos 1 mês | idem |
+| Nome       | Tipo   | Default                       | Validação                                         |
+| ---------- | ------ | ----------------------------- | ------------------------------------------------- |
+| `mes`      | string | mês atual (fuso da barbearia) | usado só se casar `^\d{4}-\d{2}$`, senão ignorado |
+| `comparar` | string | `mes` menos 1 mês             | idem                                              |
 
 **Sucesso — 200:**
 
@@ -790,23 +817,23 @@ I-8).
 
 ## I-1 · Status de criação: 200 vs 201
 
-| Endpoint | Hoje |
-|---|---|
-| `POST /api/agendamentos` (público) | **200** |
-| `POST /api/admin/agendamentos` (encaixe) | 201 |
-| `POST /api/admin/[recurso]` | 201 |
-| `POST /api/admin/upload` | 201 |
+| Endpoint                                 | Hoje    |
+| ---------------------------------------- | ------- |
+| `POST /api/agendamentos` (público)       | **200** |
+| `POST /api/admin/agendamentos` (encaixe) | 201     |
+| `POST /api/admin/[recurso]`              | 201     |
+| `POST /api/admin/upload`                 | 201     |
 
 **Forma canônica:** **201** para toda criação de recurso.
 **Mudaria:** `POST /api/agendamentos` passa a responder 201.
 
 ## I-2 · Corpo da criação: objeto completo vs só `id`
 
-| Endpoint | Hoje |
-|---|---|
-| `POST /api/agendamentos` | `{ agendamento: {...12 campos...}, whatsapp_barbearia }` |
-| `POST /api/admin/agendamentos` | `{ id }` |
-| `POST /api/admin/[recurso]` | `{ id, atropelados? }` |
+| Endpoint                       | Hoje                                                     |
+| ------------------------------ | -------------------------------------------------------- |
+| `POST /api/agendamentos`       | `{ agendamento: {...12 campos...}, whatsapp_barbearia }` |
+| `POST /api/admin/agendamentos` | `{ id }`                                                 |
+| `POST /api/admin/[recurso]`    | `{ id, atropelados? }`                                   |
 
 O front público precisa do snapshot para a tela de confirmação + link de
 WhatsApp, o que justifica o corpo gordo. Mas o encaixe do painel, para exibir
@@ -819,10 +846,10 @@ AgendamentoRow }` (mesmo shape de `GET /api/admin/agendamentos`.itens).
 
 ## I-3 · Mensagem de JSON malformado
 
-| Endpoint | Hoje |
-|---|---|
+| Endpoint                 | Hoje                                    |
+| ------------------------ | --------------------------------------- |
 | `POST /api/agendamentos` | `"Não consegui ler os dados enviados."` |
-| Todas as rotas do painel | `"JSON inválido."` |
+| Todas as rotas do painel | `"JSON inválido."`                      |
 
 **Forma canônica:** uma frase, amigável, em todo lugar: **`"Não consegui ler
 os dados enviados."`** (o `"JSON inválido."` vaza jargão para uma tela que
@@ -833,30 +860,31 @@ pode ser vista pelo cliente em rotas futuras).
 
 ## I-4 · "Não encontrado": três mensagens para conceitos parecidos, e formato de erro de validação
 
-| Situação | Hoje |
-|---|---|
-| `recurso` fora da lista, em `GET`/`POST /api/admin/[recurso]` | 404 `{ erro: "Cadastro não encontrado." }` |
-| `recurso` fora da lista **ou** `id` inválido, em `[recurso]/[id]` | 404 `{ erro: "Item não encontrado." }` |
-| `id` inexistente em `agendamentos/[id]` | 404 `{ erro: "Agendamento não encontrado." }` |
-| Falha de validação em `[recurso]` (POST/PATCH) | `{ erro, erros: {<coluna>: <msg>} }` |
-| Falha de validação em qualquer outra rota | `{ erro }` só |
+| Situação                                                          | Hoje                                          |
+| ----------------------------------------------------------------- | --------------------------------------------- |
+| `recurso` fora da lista, em `GET`/`POST /api/admin/[recurso]`     | 404 `{ erro: "Cadastro não encontrado." }`    |
+| `recurso` fora da lista **ou** `id` inválido, em `[recurso]/[id]` | 404 `{ erro: "Item não encontrado." }`        |
+| `id` inexistente em `agendamentos/[id]`                           | 404 `{ erro: "Agendamento não encontrado." }` |
+| Falha de validação em `[recurso]` (POST/PATCH)                    | `{ erro, erros: {<coluna>: <msg>} }`          |
+| Falha de validação em qualquer outra rota                         | `{ erro }` só                                 |
 
 **Forma canônica:**
+
 - Distinguir **tipo de cadastro desconhecido** (`{ erro: "Cadastro não
-  encontrado." }`) de **registro não encontrado** (`{ erro: "<Recurso> não
-  encontrado." }`). O `[recurso]/[id]` deve usar "Cadastro não encontrado."
+encontrado." }`) de **registro não encontrado** (`{ erro: "<Recurso> não
+encontrado." }`). O `[recurso]/[id]` deve usar "Cadastro não encontrado."
   quando o `recurso` é inválido, e "Registro não encontrado." quando é o `id`.
 - Formato de erro de validação: **sempre** `{ erro: string; erros?:
-  Record<string,string> }`, com `erros` presente só quando há mapa por campo.
+Record<string,string> }`, com `erros` presente só quando há mapa por campo.
   Documentar `erros` como opcional (é o que já acontece — só falta o
   front-end saber que só as rotas `[recurso]` o preenchem).
-**Mudaria:** `PATCH`/`DELETE /api/admin/[recurso]/[id]` (mensagem 404).
+  **Mudaria:** `PATCH`/`DELETE /api/admin/[recurso]/[id]` (mensagem 404).
 
 ## I-5 · Falha de senha: 401 vs 400
 
-| Endpoint | Hoje |
-|---|---|
-| `POST /api/admin/login` (senha errada) | **401** `"Senha incorreta."` |
+| Endpoint                                      | Hoje                                      |
+| --------------------------------------------- | ----------------------------------------- |
+| `POST /api/admin/login` (senha errada)        | **401** `"Senha incorreta."`              |
 | `POST /api/admin/senha` (`senhaAtual` errada) | **400** `"A senha atual está incorreta."` |
 
 Ambos são falha de autenticação (o segundo é uma reautenticação).
@@ -875,10 +903,10 @@ Etapa 7 F32, que pede um `motivo` de diagnóstico de qualquer forma).
 
 ## I-7 · `GET /api/admin/sessao` tem shape condicional incompleto
 
-| Ramo | Campos |
-|---|---|
+| Ramo            | Campos                                                                        |
+| --------------- | ----------------------------------------------------------------------------- |
 | Config insegura | `{ autenticado: false, configuracaoInsegura: true }` — **sem** `senhaInicial` |
-| Normal | `{ autenticado, senhaInicial }` — **sem** `configuracaoInsegura` |
+| Normal          | `{ autenticado, senhaInicial }` — **sem** `configuracaoInsegura`              |
 
 **Forma canônica:** sempre os três: `{ autenticado: boolean; senhaInicial:
 boolean; configuracaoInsegura: boolean }`.
@@ -891,6 +919,7 @@ boolean; configuracaoInsegura: boolean }`.
 usa `cliente_nome`, `cliente_telefone`, `barbeiro_nome`, `servico_nome`.
 
 **(b) "total"** significa coisas diferentes:
+
 - contagem de linhas: `GET /api/admin/agendamentos`.`total`,
   `pendentes`.`total`, `resumo.hoje.total`;
 - soma em centavos: `resumo.financeiro.serie[].total`,
@@ -900,14 +929,15 @@ usa `cliente_nome`, `cliente_telefone`, `barbeiro_nome`, `servico_nome`.
 (`resumo.financeiro.geral.*.faturamento`, `TotaisDoMes.*.faturamento`).
 
 **Forma canônica:**
+
 - O agendamento devolvido pela API usa **sempre** as chaves de
   `AgendamentoRow` (`cliente_nome`, `cliente_telefone`, `barbeiro_nome`,
   `servico_nome`).
 - **`total` = sempre contagem.** Soma de dinheiro = **`faturamento`** (ou
   `faturamento_centavos`).
-**Mudaria:** `POST /api/agendamentos` (renomeia 4 campos do objeto
-`agendamento`); `resumo` (`serie[].total`, `serieAnoAnterior[].total`,
-`porServico[].total`, `porBarbeiro[].total` → `faturamento`).
+  **Mudaria:** `POST /api/agendamentos` (renomeia 4 campos do objeto
+  `agendamento`); `resumo` (`serie[].total`, `serieAnoAnterior[].total`,
+  `porServico[].total`, `porBarbeiro[].total` → `faturamento`).
 
 ## I-9 · Convenção de data/hora: `criado_em`/`excluido_em` em UTC
 
@@ -935,12 +965,12 @@ do contrato até existir um endpoint que devolva excluídos.
   `porServico[].id`/`porBarbeiro[].id` (`null` = cadastro apagado).
 - **`undefined` (chave omitida)** — o ponto fora da curva:
   `POST /api/admin/[recurso]`.`atropelados` só existe quando `recurso ===
-  "bloqueios"`; nos outros a chave **não aparece** no JSON.
-**Forma canônica:** nunca omitir uma chave que faz parte do shape — usar
-`[]` quando o conceito se aplica e está vazio, e não incluir a chave (ou usar
-`null`) quando não se aplica. Para `atropelados`: devolvê-lo como `[]` sempre
-que `recurso === "bloqueios"`, e **não incluir a chave** para os demais.
-**Mudaria:** `POST /api/admin/[recurso]` (resposta 201).
+"bloqueios"`; nos outros a chave **não aparece** no JSON.
+  **Forma canônica:** nunca omitir uma chave que faz parte do shape — usar
+  `[]` quando o conceito se aplica e está vazio, e não incluir a chave (ou usar
+  `null`) quando não se aplica. Para `atropelados`: devolvê-lo como `[]` sempre
+  que `recurso === "bloqueios"`, e **não incluir a chave** para os demais.
+  **Mudaria:** `POST /api/admin/[recurso]` (resposta 201).
 
 ## I-11 · `PUT /api/admin/config` não espelha o `GET`
 
@@ -986,19 +1016,19 @@ filtra cancelado) mostra menos.
 
 ## Resumo das divergências por endpoint
 
-| Endpoint | Inconsistências que o tocam |
-|---|---|
-| `POST /api/agendamentos` | I-1, I-2, I-3, I-8(a), I-12 |
-| `GET /api/health` | I-6 |
-| `POST /api/admin/login` | I-3, I-5, I-12 |
-| `GET /api/admin/sessao` | I-7 |
-| `PUT /api/admin/config` | I-3, I-11 |
-| `POST /api/admin/senha` | I-3, I-5 |
-| `POST /api/admin/agendamentos` | I-2, I-3 |
-| `PUT /api/admin/agendamentos` | I-3, I-13 |
-| `PATCH /api/admin/agendamentos/[id]` | I-3 |
-| `POST /api/admin/[recurso]` | I-3, I-4, I-10 |
-| `PATCH`/`DELETE /api/admin/[recurso]/[id]` | I-3, I-4 |
-| `GET /api/admin/agendamentos` | I-8(b), I-9 |
-| `GET /api/admin/resumo` | I-8(b)(c), I-9, I-14 |
-| `GET /api/admin/pendentes` | I-8(b) |
+| Endpoint                                   | Inconsistências que o tocam |
+| ------------------------------------------ | --------------------------- |
+| `POST /api/agendamentos`                   | I-1, I-2, I-3, I-8(a), I-12 |
+| `GET /api/health`                          | I-6                         |
+| `POST /api/admin/login`                    | I-3, I-5, I-12              |
+| `GET /api/admin/sessao`                    | I-7                         |
+| `PUT /api/admin/config`                    | I-3, I-11                   |
+| `POST /api/admin/senha`                    | I-3, I-5                    |
+| `POST /api/admin/agendamentos`             | I-2, I-3                    |
+| `PUT /api/admin/agendamentos`              | I-3, I-13                   |
+| `PATCH /api/admin/agendamentos/[id]`       | I-3                         |
+| `POST /api/admin/[recurso]`                | I-3, I-4, I-10              |
+| `PATCH`/`DELETE /api/admin/[recurso]/[id]` | I-3, I-4                    |
+| `GET /api/admin/agendamentos`              | I-8(b), I-9                 |
+| `GET /api/admin/resumo`                    | I-8(b)(c), I-9, I-14        |
+| `GET /api/admin/pendentes`                 | I-8(b)                      |
