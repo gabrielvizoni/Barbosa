@@ -3,22 +3,22 @@
 ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![SQLite](https://img.shields.io/badge/SQLite-better--sqlite3-003B57?logo=sqlite&logoColor=white)
-![Testes](https://img.shields.io/badge/testes-114%20passando-2e7d32)
+![Testes](https://img.shields.io/badge/testes-136%20passando-2e7d32)
 ![Autenticação](https://img.shields.io/badge/autentica%C3%A7%C3%A3o-sem%20biblioteca-c6a02c)
-![Projeto](https://img.shields.io/badge/projeto-cliente%20real%20em%20produ%C3%A7%C3%A3o-8a2be2)
+![Status](https://img.shields.io/badge/status-pr%C3%A9--lan%C3%A7amento-8a2be2)
 
-**Plataforma completa de agendamento para uma barbearia real, em produção, construída sozinho de
-ponta a ponta** — Next.js 14 (App Router), React 18 e SQLite. Sem ORM, sem biblioteca de
-componentes, sem biblioteca de autenticação.
+**Plataforma completa de agendamento para uma barbearia real, construída sozinho de ponta a
+ponta** — Next.js 14 (App Router), React 18 e SQLite. Sem ORM, sem biblioteca de componentes, sem
+biblioteca de autenticação. Roda localmente; ainda não foi para produção.
 
-> 🇬🇧 **In short** — A full booking platform for a real barbershop client, live in production,
-> built solo end to end with Next.js 14 (App Router), React 18 and SQLite. A public booking flow
+> 🇬🇧 **In short** — A full booking platform for a real barbershop client, built solo end to end
+> with Next.js 14 (App Router), React 18 and SQLite. A public booking flow
 > (5-step wizard, live slot availability, double-booking-safe writes) plus a complete admin panel
 > (schedule, staff, services, pricing, financial dashboard, image uploads). Auth is hand-built:
 > scrypt password hashing, HMAC-signed session cookies, timing-safe comparisons, and a
-> self-contained SQLite rate limiter — no bcrypt, no Redis, no NextAuth. 114 tests on Node's
-> built-in runner. The prose below is in Portuguese (Brazilian client and commit history); the
-> code and the engineering decisions carry across.
+> self-contained SQLite rate limiter — no bcrypt, no Redis, no NextAuth. 136 tests on Node's
+> built-in runner. Runs locally; not yet deployed to production. The prose below is in Portuguese
+> (Brazilian client and commit history); the code and the engineering decisions carry across.
 
 O cliente marca em **6 cliques**, informando só nome e WhatsApp. O dono da barbearia administra
 tudo — agenda, equipe, serviços, preços e faturamento — por um painel próprio em `/admin`.
@@ -36,12 +36,22 @@ O histórico de commits conta essa história em ordem.
 |                                 |                                                                        |
 | ------------------------------- | ---------------------------------------------------------------------- |
 | Agendamento do cliente          | **~6 cliques**, só nome + WhatsApp                                     |
-| Testes automatizados            | **114**, no runner nativo do Node — zero framework de teste            |
+| Testes automatizados            | **136**, no runner nativo do Node — zero framework de teste            |
 | Dependências de autenticação    | **0** — só o módulo `crypto` do Node                                   |
 | Dependências de runtime (total) | 6 (`next`, `react`, `react-dom`, `better-sqlite3`, `sharp`, `animejs`) |
-| Migrations versionadas          | 5, com trava de boot por versão                                        |
+| Migrations versionadas          | 6, com trava de boot por versão                                        |
 | Código                          | ~10 mil linhas de JS/JSX + ~2,5 mil de CSS num único design system     |
 | Time                            | 1 pessoa, do schema do banco ao CSS                                    |
+
+---
+
+## Documentação
+
+A pasta [`docs/`](docs/) traz requisitos funcionais, regras de negócio, casos
+de uso, fluxos, arquitetura, modelo de dados (DER), diagramas de sequência,
+máquina de estados, contrato da API e estratégia de testes. Cada item é
+marcado como `[IMPLEMENTADO]`, `[PARCIAL]` ou `[PLANEJADO]`, para separar o que
+já roda do que ainda é plano de produto.
 
 ---
 
@@ -151,7 +161,7 @@ paleta, tipografia, espaçamento e raios de borda vivem como CSS custom properti
 | Imagens      | **sharp**                                 | Reprocessa todo upload: redimensiona e converte para WebP no servidor.                                             |
 | Animação     | **anime.js**                              | Entrada dos cartões e da capa, sensível a `prefers-reduced-motion`.                                                |
 | Autenticação | **zero dependências**                     | `crypto` nativo do Node: scrypt, HMAC, comparação em tempo constante.                                              |
-| Testes       | **runner nativo do Node** (`node --test`) | 114 testes, sem Jest nem Vitest.                                                                                   |
+| Testes       | **runner nativo do Node** (`node --test`) | 136 testes, sem Jest nem Vitest.                                                                                   |
 
 ---
 
@@ -161,7 +171,7 @@ paleta, tipografia, espaçamento e raios de borda vivem como CSS custom properti
 npm test
 ```
 
-114 testes no runner embutido do Node, cobrindo a lógica que não pode quebrar:
+136 testes no runner embutido do Node, cobrindo a lógica que não pode quebrar:
 
 - **Concorrência** — dois agendamentos disputando o mesmo horário em processos separados; só um grava.
 - **Autenticação e sessão** — assinatura do cookie, expiração, versão de sessão, hash `scrypt` (formato novo e legado).
@@ -204,7 +214,7 @@ src/
   middleware.js                 CSP com nonce + headers de segurança
 scripts/
   migrate.js                    `npm run migrate` — aplica as migrations pendentes
-tests/                          114 testes no runner nativo do Node
+tests/                          136 testes no runner nativo do Node
 ```
 
 ---
