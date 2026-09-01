@@ -1,8 +1,8 @@
 # 07 — Navegação e mapa de telas
 
-Rotas reais em `src/app/`. O site tem duas rotas de página (`/` e `/agendar`);
-o painel é uma rota só (`/admin`) com navegação interna entre seções. As áreas
-`[PLANEJADO]` (conta do cliente, área técnica do superadmin) ainda não têm rota.
+Rotas reais em `src/app/`. O site tem três rotas de página (`/`, `/agendar` e
+`/conta`); o painel é uma rota só (`/admin`) com navegação interna entre
+seções. A área técnica do superadmin (`[PLANEJADO]`) ainda não tem rota.
 
 ---
 
@@ -13,7 +13,7 @@ flowchart TD
     Home["/ — Início"]
     Agendar["/agendar — Assistente de agendamento"]
     Admin["/admin — Painel"]
-    Conta["/conta — Área do cliente (PLANEJADO)"]
+    Conta["/conta — Área do cliente"]
     Sistema["/admin/sistema — Área técnica (PLANEJADO)"]
 
     Home -->|Agendar horário| Agendar
@@ -63,9 +63,10 @@ Estados de tela: carregando, passo atual, "sem horários neste dia", erro de
 concorrência (volta ao passo do horário), confirmação final com botão de
 WhatsApp.
 
-**Situação alvo (RN-50):** `/agendar` exige conta de cliente — visitante sem
-sessão é levado a `/conta` (entrar ou cadastrar) e volta ao assistente; o passo
-"contato" passa a só conferir os dados da conta.
+**Sessão obrigatória (RN-50):** `/agendar` exige conta de cliente — o visitante
+sem sessão é redirecionado a `/conta?retorno=/agendar` (entrar ou cadastrar) e
+volta ao assistente; o passo "Seus dados" só confere o nome e o telefone da
+conta (sem edição).
 
 ---
 
@@ -93,6 +94,7 @@ Da definição em `PainelAdmin.jsx`:
 | --------------- | ----------------- | --------------- | ---------------------------- | ---------------- |
 | `visao`         | Visão geral       | `VisaoGeral`    | RF-60 a RF-66                | `[PARCIAL]`      |
 | `agenda`        | Agenda            | `Agendamentos`  | RF-21 a RF-30                | `[PARCIAL]`      |
+| `clientes`      | Clientes          | `Clientes`      | RF-71 a RF-75                | `[PARCIAL]`      |
 | `profissionais` | Profissionais     | `Profissionais` | RF-31 a RF-36                | `[PARCIAL]`      |
 | `servicos`      | Serviços          | `Servicos`      | RF-37 a RF-41                | `[IMPLEMENTADO]` |
 | `produtos`      | Produtos          | `Produtos`      | RF-42 a RF-46                | `[PARCIAL]`      |
@@ -109,20 +111,23 @@ inicial não for trocada.
 
 - **Comandas** — abertura/fechamento, itens de serviço e produto (RF-47 a RF-52).
 - **Caixa** — abertura/fechamento do dia, entradas e saídas, formas de pagamento (RF-53 a RF-56).
-- **Clientes** — ficha, histórico, métricas e bad-list (RF-71 a RF-75).
 - **Relatórios** — filtros por período, profissional, serviço e forma de pagamento (RF-67 a RF-70).
 - **Notificações** — fila de avisos do painel (RF-96).
 
+A seção **Clientes** já existe (`[PARCIAL]`): lista com busca e ficha
+(histórico, gasto total, novo × recorrente). Faltam a edição do cliente pelo
+admin e as métricas de falta/bad-list (Epics C e D).
+
 ---
 
-## 4. Área do cliente `/conta` `[PLANEJADO]`
+## 4. Área do cliente `/conta` `[PARCIAL]`
 
-| Tela                 | Conteúdo                                                                   | RF                         |
-| -------------------- | -------------------------------------------------------------------------- | -------------------------- |
-| Entrar / criar conta | e-mail e senha; cadastro com nome, telefone, e-mail                        | RF-11 a RF-13              |
-| Meus agendamentos    | histórico com status; ações cancelar/remarcar (corte de 30 min); "repetir" | RF-15, RF-16, RF-17, RF-10 |
-| Meus dados           | ver/editar cadastro; exclusão de conta; uso de dados (LGPD)                | RF-14, RF-19, RF-20        |
-| Lembretes            | escolher a antecedência do lembrete                                        | RF-18                      |
+| Tela                 | Conteúdo                                                                       | RF                         |
+| -------------------- | ------------------------------------------------------------------------------ | -------------------------- |
+| Entrar / criar conta | e-mail e senha; cadastro com nome, telefone e e-mail — `[IMPLEMENTADO]`        | RF-11 a RF-13              |
+| Meus agendamentos    | histórico com status; ações cancelar/remarcar (corte de 30 min); "repetir"     | RF-15, RF-16, RF-17, RF-10 |
+| Meus dados           | ver/editar cadastro; exclusão de conta; uso de dados (LGPD) — `[IMPLEMENTADO]` | RF-14, RF-19, RF-20        |
+| Lembretes            | escolher a antecedência do lembrete                                            | RF-18                      |
 
 ---
 

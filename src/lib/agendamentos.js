@@ -112,6 +112,7 @@ function verificarConflito(
  */
 export function criarAgendamento({
   origem,
+  clienteId = null,
   clienteNome,
   clienteTelefone,
   barbeiroId,
@@ -185,11 +186,12 @@ export function criarAgendamento({
     const resultado = conn
       .prepare(
         `INSERT INTO agendamentos
-          (cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome,
+          (cliente_id, cliente_nome, cliente_telefone, barbeiro_id, servico_id, barbeiro_nome, servico_nome,
            data, inicio, fim, duracao_min, preco_centavos, observacoes, status)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
+        clienteId ?? null,
         nome,
         telefone,
         barbeiro.id,
@@ -234,6 +236,7 @@ export function criarAgendamento({
     id,
     agendamento: {
       id,
+      cliente_id: clienteId ?? null,
       cliente: nome,
       telefone,
       barbeiro: barbeiro.nome,

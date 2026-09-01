@@ -82,6 +82,7 @@ export default function PaginaInicial() {
     { href: "#equipe", label: "Equipe" },
     ...(produtos.length > 0 ? [{ href: "#produtos", label: "Produtos" }] : []),
     { href: "#contato", label: "Contato" },
+    { href: "/conta", label: "Minha conta" },
   ];
 
   return (

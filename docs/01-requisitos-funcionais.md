@@ -25,37 +25,38 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 
 ## Módulo 1 — Agendamento (site)
 
-| ID    | Requisito                                                                                                                     | Ator  | Prio | Situação         |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------- | ----- | ---- | ---------------- |
-| RF-01 | Escolher o serviço desejado.                                                                                                  | `CLI` | E    | `[IMPLEMENTADO]` |
-| RF-02 | Escolher o profissional, entre os que realizam o serviço escolhido.                                                           | `CLI` | E    | `[IMPLEMENTADO]` |
-| RF-03 | Escolher a data em um calendário próprio, que mostra a semana inteira e desabilita os dias fora da janela.                    | `CLI` | E    | `[IMPLEMENTADO]` |
-| RF-04 | Escolher o horário entre os disponíveis para aquele profissional naquele dia.                                                 | `CLI` | E    | `[IMPLEMENTADO]` |
-| RF-05 | Agendar autenticado com a conta de cliente; os dados de contato vêm da conta. Hoje o agendamento é anônimo (nome + WhatsApp). | `CLI` | E    | `[PARCIAL]`      |
-| RF-06 | Ver um resumo antes de confirmar, com serviço, profissional, data, horário, duração e valor total.                            | `CLI` | E    | `[PARCIAL]`      |
-| RF-07 | Ver uma tela de confirmação ao final, com os dados do agendamento.                                                            | `CLI` | E    | `[IMPLEMENTADO]` |
-| RF-08 | O agendamento entra como `pendente`, ou já `confirmado` se a confirmação automática estiver ligada.                           | `SIS` | E    | `[IMPLEMENTADO]` |
-| RF-09 | Vir com os dados de contato já preenchidos a partir da conta.                                                                 | `CLI` | E    | `[PLANEJADO]`    |
-| RF-10 | Agendar a partir de um atendimento anterior, repetindo serviço e profissional.                                                | `CLI` | D    | `[PLANEJADO]`    |
+| ID    | Requisito                                                                                                  | Ator  | Prio | Situação         |
+| ----- | ---------------------------------------------------------------------------------------------------------- | ----- | ---- | ---------------- |
+| RF-01 | Escolher o serviço desejado.                                                                               | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-02 | Escolher o profissional, entre os que realizam o serviço escolhido.                                        | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-03 | Escolher a data em um calendário próprio, que mostra a semana inteira e desabilita os dias fora da janela. | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-04 | Escolher o horário entre os disponíveis para aquele profissional naquele dia.                              | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-05 | Agendar autenticado com a conta de cliente; os dados de contato vêm da conta.                              | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-06 | Ver um resumo antes de confirmar, com serviço, profissional, data, horário, duração e valor total.         | `CLI` | E    | `[PARCIAL]`      |
+| RF-07 | Ver uma tela de confirmação ao final, com os dados do agendamento.                                         | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-08 | O agendamento entra como `pendente`, ou já `confirmado` se a confirmação automática estiver ligada.        | `SIS` | E    | `[IMPLEMENTADO]` |
+| RF-09 | Vir com os dados de contato já preenchidos a partir da conta.                                              | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-10 | Agendar a partir de um atendimento anterior, repetindo serviço e profissional.                             | `CLI` | D    | `[PLANEJADO]`    |
 
 ## Módulo 2 — Conta e área do cliente
 
-| ID    | Requisito                                                                                      | Ator  | Prio | Situação      |
-| ----- | ---------------------------------------------------------------------------------------------- | ----- | ---- | ------------- |
-| RF-11 | Criar conta com nome, telefone, e-mail (obrigatório) e senha.                                  | `CLI` | E    | `[PLANEJADO]` |
-| RF-12 | Entrar com e-mail e senha.                                                                     | `CLI` | E    | `[PLANEJADO]` |
-| RF-13 | Recuperar a senha por e-mail.                                                                  | `CLI` | E    | `[PLANEJADO]` |
-| RF-14 | Ver e editar os próprios dados cadastrais.                                                     | `CLI` | I    | `[PLANEJADO]` |
-| RF-15 | Ver o próprio histórico de agendamentos (serviço, profissional, data, horário, valor, status). | `CLI` | I    | `[PLANEJADO]` |
-| RF-16 | Cancelar o próprio agendamento, desde que falte mais de 30 minutos para o horário.             | `CLI` | I    | `[PLANEJADO]` |
-| RF-17 | Remarcar o próprio agendamento, desde que falte mais de 30 minutos para o horário.             | `CLI` | I    | `[PLANEJADO]` |
-| RF-18 | Configurar o lembrete por antecedência (15, 30, 45 min; 1, 2, 3, 6, 12 ou 24 h).               | `CLI` | D    | `[PLANEJADO]` |
-| RF-19 | Solicitar a exclusão da conta e dos dados pessoais (LGPD).                                     | `CLI` | I    | `[PLANEJADO]` |
-| RF-20 | Consultar quais dados pessoais são armazenados e para que são usados (LGPD).                   | `CLI` | I    | `[PLANEJADO]` |
+| ID    | Requisito                                                                                      | Ator  | Prio | Situação         |
+| ----- | ---------------------------------------------------------------------------------------------- | ----- | ---- | ---------------- |
+| RF-11 | Criar conta com nome, telefone e e-mail (todos obrigatórios) e senha.                          | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-12 | Entrar com e-mail e senha.                                                                     | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-13 | Recuperar a senha por e-mail.                                                                  | `CLI` | E    | `[IMPLEMENTADO]` |
+| RF-14 | Ver e editar os próprios dados cadastrais.                                                     | `CLI` | I    | `[IMPLEMENTADO]` |
+| RF-15 | Ver o próprio histórico de agendamentos (serviço, profissional, data, horário, valor, status). | `CLI` | I    | `[PLANEJADO]`    |
+| RF-16 | Cancelar o próprio agendamento, desde que falte mais de 30 minutos para o horário.             | `CLI` | I    | `[PLANEJADO]`    |
+| RF-17 | Remarcar o próprio agendamento, desde que falte mais de 30 minutos para o horário.             | `CLI` | I    | `[PLANEJADO]`    |
+| RF-18 | Configurar o lembrete por antecedência (15, 30, 45 min; 1, 2, 3, 6, 12 ou 24 h).               | `CLI` | D    | `[PLANEJADO]`    |
+| RF-19 | Solicitar a exclusão da conta e dos dados pessoais (LGPD).                                     | `CLI` | I    | `[IMPLEMENTADO]` |
+| RF-20 | Consultar quais dados pessoais são armazenados e para que são usados (LGPD).                   | `CLI` | I    | `[IMPLEMENTADO]` |
 
-> Na situação alvo, a conta de cliente é **pré-requisito para agendar** (RF-05):
-> é ela que vincula agendamento, histórico, métricas e preferências de lembrete
-> a uma pessoa. O agendamento anônimo de hoje deixa de existir.
+> A conta de cliente é **pré-requisito para agendar** (RF-05): é ela que
+> vincula agendamento, histórico, métricas e preferências de lembrete a uma
+> pessoa. O agendamento anônimo não existe mais. O telefone é obrigatório no
+> cadastro (garante o contato e o botão de confirmação por WhatsApp).
 
 ## Módulo 3 — Agenda administrativa
 
@@ -164,13 +165,13 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 
 ## Módulo 10 — Gestão de clientes (pelo administrador)
 
-| ID    | Requisito                                                            | Ator  | Prio | Situação      |
-| ----- | -------------------------------------------------------------------- | ----- | ---- | ------------- |
-| RF-71 | Ver e editar os dados de um cliente.                                 | `ADM` | I    | `[PLANEJADO]` |
-| RF-72 | Consultar o histórico de agendamentos do cliente.                    | `ADM` | I    | `[PLANEJADO]` |
-| RF-73 | Ver serviços mais utilizados e frequência de visitas do cliente.     | `ADM` | I    | `[PLANEJADO]` |
-| RF-74 | Ver cancelamentos, faltas/no-shows e valor total gasto pelo cliente. | `ADM` | I    | `[PLANEJADO]` |
-| RF-75 | Ver a situação do cliente em relação à bad-list.                     | `ADM` | I    | `[PLANEJADO]` |
+| ID    | Requisito                                                            | Ator  | Prio | Situação         |
+| ----- | -------------------------------------------------------------------- | ----- | ---- | ---------------- |
+| RF-71 | Ver e editar os dados de um cliente.                                 | `ADM` | I    | `[PARCIAL]`      |
+| RF-72 | Consultar o histórico de agendamentos do cliente.                    | `ADM` | I    | `[IMPLEMENTADO]` |
+| RF-73 | Ver serviços mais utilizados e frequência de visitas do cliente.     | `ADM` | I    | `[PARCIAL]`      |
+| RF-74 | Ver cancelamentos, faltas/no-shows e valor total gasto pelo cliente. | `ADM` | I    | `[PARCIAL]`      |
+| RF-75 | Ver a situação do cliente em relação à bad-list.                     | `ADM` | I    | `[PLANEJADO]`    |
 
 ## Módulo 11 — Configurações
 
@@ -264,7 +265,7 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 | RNF-07 | Rate limiter próprio (em SQLite) para login e agendamento público, com disjuntor global contra rotação de IP.                                                                                                                                           | `[IMPLEMENTADO]`         |
 | RNF-08 | CSP com nonce por requisição no middleware, além de `X-Frame-Options`, `nosniff`, HSTS e verificação de `Origin` nas mutações (CSRF).                                                                                                                   | `[IMPLEMENTADO]`         |
 | RNF-09 | Upload de imagem validado pela assinatura do arquivo (não pelo nome), reprocessado com `sharp` e salvo com nome UUID.                                                                                                                                   | `[IMPLEMENTADO]`         |
-| RNF-10 | LGPD: a auditoria nunca guarda nome ou telefone do cliente; a conta pode ser excluída a pedido; base legal e prazo de retenção documentados.                                                                                                            | `[PARCIAL]`              |
+| RNF-10 | LGPD: a auditoria nunca guarda nome ou telefone do cliente; a conta pode ser excluída a pedido (anonimizando também os agendamentos); base legal e uso dos dados exibidos na área do cliente.                                                           | `[IMPLEMENTADO]`         |
 | RNF-11 | O acesso ao banco fica isolado em `src/lib/db.js`, para permitir trocar SQLite por Postgres/Turso sem tocar no resto do sistema.                                                                                                                        | `[IMPLEMENTADO]`         |
 | RNF-12 | Todo cálculo de disponibilidade acontece no fuso da barbearia (`America/Sao_Paulo`), configurável por `TZ`.                                                                                                                                             | `[IMPLEMENTADO]`         |
 | RNF-13 | O agendamento público se completa em cerca de seis cliques, com layout pensado primeiro para o celular.                                                                                                                                                 | `[IMPLEMENTADO]` / alvo  |

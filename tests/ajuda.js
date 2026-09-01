@@ -120,6 +120,24 @@ export async function criarBarbeiroComLogin(
   return Number(resultado.lastInsertRowid);
 }
 
+/** Cria um cliente com senha real (hasheada), para simular uma sessão de conta. */
+export async function criarClienteComLogin(
+  {
+    nome = "Cliente Teste",
+    email = "cliente@teste.com",
+    telefone = "44999990000",
+    senha = "senha-de-teste-123",
+  } = {},
+  conn = getDb(),
+) {
+  const resultado = conn
+    .prepare(
+      "INSERT INTO clientes (nome, telefone, email, senha_hash) VALUES (?, ?, ?, ?)",
+    )
+    .run(nome, telefone, email, await gerarHash(senha));
+  return Number(resultado.lastInsertRowid);
+}
+
 /** Monta uma Request mínima para chamar um route handler diretamente. */
 export function requisicao(url, { method = "GET", body } = {}) {
   const init = { method };

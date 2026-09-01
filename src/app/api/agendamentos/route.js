@@ -1,5 +1,6 @@
-import { lerConfig } from "@/lib/db";
+import { lerConfig, buscarClientePorId } from "@/lib/db";
 import { criarAgendamento } from "@/lib/agendamentos";
+import { exigirSessaoCliente, sessaoClienteAtual } from "@/lib/cliente-auth";
 import { limiteAtingido, obterIp, registrarTentativa } from "@/lib/limitador";
 import { lerCorpoJson } from "@/lib/requisicao";
 import { comLog, registrarAviso, registrarInfo } from "@/lib/log";
@@ -14,6 +15,11 @@ const JANELA_MINUTOS = 10;
 const MAXIMO_TENTATIVAS = 6;
 
 export const POST = comLog(ROTA, async (request) => {
+  // Agendar pelo site agora exige uma conta autenticada (RN-50): os dados
+  // de contato vêm da conta, não do corpo da requisição.
+  const negado = exigirSessaoCliente(request);
+  if (negado) return negado;
+
   const chave = `agendar:${obterIp(request)}`;
   if (
     limiteAtingido(chave, {
@@ -39,14 +45,25 @@ export const POST = comLog(ROTA, async (request) => {
     );
   }
 
+  const { clienteId } = sessaoClienteAtual();
+  const cliente = buscarClientePorId(clienteId);
+  if (!cliente) {
+    return Response.json(
+      { erro: "Entre na sua conta para continuar." },
+      { status: 401 },
+    );
+  }
+
   const resultado = criarAgendamento({
     origem: "publico",
-    clienteNome: corpo.cliente_nome,
-    clienteTelefone: corpo.cliente_telefone,
+    clienteId,
+    clienteNome: cliente.nome,
+    clienteTelefone: cliente.telefone,
     barbeiroId: Number(corpo.barbeiro_id),
     servicoId: Number(corpo.servico_id),
     data: String(corpo.data ?? ""),
     inicio: String(corpo.inicio ?? ""),
+    observacoes: corpo.observacoes,
   });
 
   if (!resultado.ok) {

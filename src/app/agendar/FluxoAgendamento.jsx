@@ -9,7 +9,6 @@ import {
   dataBr,
   iniciais,
   mascararTelefone,
-  telefoneValido,
   linkWhatsapp,
 } from "@/lib/format";
 import { hojeLocal } from "@/lib/datas-cliente";
@@ -159,8 +158,11 @@ export default function FluxoAgendamento() {
   const [horarios, setHorarios] = useState([]);
   const [buscandoHorarios, setBuscandoHorarios] = useState(false);
 
-  const [nome, setNome] = useState("");
-  const [telefone, setTelefone] = useState("");
+  // Os dados de contato vêm da conta autenticada (RN-50) — o passo "Seus
+  // dados" só confere, não edita. A página /agendar já redireciona quem não
+  // tem sessão para /conta, mas o assistente também busca a conta para
+  // mostrar o nome e o telefone na revisão.
+  const [cliente, setCliente] = useState(null);
   const [observacoes, setObservacoes] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
@@ -195,6 +197,16 @@ export default function FluxoAgendamento() {
   }
 
   useEffect(carregarDados, []);
+
+  // Dados da conta para a revisão do passo "Seus dados".
+  useEffect(() => {
+    fetch("/api/conta/sessao")
+      .then((r) => r.json())
+      .then((r) => {
+        if (r.autenticado) setCliente(r.cliente);
+      })
+      .catch(() => {});
+  }, []);
 
   // O expediente é individual por profissional: assim que ele é escolhido,
   // recarrega os dias disponíveis dele (o passo da Data vem logo depois).
@@ -322,9 +334,6 @@ export default function FluxoAgendamento() {
 
   async function confirmar() {
     setErro("");
-    if (nome.trim().length < 2) return setErro("Escreva seu nome completo.");
-    if (!telefoneValido(telefone))
-      return setErro("Informe um WhatsApp com DDD.");
 
     setEnviando(true);
     try {
@@ -332,8 +341,6 @@ export default function FluxoAgendamento() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cliente_nome: nome,
-          cliente_telefone: telefone,
           barbeiro_id: barbeiro.id,
           servico_id: servico.id,
           data,
@@ -346,6 +353,10 @@ export default function FluxoAgendamento() {
       if (!resposta.ok) {
         setErro(corpo.erro || "Não consegui concluir o agendamento.");
         if (resposta.status === 409) setPasso(3); // horário tomado: volta para escolher outro
+        // Sessão expirou no meio do fluxo: manda para a conta e volta ao assistente.
+        if (resposta.status === 401) {
+          window.location.href = "/conta?retorno=/agendar";
+        }
         return;
       }
       setConfirmado(corpo.agendamento);
@@ -696,31 +707,33 @@ export default function FluxoAgendamento() {
                   </div>
                 </div>
 
-                <label className="campo">
-                  <span>Seu nome</span>
-                  <input
-                    className="entrada"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                    placeholder="Ex: João da Silva"
-                    autoComplete="name"
-                    autoFocus
-                  />
-                </label>
-
-                <label className="campo">
-                  <span>WhatsApp com DDD</span>
-                  <input
-                    className="entrada mono"
-                    value={telefone}
-                    onChange={(e) =>
-                      setTelefone(mascararTelefone(e.target.value))
-                    }
-                    placeholder="(44) 99999-0000"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                  />
-                </label>
+                <div className="comanda" style={{ marginTop: 12 }}>
+                  <h3>Seus dados</h3>
+                  <dl>
+                    <div className="comanda-linha">
+                      <dt>Nome</dt>
+                      <dd>{cliente?.nome || "—"}</dd>
+                    </div>
+                    <div className="comanda-linha">
+                      <dt>WhatsApp</dt>
+                      <dd className="mono">
+                        {cliente?.telefone
+                          ? mascararTelefone(cliente.telefone)
+                          : "—"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p
+                    className="painel-ajuda"
+                    style={{ margin: "4px 0 0", fontSize: 13 }}
+                  >
+                    Vêm da sua conta. Para mudar,{" "}
+                    <Link href="/conta" className="link-simples">
+                      edite em Minha conta
+                    </Link>
+                    .
+                  </p>
+                </div>
 
                 <label className="campo">
                   <span>Observação (opcional)</span>

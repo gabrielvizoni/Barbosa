@@ -31,14 +31,15 @@ Toda a API vive em `src/app/api/**` (Route Handlers do Next). Respostas em
 
 ## 2. Índice de endpoints — situação atual
 
-### Públicos (sem autenticação)
+### Site (público, salvo o agendamento)
 
-| Método · Rota            | Função                                                                                                                                                     | Notas                                                                   |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `GET /api/public`        | Catálogo do site: barbearia, serviços, equipe, dias. `?barbeiro=<id>` filtra `dias` por aquele profissional; sem o parâmetro, `dias` é a união dos ativos. | 200 sempre (salvo 500).                                                 |
-| `GET /api/horarios`      | Horários livres de um par profissional + serviço num dia                                                                                                   | 400 sem parâmetros · 404 serviço inativo.                               |
-| `POST /api/agendamentos` | Agendamento do cliente                                                                                                                                     | Rate limit `agendar:<ip>` 6/10min · 200 (não 201) · 409 conflito · 429. |
-| `GET /api/health`        | Health check (banco + escrita em uploads)                                                                                                                  | 200 `{ ok: true }` ou 503 `{ ok: false }`.                              |
+| Método · Rota                 | Função                                                                                                                                                                             | Notas                                                                                    |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `GET /api/public`             | Catálogo do site: barbearia, serviços, equipe, dias. `?barbeiro=<id>` filtra `dias` por aquele profissional; sem o parâmetro, `dias` é a união dos ativos.                         | 200 sempre (salvo 500).                                                                  |
+| `GET /api/horarios`           | Horários livres de um par profissional + serviço num dia                                                                                                                           | 400 sem parâmetros · 404 serviço inativo.                                                |
+| `POST /api/agendamentos`      | Agendamento do cliente. **Exige sessão de cliente** (RN-50); nome e telefone vêm da conta, não do corpo. Grava `cliente_id`.                                                       | 401 sem sessão · rate limit `agendar:<ip>` 6/10min · 200 (não 201) · 409 conflito · 429. |
+| `GET`/`POST`/`… /api/conta/*` | Conta do cliente: `cadastro`, `login`, `logout`, `sessao`, `esqueci-senha`, `redefinir-senha`, `GET`/`PATCH perfil`, `POST perfil/senha`, `DELETE /api/conta` (anonimiza — RN-44). | Mutações exigem sessão de cliente; `sessao` e `esqueci-senha` são públicas.              |
+| `GET /api/health`             | Health check (banco + escrita em uploads)                                                                                                                                          | 200 `{ ok: true }` ou 503 `{ ok: false }`.                                               |
 
 ### Autenticação e conta do painel
 
@@ -58,20 +59,21 @@ Toda a API vive em `src/app/api/**` (Route Handlers do Next). Respostas em
 
 ### Agenda e cadastros
 
-| Método · Rota                              | Função                                                                                                           |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `GET /api/admin/agendamentos`              | Lista com busca, filtros (status, profissional, data) e paginação.                                               |
-| `POST /api/admin/agendamentos`             | Encaixe manual (permite fora do expediente). 201 `{ id }`.                                                       |
-| `PUT /api/admin/agendamentos`              | Grade de horários para o encaixe.                                                                                |
-| `PATCH /api/admin/agendamentos/[id]`       | Modo A: mudança de status (transições legais). Modo B: remarcação.                                               |
-| `DELETE /api/admin/agendamentos/[id]`      | Soft delete (`excluido_em`).                                                                                     |
-| `GET /api/admin/[recurso]`                 | Lista `barbeiros` · `servicos` · `produtos` · `bloqueios`.                                                       |
-| `POST /api/admin/[recurso]`                | Cria; para `bloqueios` devolve `atropelados`.                                                                    |
-| `PATCH /api/admin/[recurso]/[id]`          | Atualização parcial.                                                                                             |
-| `DELETE /api/admin/[recurso]/[id]`         | Apaga; `barbeiros`/`servicos` com histórico → desativa.                                                          |
-| `GET /api/admin/barbeiros/[id]/expediente` | Os 7 dias de `expediente_barbeiro` do profissional + as `folgas` (dias da semana). 404 profissional inexistente. |
-| `PUT /api/admin/barbeiros/[id]/expediente` | Grava `{ expediente?, folgas? }` do profissional. 400 `fecha <= abre` ou nada para salvar · 404 inexistente.     |
-| `POST /api/admin/upload`                   | `multipart/form-data`; valida magic number, reprocessa com `sharp`. 201 `{ url }`.                               |
+| Método · Rota                                              | Função                                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `GET /api/admin/agendamentos`                              | Lista com busca, filtros (status, profissional, data) e paginação.                                                 |
+| `POST /api/admin/agendamentos`                             | Encaixe manual (permite fora do expediente). 201 `{ id }`.                                                         |
+| `PUT /api/admin/agendamentos`                              | Grade de horários para o encaixe.                                                                                  |
+| `PATCH /api/admin/agendamentos/[id]`                       | Modo A: mudança de status (transições legais). Modo B: remarcação.                                                 |
+| `DELETE /api/admin/agendamentos/[id]`                      | Soft delete (`excluido_em`).                                                                                       |
+| `GET /api/admin/[recurso]`                                 | Lista `barbeiros` · `servicos` · `produtos` · `bloqueios`.                                                         |
+| `POST /api/admin/[recurso]`                                | Cria; para `bloqueios` devolve `atropelados`.                                                                      |
+| `PATCH /api/admin/[recurso]/[id]`                          | Atualização parcial.                                                                                               |
+| `DELETE /api/admin/[recurso]/[id]`                         | Apaga; `barbeiros`/`servicos` com histórico → desativa.                                                            |
+| `GET /api/admin/clientes` · `GET /api/admin/clientes/[id]` | Lista de contas de cliente (busca) e ficha (histórico, gasto, novo × recorrente — RN-51). 404 cliente inexistente. |
+| `GET /api/admin/barbeiros/[id]/expediente`                 | Os 7 dias de `expediente_barbeiro` do profissional + as `folgas` (dias da semana). 404 profissional inexistente.   |
+| `PUT /api/admin/barbeiros/[id]/expediente`                 | Grava `{ expediente?, folgas? }` do profissional. 400 `fecha <= abre` ou nada para salvar · 404 inexistente.       |
+| `POST /api/admin/upload`                                   | `multipart/form-data`; valida magic number, reprocessa com `sharp`. 201 `{ url }`.                                 |
 
 ### Resumo
 
@@ -172,15 +174,15 @@ Vocabulário provável; o contrato fino sai quando o módulo for implementado.
 
 | Área                        | Endpoints previstos                                                                                                                                                                                                                         |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Conta do cliente            | `POST /api/conta/cadastro` (e-mail obrigatório) · `POST /api/conta/login` · `POST /api/conta/esqueci-senha` · `POST /api/conta/redefinir-senha` · `GET`/`PATCH /api/conta/perfil` · `DELETE /api/conta` (LGPD, anonimiza)                   |
-| Agendamento do cliente      | `POST /api/agendamentos` passa a **exigir sessão de cliente** (RN-50) · `GET /api/conta/agendamentos` · `POST /api/conta/agendamentos/[id]/cancelar` · `POST /api/conta/agendamentos/[id]/remarcar` (corte de 30 min)                       |
+| Conta do cliente            | **`[IMPLEMENTADO]`** — ver a linha "`/api/conta/*`" na seção 2.                                                                                                                                                                             |
+| Agendamento do cliente      | `POST /api/agendamentos` já **exige sessão de cliente** (RN-50, seção 2). Ainda `[PLANEJADO]`: `GET /api/conta/agendamentos` · `POST /api/conta/agendamentos/[id]/cancelar` · `.../remarcar` (corte de 30 min — Epic J)                     |
 | Lembretes                   | `PUT /api/conta/lembretes` (só a antecedência; canal é sempre WhatsApp + e-mail)                                                                                                                                                            |
 | No-show                     | `PATCH /api/admin/agendamentos/[id]` aceita `status: "no-show"` (reversão pelo admin); a marcação em massa é feita pela rotina de tarefas                                                                                                   |
 | Rotinas (agendador externo) | `POST /api/tarefas/lembretes` · `POST /api/tarefas/marcar-no-show` · `POST /api/tarefas/limpeza` — autenticadas por um **segredo** em header (`X-Tarefa-Segredo`), não por sessão (RNF-22)                                                  |
 | Comandas                    | `GET`/`POST /api/admin/comandas` · `POST /api/admin/comandas/[id]/itens` (valida estoque) · `POST /api/admin/comandas/[id]/fechar` (exige agendamento `concluido`; corpo com 1..N pagamentos)                                               |
 | Caixa                       | `POST /api/admin/caixa/abrir` · `POST /api/admin/caixa/fechar` · `GET`/`POST /api/admin/caixa/movimentos` (`tipo`: `sangria`, `reforco`, `troco`, `entrada_avulsa`, `saida_avulsa`, `pagamento`) · `GET`/`POST /api/admin/formas-pagamento` |
 | Relatórios                  | `GET /api/admin/relatorios` com filtros de período, profissional, serviço, forma de pagamento (só leitura; sem exportação)                                                                                                                  |
-| Clientes / bad-list         | `GET /api/admin/clientes` · `GET /api/admin/clientes/[id]` (histórico, classificação novo/recorrente derivada, situação da bad-list)                                                                                                        |
+| Clientes / bad-list         | `GET /api/admin/clientes` e `.../[id]` **já existem** (seção 2). Falta a situação da bad-list na ficha (Epic D).                                                                                                                            |
 | Notificações                | `GET /api/admin/notificacoes` · `POST /api/admin/notificacoes/[id]/lida`                                                                                                                                                                    |
 | 2FA                         | `POST /api/admin/2fa/ativar` · `POST /api/admin/2fa/confirmar` · `POST /api/admin/login` passa a exigir o código TOTP para `admin`/`superadmin` (obrigatório — RN-40)                                                                       |
 | Superadmin                  | `GET /api/sistema/status` · `POST /api/sistema/backup` · `GET /api/sistema/logs` — só papel `superadmin`                                                                                                                                    |

@@ -103,13 +103,13 @@ flowchart LR
 | ----- | ------------------------------------------------------------ | -------------- | ---------------- |
 | UC-01 | Consultar serviços, equipe e localização                     | `CLI`          | `[IMPLEMENTADO]` |
 | UC-02 | Agendar horário                                              | `CLI`          | `[IMPLEMENTADO]` |
-| UC-03 | Criar conta e autenticar-se                                  | `CLI`          | `[PLANEJADO]`    |
-| UC-04 | Recuperar a senha da conta                                   | `CLI`          | `[PLANEJADO]`    |
+| UC-03 | Criar conta e autenticar-se                                  | `CLI`          | `[IMPLEMENTADO]` |
+| UC-04 | Recuperar a senha da conta                                   | `CLI`          | `[IMPLEMENTADO]` |
 | UC-05 | Consultar o próprio histórico                                | `CLI`          | `[PLANEJADO]`    |
 | UC-06 | Cancelar ou remarcar o próprio agendamento                   | `CLI`          | `[PLANEJADO]`    |
 | UC-07 | Repetir um agendamento anterior                              | `CLI`          | `[PLANEJADO]`    |
 | UC-08 | Configurar lembretes                                         | `CLI`          | `[PLANEJADO]`    |
-| UC-09 | Gerenciar dados pessoais e privacidade (LGPD)                | `CLI`          | `[PLANEJADO]`    |
+| UC-09 | Gerenciar dados pessoais e privacidade (LGPD)                | `CLI`          | `[IMPLEMENTADO]` |
 | UC-20 | Autenticar no painel                                         | `ADM` `BARB`   | `[IMPLEMENTADO]` |
 | UC-21 | Concluir a configuração inicial (bootstrap)                  | `ADM`          | `[IMPLEMENTADO]` |
 | UC-22 | Gerir a agenda do dia                                        | `ADM` `BARB`   | `[PARCIAL]`      |
@@ -122,7 +122,7 @@ flowchart LR
 | UC-29 | Operar o caixa                                               | `ADM`          | `[PLANEJADO]`    |
 | UC-30 | Registrar o pagamento de um atendimento                      | `ADM` `BARB`   | `[PLANEJADO]`    |
 | UC-31 | Gerir comandas                                               | `ADM` `BARB`   | `[PLANEJADO]`    |
-| UC-32 | Gerir clientes e a bad-list                                  | `ADM`          | `[PLANEJADO]`    |
+| UC-32 | Gerir clientes e a bad-list                                  | `ADM`          | `[PARCIAL]`      |
 | UC-33 | Emitir relatórios                                            | `ADM`          | `[PARCIAL]`      |
 | UC-34 | Ver notificações do painel                                   | `ADM`          | `[PLANEJADO]`    |
 | UC-35 | Convidar profissional e reenviar convite                     | `ADM`          | `[IMPLEMENTADO]` |

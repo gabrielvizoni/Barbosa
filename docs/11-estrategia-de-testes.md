@@ -12,7 +12,7 @@ navegador) **não** é testada automaticamente — é uma escolha, revista abaix
 - **Runner nativo do Node** (`node --test`). Sem Jest, sem Vitest, sem
   dependência de teste além do `prettier` (que é de formatação).
 - Comando: `npm test` → `node --import ./tests/register-hooks.mjs --test "tests/*.test.js"`.
-- Estado atual: **155 testes, 155 passando, 0 falhando** (`npm test` executado).
+- Estado atual: **178 testes, 178 passando, 0 falhando** (`npm test` executado).
 - Duração típica: ~1,3 s.
 
 Ao mudar a contagem, atualize também o número no `README.md` da raiz (badge e
@@ -44,6 +44,8 @@ de **componente** React.
 | `tests/concorrencia.test.js`        | Corrida de escrita: só um dos dois agendamentos simultâneos grava.                                                                                                                                                                               |
 | `tests/auth.test.js`                | Sessão de bootstrap: assinatura HMAC, expiração, `sessao_versao`, hash `scrypt` (formato novo e legado).                                                                                                                                         |
 | `tests/auth-barbeiro.test.js`       | Login por barbeiro (migration 6): `autenticarBarbeiro`, tokens de recuperação, troca de senha/e-mail, invalidação de sessão.                                                                                                                     |
+| `tests/cliente-auth.test.js`        | Conta do cliente (migration 8): `cadastrarCliente`, `autenticarCliente`, tokens de recuperação, `sessao_versao`, e a anonimização a pedido (RF-19 / RN-44).                                                                                      |
+| `tests/conta.test.js`               | Integração de `/api/conta/*` (cadastro, login, esqueci-senha, exclusão) e do _gate_ de sessão de cliente no `POST /api/agendamentos`.                                                                                                            |
 | `tests/autorizacao.test.js`         | `exigirSessao`: 401 sem sessão, trava da senha inicial, checagem de `Origin` (CSRF), rotas dinâmicas `[recurso]`.                                                                                                                                |
 | `tests/log-login.test.js`           | Registro de tentativas de login no log estruturado.                                                                                                                                                                                              |
 | `tests/validacao.test.js`           | `validar`: campos obrigatórios, faixas, formato de data/hora, e-mail, telefone.                                                                                                                                                                  |

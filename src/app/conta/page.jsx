@@ -1,27 +1,18 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import Header from "@/components/Header";
-import FluxoAgendamento from "./FluxoAgendamento";
-import Animacoes from "@/components/Animacoes";
+import AreaCliente from "@/components/conta/AreaCliente";
 import { lerConfig } from "@/lib/db";
-import { sessaoClienteAtual } from "@/lib/cliente-auth";
 import { NOME_PADRAO } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata() {
   const config = lerConfig();
-  return {
-    title: `Agendar horário — ${config.nome_barbearia || NOME_PADRAO}`,
-  };
+  return { title: `Minha conta — ${config.nome_barbearia || NOME_PADRAO}` };
 }
 
-export default function PaginaAgendar() {
-  // Agendar exige conta autenticada (RN-50): sem sessão, vai para /conta e
-  // volta ao assistente depois de entrar.
-  if (!sessaoClienteAtual()) redirect("/conta?retorno=/agendar");
-
+export default function PaginaConta() {
   const config = lerConfig();
 
   return (
@@ -38,18 +29,13 @@ export default function PaginaAgendar() {
 
       <main className="agendar-corpo">
         <div className="container">
-          <div className="agendar-titulo">
-            <span className="sobrenome anim-entrada">Agendamento online</span>
-            <h1 className="anim-entrada">Agendar horário</h1>
-          </div>
           <Suspense fallback={null}>
-            <FluxoAgendamento />
+            <AreaCliente />
           </Suspense>
         </div>
       </main>
 
       <div className="poste" aria-hidden="true" />
-      <Animacoes />
     </div>
   );
 }

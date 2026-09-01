@@ -36,7 +36,7 @@ pertencem, por isso a numeração dentro de uma seção nem sempre é sequencial
 | RN-13 | Sem nenhum serviço ativo, o agendamento público fica fechado — o sistema nasce vazio e é white-label.                                                                                                                                                                                                                                                                                                                    | `código`          | `[IMPLEMENTADO]` |
 | RN-14 | O expediente semanal é **individual por profissional** (`expediente_barbeiro`, migration 7) — não existe mais grade global da barbearia. As folgas recorrentes também são configuração do profissional (RN-49) e o bloqueio manual continua para exceções pontuais. O "Horário de funcionamento" do site é derivado da união dos profissionais ativos. Um profissional novo nasce com o expediente padrão via _trigger_. | `código` `banco`  | `[IMPLEMENTADO]` |
 | RN-49 | Cada profissional tem **folgas recorrentes** próprias (`folgas_recorrentes`, migration 7): dias da semana em que nunca atende, distintas dos bloqueios pontuais de uma data. Um dia de folga recorrente zera a disponibilidade daquele dia, mesmo com o expediente aberto.                                                                                                                                               | `código` `banco`  | `[IMPLEMENTADO]` |
-| RN-50 | Na situação alvo, agendar exige uma **conta de cliente** autenticada; os dados de contato vêm da conta, e o agendamento fica vinculado ao cliente para histórico, métricas e lembretes. Hoje o agendamento público é anônimo (nome + WhatsApp).                                                                                                                                                                          | `planejado`       | `[PARCIAL]`      |
+| RN-50 | Agendar pelo site exige uma **conta de cliente** autenticada (`clientes`, migration 8); os dados de contato vêm da conta e o agendamento grava `cliente_id`. O agendamento anônimo não existe mais. O encaixe pelo painel continua sem conta (`cliente_id` nulo).                                                                                                                                                        | `código` `banco`  | `[IMPLEMENTADO]` |
 
 ## 2. Ciclo de vida do agendamento
 
@@ -72,7 +72,7 @@ pertencem, por isso a numeração dentro de uma seção nem sempre é sequencial
 | RN-32 | "Recebido por profissional" apenas identifica quem realizou cada atendimento e atribui o valor a ele para os relatórios. Não há comissão nem rateio.                                                                                                                                                                             | `planejado`      | `[PLANEJADO]`    |
 | RN-33 | A comanda é 1‑para‑1 com o agendamento e reúne os serviços e produtos daquele atendimento. Também pode existir comanda avulsa, sem agendamento, para venda de produtos. A comanda vinculada a agendamento só pode ser **fechada** depois de o agendamento estar `concluido`; ao fechar, o total vai para o financeiro e o caixa. | `planejado`      | `[PLANEJADO]`    |
 | RN-34 | A venda de um produto dá baixa no estoque. Se não houver quantidade suficiente, o sistema **impede a venda** e avisa o administrador — o estoque nunca fica negativo.                                                                                                                                                            | `planejado`      | `[PLANEJADO]`    |
-| RN-51 | Um cliente é **recorrente** quando tem 2 ou mais atendimentos `concluido` (sem limite de período); abaixo disso é **novo**. É uma classificação derivada do histórico, não um campo editável.                                                                                                                                    | `planejado`      | `[PLANEJADO]`    |
+| RN-51 | Um cliente é **recorrente** quando tem 2 ou mais atendimentos `concluido` (sem limite de período); abaixo disso é **novo**. Classificação derivada do histórico (`listarClientesAdmin` / `fichaClienteAdmin`), não um campo editável.                                                                                            | `código`         | `[IMPLEMENTADO]` |
 
 ## 5. Acesso e autenticação
 
@@ -89,11 +89,11 @@ pertencem, por isso a numeração dentro de uma seção nem sempre é sequencial
 
 ## 6. Privacidade e LGPD
 
-| ID    | Regra                                                                                                                                               | Origem      | Situação         |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ---------------- |
-| RN-43 | A trilha de auditoria guarda só campos operacionais (status, data, horário, ids, preço); nunca nome ou telefone do cliente.                         | `código`    | `[IMPLEMENTADO]` |
-| RN-44 | O cliente pode pedir a exclusão da conta e dos dados pessoais; os agendamentos podem ser anonimizados em vez de apagados, preservando o financeiro. | `planejado` | `[PLANEJADO]`    |
-| RN-45 | O cliente pode consultar quais dados são guardados sobre ele e com que finalidade.                                                                  | `planejado` | `[PLANEJADO]`    |
+| ID    | Regra                                                                                                                                                                                                                                                                                                                       | Origem   | Situação         |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ---------------- |
+| RN-43 | A trilha de auditoria guarda só campos operacionais (status, data, horário, ids, preço); nunca nome ou telefone do cliente.                                                                                                                                                                                                 | `código` | `[IMPLEMENTADO]` |
+| RN-44 | O cliente pede a exclusão da conta em `/conta`; `anonimizarCliente` zera nome/telefone/e-mail/senha da conta **e** o retrato (`cliente_nome`/`cliente_telefone`) nos agendamentos dele, preservando serviço, profissional, data, valor e status para o financeiro. Sobe `sessao_versao` e registra a auditoria só com o id. | `código` | `[IMPLEMENTADO]` |
+| RN-45 | A área do cliente (`/conta`) traz um texto de "Uso dos seus dados" com o que é guardado (nome, telefone, e-mail, histórico), a finalidade e a base legal.                                                                                                                                                                   | `código` | `[IMPLEMENTADO]` |
 
 ## 7. Operação e ambiente
 
@@ -122,5 +122,8 @@ Pontos definidos com o responsável e já refletidos acima:
   a venda de produto sem estoque é bloqueada (nunca fica negativo).
 - **RN-30:** a comanda aceita múltiplas formas de pagamento.
 - **RN-40:** 2FA (TOTP) obrigatório para `admin` e `superadmin`.
-- **RN-50:** agendar passa a exigir conta de cliente.
+- **RN-50:** agendar pelo site exige conta de cliente (o encaixe pelo painel,
+  não). O **telefone é obrigatório** no cadastro da conta.
+- **RN-44:** a exclusão da conta anonimiza **também** os agendamentos daquele
+  cliente (nome/telefone viram "Cliente removido"/vazio); o financeiro fica.
 - **RN-51:** cliente recorrente = 2 ou mais atendimentos concluídos.

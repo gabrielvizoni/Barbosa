@@ -64,6 +64,12 @@ const ROTAS_PROTEGIDAS = [
     metodos: ["GET", "PUT"],
     params: { id: "1" },
   },
+  { modulo: `${PREFIXO}clientes/route.js`, metodos: ["GET"], params: {} },
+  {
+    modulo: `${PREFIXO}clientes/[id]/route.js`,
+    metodos: ["GET"],
+    params: { id: "1" },
+  },
 ];
 
 // Rotas que INTENCIONALMENTE não passam por exigirSessao() — cada uma precisa

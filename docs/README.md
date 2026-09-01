@@ -44,6 +44,10 @@ item, sem reescrever o documento.
 | 09  | [Máquina de estados](09-maquina-de-estados.md)         | Ciclo de vida do agendamento — situação atual e situação alvo.                    | redigido |
 | 10  | [Contrato da API](10-contrato-da-api.md)               | Endpoints, corpo, respostas e códigos de erro.                                    | redigido |
 | 11  | [Estratégia de testes](11-estrategia-de-testes.md)     | Níveis de teste, escopo, lacunas e como executar.                                 | redigido |
+| 12  | [Backlog de implementação](12-backlog.md)              | Backlog executável por epic, ordenado por dependência.                            | vivo     |
+
+Acompanhamento do avanço em [PROGRESSO.md](PROGRESSO.md) — epics entregues,
+commits e o próximo passo.
 
 Enquanto a migração completa não acontece, o diretório [`../auditoria/`](../auditoria)
 guarda a auditoria de back-end que serviu de base para vários destes

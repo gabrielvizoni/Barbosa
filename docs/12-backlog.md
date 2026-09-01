@@ -162,7 +162,7 @@ segredo de tarefa e nenhum `.github/workflows/`.
 
 ---
 
-## Epic A — Conta de cliente e LGPD
+## Epic A — Conta de cliente e LGPD — CONCLUÍDO
 
 **Tamanho:** L · **Depende de:** nada · **Documentos:**
 [01](01-requisitos-funcionais.md) (Mód. 2 e 10),
@@ -171,10 +171,24 @@ segredo de tarefa e nenhum `.github/workflows/`.
 [06](06-modelo-de-dados.md) §3, [07](07-navegacao.md) §4,
 [10](10-contrato-da-api.md) §5
 
-Situação: `[PLANEJADO]` (RN-50 e RNF-10 estão `[PARCIAL]`). Nenhuma linha de
-conta de cliente existe hoje — o agendamento público é anônimo.
+Situação: **entregue** (migration 8). RF-05, RF-09, RF-11 a RF-14, RF-19,
+RF-20, RF-72, RN-50, RN-44, RN-45, RN-51 e RNF-10 agora `[IMPLEMENTADO]`;
+RF-71, RF-73, RF-74 e UC-32 `[PARCIAL]` (edição de cliente pelo admin e as
+métricas de falta/bad-list ficam para os Epics C/D). Tabelas `clientes` e
+`cliente_reset_tokens`; `src/lib/cliente-auth.js` (espelha `auth.js`);
+rotas `/api/conta/*` (cadastro, login, logout, sessão, esqueci/redefinir
+senha, perfil, `DELETE`); `POST /api/agendamentos` exige sessão de cliente
+e grava `cliente_id`; página `/conta` (entrar/cadastrar + Meus dados +
+LGPD); guarda de sessão em `/agendar`; seção "Clientes" no painel
+(`GET /api/admin/clientes` e `.../[id]`). Decisões: telefone obrigatório no
+cadastro; a exclusão anonimiza também os agendamentos.
 
-- [ ] **T-A.1** Migration: tabela `clientes` (`id`, `nome`, `telefone`,
+**Fora do escopo entregue (fica para o epic dono):** histórico próprio do
+cliente em `/conta` (RF-15 → Epic J); bad-list e faltas na ficha (RF-75 →
+Epic D). Ver o apêndice I-1/I-3 para as inconsistências de contrato que
+pegaram carona.
+
+- [x] **T-A.1** Migration: tabela `clientes` (`id`, `nome`, `telefone`,
       `email TEXT NOT NULL`, `senha_hash TEXT NOT NULL DEFAULT ''`,
       `sessao_versao INTEGER NOT NULL DEFAULT 1`, `criado_em`,
       `anonimizado_em TEXT`) + índice único em `lower(email)` com
@@ -187,7 +201,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
     [`src/lib/migrations.js:342`](../src/lib/migrations.js#L342); a migration
     nova é só `conn.exec("CREATE TABLE ...")` (sem CHECK exótico — dispensa
     _rebuild_).
-- [ ] **T-A.2** Migration aditiva:
+- [x] **T-A.2** Migration aditiva:
       `ALTER TABLE agendamentos ADD COLUMN cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL`.
   - **Aceite:** a coluna existe; agendamentos antigos ficam com `cliente_id`
     nulo; `npm test` continua verde.
@@ -195,7 +209,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
     `agendamentos`").
   - **Reúso:** migration 5 (`ALTER TABLE ... ADD COLUMN` direto) em
     [`src/lib/migrations.js:291`](../src/lib/migrations.js#L291).
-- [ ] **T-A.3** `src/lib/cliente-auth.js` — espelha `src/lib/auth.js` para o
+- [x] **T-A.3** `src/lib/cliente-auth.js` — espelha `src/lib/auth.js` para o
       cliente: cookie `cliente_sessao`, `construirTokenCliente`,
       `decodificarSessaoCliente`, `criarSessaoCliente`, `exigirSessaoCliente`,
       `cadastrarCliente`, `autenticarCliente` e os tokens de reset.
@@ -205,7 +219,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
   - **Satisfaz:** RF-11, RF-12, RF-13, UC-03, UC-04.
   - **Reúso:** [`src/lib/auth.js`](../src/lib/auth.js) inteiro como molde;
     `criarTokenReset` de [`src/lib/db.js:209`](../src/lib/db.js#L209).
-- [ ] **T-A.4** Helpers de acesso a `clientes` em `src/lib/db.js`:
+- [x] **T-A.4** Helpers de acesso a `clientes` em `src/lib/db.js`:
       `buscarClientePorEmail`, `buscarClientePorId`, `criarCliente`,
       `atualizarCliente`, `anonimizarCliente` (zera os campos pessoais, grava
       `anonimizado_em` e **não** apaga agendamentos — o _snapshot_ de nome já
@@ -216,7 +230,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
   - **Satisfaz:** RN-44, RN-45.
   - **Reúso:** helpers de barbeiro em
     [`src/lib/db.js:139`](../src/lib/db.js#L139).
-- [ ] **T-A.5** Rotas de conta: `POST /api/conta/cadastro`,
+- [x] **T-A.5** Rotas de conta: `POST /api/conta/cadastro`,
       `POST /api/conta/login`, `POST /api/conta/logout`,
       `GET /api/conta/sessao`, `POST /api/conta/esqueci-senha`,
       `POST /api/conta/redefinir-senha`, `GET`/`PATCH /api/conta/perfil` e
@@ -232,7 +246,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
     `redefinir-senha`, `perfil`); `lerCorpoJson` de `src/lib/requisicao.js`;
     `limiteAtingido`/`registrarTentativa` de
     [`src/lib/limitador.js:51`](../src/lib/limitador.js#L51).
-- [ ] **T-A.6** `POST /api/agendamentos` passa a exigir `exigirSessaoCliente`;
+- [x] **T-A.6** `POST /api/agendamentos` passa a exigir `exigirSessaoCliente`;
       `cliente_nome`/`cliente_telefone` viram _snapshot_ vindo da conta e o
       `cliente_id` é gravado. O agendamento anônimo deixa de existir.
   - **Aceite:** `POST /api/agendamentos` sem cookie de cliente responde 401;
@@ -241,7 +255,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
   - **Satisfaz:** RN-50, RF-05, RF-09.
   - **Reúso:** `criarAgendamento` em
     [`src/lib/agendamentos.js:113`](../src/lib/agendamentos.js#L113).
-- [ ] **T-A.7** `src/app/conta/page.jsx` + `AreaCliente.jsx`:
+- [x] **T-A.7** `src/app/conta/page.jsx` + `AreaCliente.jsx`:
       entrar/cadastrar e "Meus dados" (editar cadastro, excluir conta, texto
       de uso de dados — LGPD).
   - **Aceite:** fluxo manual — criar conta, entrar, editar telefone, pedir
@@ -253,7 +267,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
     [`src/app/admin/PainelAdmin.jsx:96`](../src/app/admin/PainelAdmin.jsx#L96);
     `Modal` de
     [`src/components/admin/base.jsx:33`](../src/components/admin/base.jsx#L33).
-- [ ] **T-A.8** `FluxoAgendamento.jsx` / `src/app/agendar/page.jsx`: guarda de
+- [x] **T-A.8** `FluxoAgendamento.jsx` / `src/app/agendar/page.jsx`: guarda de
       sessão — visitante sem conta vai para `/conta?retorno=/agendar`; o passo
       "Seus dados" vira revisão _read-only_ dos dados da conta, com o resumo
       completo antes de confirmar.
@@ -263,7 +277,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
   - **Reúso:** `hojeLocal`/`mesAtualLocal` de `src/lib/datas-cliente.js`;
     wizard atual em
     [`src/app/agendar/FluxoAgendamento.jsx`](../src/app/agendar/FluxoAgendamento.jsx).
-- [ ] **T-A.9** Seção "Clientes" no painel:
+- [x] **T-A.9** Seção "Clientes" no painel:
       `src/components/admin/Clientes.jsx` + entrada em `SECOES` + ícone;
       `GET /api/admin/clientes` e `GET /api/admin/clientes/[id]` (ficha,
       histórico, classificação novo/recorrente derivada — RN-51).
@@ -277,7 +291,7 @@ conta de cliente existe hoje — o agendamento público é anônimo.
     [`tests/autorizacao.test.js:20`](../tests/autorizacao.test.js#L20);
     `Equipe`/`Pessoa` em
     [`src/components/Icones.jsx`](../src/components/Icones.jsx).
-- [ ] **T-A.10** Testes: `tests/cliente-auth.test.js`, integração de
+- [x] **T-A.10** Testes: `tests/cliente-auth.test.js`, integração de
       `/api/conta/*` e de `/api/agendamentos` com _gate_ de sessão. Vira as
       tags em [01](01-requisitos-funcionais.md) (Mód. 2, RF-05, RF-09),
       [02](02-regras-de-negocio.md) (RN-50, RN-44, RN-45),

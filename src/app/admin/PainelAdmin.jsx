@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, ModalConfirmacao } from "@/components/admin/base";
+import { CampoEmail, CampoSenha } from "@/components/campos";
 import { ConfigProvider } from "@/components/admin/ConfigContext";
 import { NOME_PADRAO } from "@/lib/format";
 import VisaoGeral from "@/components/admin/VisaoGeral";
 import Agendamentos from "@/components/admin/Agendamentos";
+import Clientes from "@/components/admin/Clientes";
 import Profissionais from "@/components/admin/Profissionais";
 import Servicos from "@/components/admin/Servicos";
 import Produtos from "@/components/admin/Produtos";
@@ -13,17 +15,14 @@ import Horarios from "@/components/admin/Horarios";
 import Financeiro from "@/components/admin/Financeiro";
 import Configuracoes from "@/components/admin/Configuracoes";
 import {
-  Cadeado,
   Caixa,
   Calendario,
   Casa,
-  Email,
   Engrenagem,
   Equipe,
   Grafico,
-  Olho,
-  OlhoFechado,
   Pausa,
+  Pessoa,
   Sair,
   Tesoura,
 } from "@/components/Icones";
@@ -31,6 +30,7 @@ import {
 const SECOES = [
   { id: "visao", rotulo: "Visão geral", Icone: Casa, Tela: VisaoGeral },
   { id: "agenda", rotulo: "Agenda", Icone: Calendario, Tela: Agendamentos },
+  { id: "clientes", rotulo: "Clientes", Icone: Pessoa, Tela: Clientes },
   {
     id: "profissionais",
     rotulo: "Profissionais",
@@ -57,12 +57,12 @@ function pegarTokenDaUrl() {
   return new URLSearchParams(window.location.search).get("token") || "";
 }
 
-// Componentes de apoio das telas de acesso (login, bootstrap, redefinir
-// senha) — definidos FORA de PainelAdmin de propósito. Um componente
-// declarado dentro de outro muda de identidade a cada render do pai, e o
-// React desmonta e remonta a árvore inteira dele; num campo de senha isso
-// derruba o foco a cada tecla digitada (mesma causa-raiz do bug corrigido no
-// Modal — ver src/components/admin/base.jsx).
+// Componente de apoio das telas de acesso — definido FORA de PainelAdmin de
+// propósito. Um componente declarado dentro de outro muda de identidade a
+// cada render do pai, e o React desmonta e remonta a árvore inteira dele
+// (mesma causa-raiz do bug corrigido no Modal — ver src/components/admin/base.jsx).
+// CampoSenha/CampoEmail vêm de @/components/campos, compartilhados com a
+// área da conta do cliente.
 
 /** Painel de marca (lado esquerdo) das telas de acesso — mesmo conteúdo em todas. */
 function PainelMarca({ nome }) {
@@ -89,63 +89,6 @@ function PainelMarca({ nome }) {
         Acesso restrito à equipe · conexão criptografada
       </div>
     </div>
-  );
-}
-
-/** Campo de senha com ícone de cadeado e alternância de mostrar/ocultar. */
-function CampoSenha({ label, valor, aoMudar, autoComplete, autoFocus }) {
-  const [mostrar, setMostrar] = useState(false);
-  return (
-    <label className="campo">
-      <span>{label}</span>
-      <div className="campo-com-icone tem-icone-direita">
-        <span className="icone-esquerda">
-          <Cadeado width={16} height={16} />
-        </span>
-        <input
-          className="entrada"
-          type={mostrar ? "text" : "password"}
-          value={valor}
-          onChange={(e) => aoMudar(e.target.value)}
-          autoComplete={autoComplete}
-          autoFocus={autoFocus}
-        />
-        <button
-          type="button"
-          className="icone-direita"
-          onClick={() => setMostrar((m) => !m)}
-          aria-label={mostrar ? "Ocultar senha" : "Mostrar senha"}
-        >
-          {mostrar ? (
-            <OlhoFechado width={16} height={16} />
-          ) : (
-            <Olho width={16} height={16} />
-          )}
-        </button>
-      </div>
-    </label>
-  );
-}
-
-/** Campo de e-mail com ícone de envelope — mesmo padrão visual do campo de senha. */
-function CampoEmail({ label, valor, aoMudar, autoComplete, autoFocus }) {
-  return (
-    <label className="campo">
-      <span>{label}</span>
-      <div className="campo-com-icone">
-        <span className="icone-esquerda">
-          <Email width={16} height={16} />
-        </span>
-        <input
-          className="entrada"
-          type="email"
-          value={valor}
-          onChange={(e) => aoMudar(e.target.value)}
-          autoComplete={autoComplete}
-          autoFocus={autoFocus}
-        />
-      </div>
-    </label>
   );
 }
 

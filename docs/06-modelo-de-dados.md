@@ -1,13 +1,13 @@
 # 06 — Modelo de dados
 
-Extraído de `src/lib/migrations.js` (7 migrations, versão esperada **7**). O
+Extraído de `src/lib/migrations.js` (8 migrations, versão esperada **8**). O
 schema é SQLite; toda leitura e escrita passa por `src/lib/db.js` com
 _prepared statements_, sem ORM.
 
-- **Situação atual:** o que as 7 migrations criam.
+- **Situação atual:** o que as 8 migrations criam.
 - **Situação alvo:** as entidades novas que os módulos `[PLANEJADO]`
-  (conta de cliente, comandas, caixa, 2FA) exigem. Ainda não existem
-  migrations para elas.
+  (comandas, caixa, 2FA, lembretes) exigem. Ainda não existem migrations
+  para elas.
 
 Convenções do schema: dinheiro em **centavos** (`_centavos`, inteiro); datas em
 `AAAA-MM-DD` e horas em `HH:MM`, validadas por `CHECK ... GLOB`; texto não
@@ -82,10 +82,30 @@ erDiagram
         TEXT    fim "HH:MM; posterior a inicio"
         TEXT    motivo
     }
+    clientes {
+        INTEGER id PK
+        TEXT    nome
+        TEXT    telefone "so digitos"
+        TEXT    email "migration 8; NOT NULL, unico por lower(email)"
+        TEXT    senha_hash "migration 8; scrypt"
+        INTEGER sessao_versao "migration 8; invalida sessoes da conta"
+        TEXT    criado_em
+        TEXT    anonimizado_em "preenchido = conta excluida (RN-44)"
+    }
+    cliente_reset_tokens {
+        INTEGER id PK
+        INTEGER cliente_id FK "migration 8; ON DELETE CASCADE"
+        TEXT    token_hash "unico"
+        TEXT    criado_em
+        TEXT    expira_em
+        TEXT    usado_em "NULL enquanto nao usado"
+        TEXT    ip_solicitante
+    }
     agendamentos {
         INTEGER id PK
-        TEXT    cliente_nome
-        TEXT    cliente_telefone "so digitos"
+        INTEGER cliente_id FK "migration 8; ON DELETE SET NULL"
+        TEXT    cliente_nome "snapshot; zerado ao anonimizar (RN-44)"
+        TEXT    cliente_telefone "so digitos; zerado ao anonimizar"
         INTEGER barbeiro_id FK "ON DELETE SET NULL"
         INTEGER servico_id FK "ON DELETE SET NULL"
         TEXT    barbeiro_nome "snapshot congelado"
@@ -131,14 +151,16 @@ erDiagram
         INTEGER versao "controle das migrations"
     }
 
-    barbeiros           ||--o{ servico_barbeiro    : "realiza"
-    servicos            ||--o{ servico_barbeiro    : "é realizado por"
-    barbeiros           ||--o{ agendamentos        : "atende"
-    servicos            ||--o{ agendamentos        : "é agendado em"
-    barbeiros           ||--o{ bloqueios           : "tem folga pontual"
-    barbeiros           ||--|{ expediente_barbeiro : "trabalha na semana"
-    barbeiros           ||--o{ folgas_recorrentes  : "folga toda semana"
-    barbeiros           ||--o{ reset_senha_tokens  : "solicita"
+    barbeiros           ||--o{ servico_barbeiro     : "realiza"
+    servicos            ||--o{ servico_barbeiro     : "é realizado por"
+    barbeiros           ||--o{ agendamentos         : "atende"
+    servicos            ||--o{ agendamentos         : "é agendado em"
+    clientes            ||--o{ agendamentos         : "marca"
+    clientes            ||--o{ cliente_reset_tokens : "solicita"
+    barbeiros           ||--o{ bloqueios            : "tem folga pontual"
+    barbeiros           ||--|{ expediente_barbeiro  : "trabalha na semana"
+    barbeiros           ||--o{ folgas_recorrentes   : "folga toda semana"
+    barbeiros           ||--o{ reset_senha_tokens   : "solicita"
 ```
 
 `config` e `schema_version` não têm relação com as demais — `config` é um
@@ -248,27 +270,47 @@ Um serviço sem nenhuma linha aqui não aparece no site (RN-12).
 
 ### `agendamentos`
 
-| Coluna             | Tipo    | Regras / observação                                                                               |
-| ------------------ | ------- | ------------------------------------------------------------------------------------------------- |
-| `id`               | INTEGER | PK autoincremento.                                                                                |
-| `cliente_nome`     | TEXT    | Obrigatório (≥ 2 após _trim_, limitado a 80).                                                     |
-| `cliente_telefone` | TEXT    | Só dígitos. 10–11 dígitos no fluxo público; opcional no encaixe.                                  |
-| `barbeiro_id`      | INTEGER | FK → `barbeiros` `ON DELETE SET NULL`.                                                            |
-| `servico_id`       | INTEGER | FK → `servicos` `ON DELETE SET NULL`.                                                             |
-| `barbeiro_nome`    | TEXT    | Snapshot no momento da marcação (RN-10).                                                          |
-| `servico_nome`     | TEXT    | Snapshot no momento da marcação (RN-10).                                                          |
-| `data`             | TEXT    | `CHECK GLOB AAAA-MM-DD`.                                                                          |
-| `inicio`, `fim`    | TEXT    | `CHECK GLOB HH:MM`; `CHECK fim > inicio`. `fim = inicio + duracao_min`.                           |
-| `duracao_min`      | INTEGER | `CHECK BETWEEN 5 AND 480`.                                                                        |
-| `preco_centavos`   | INTEGER | `CHECK >= 0`. Preço do serviço no momento da marcação (RN-11).                                    |
-| `observacoes`      | TEXT    | Limitado a 300.                                                                                   |
-| `status`           | TEXT    | `CHECK IN ('pendente','confirmado','concluido','cancelado')`. Ver [09](09-maquina-de-estados.md). |
-| `criado_em`        | TEXT    | `datetime('now')` — **UTC**.                                                                      |
-| `excluido_em`      | TEXT    | Migration 5. `NULL` = ativo; preenchido = _soft delete_ (RN-29).                                  |
+| Coluna             | Tipo    | Regras / observação                                                                                                           |
+| ------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `id`               | INTEGER | PK autoincremento.                                                                                                            |
+| `cliente_id`       | INTEGER | Migration 8. FK → `clientes` `ON DELETE SET NULL`. Preenchido no agendamento pelo site; `NULL` no encaixe pelo painel.        |
+| `cliente_nome`     | TEXT    | _Snapshot_ do nome no momento da marcação (≥ 2, limitado a 80). Zerado para "Cliente removido" ao anonimizar a conta (RN-44). |
+| `cliente_telefone` | TEXT    | Só dígitos. Vem da conta no site (10–11 dígitos); opcional no encaixe. Zerado ao anonimizar.                                  |
+| `barbeiro_id`      | INTEGER | FK → `barbeiros` `ON DELETE SET NULL`.                                                                                        |
+| `servico_id`       | INTEGER | FK → `servicos` `ON DELETE SET NULL`.                                                                                         |
+| `barbeiro_nome`    | TEXT    | Snapshot no momento da marcação (RN-10).                                                                                      |
+| `servico_nome`     | TEXT    | Snapshot no momento da marcação (RN-10).                                                                                      |
+| `data`             | TEXT    | `CHECK GLOB AAAA-MM-DD`.                                                                                                      |
+| `inicio`, `fim`    | TEXT    | `CHECK GLOB HH:MM`; `CHECK fim > inicio`. `fim = inicio + duracao_min`.                                                       |
+| `duracao_min`      | INTEGER | `CHECK BETWEEN 5 AND 480`.                                                                                                    |
+| `preco_centavos`   | INTEGER | `CHECK >= 0`. Preço do serviço no momento da marcação (RN-11).                                                                |
+| `observacoes`      | TEXT    | Limitado a 300.                                                                                                               |
+| `status`           | TEXT    | `CHECK IN ('pendente','confirmado','concluido','cancelado')`. Ver [09](09-maquina-de-estados.md).                             |
+| `criado_em`        | TEXT    | `datetime('now')` — **UTC**.                                                                                                  |
+| `excluido_em`      | TEXT    | Migration 5. `NULL` = ativo; preenchido = _soft delete_ (RN-29).                                                              |
 
 Índices: `idx_ag_data(data)`, `idx_ag_barbeiro(barbeiro_id, data)` e o índice
 único parcial **`idx_ag_sem_duplicidade(barbeiro_id, data, inicio) WHERE status <> 'cancelado'`**
 (migration 4) — a garantia final contra agendamento duplicado (RN-09).
+
+### `clientes` — conta do cliente do site (migration 8)
+
+| Coluna           | Tipo    | Regras / observação                                                   |
+| ---------------- | ------- | --------------------------------------------------------------------- |
+| `id`             | INTEGER | PK autoincremento.                                                    |
+| `nome`           | TEXT    | `NOT NULL DEFAULT ''`. ≥ 2 no cadastro; `''` após anonimização.       |
+| `telefone`       | TEXT    | Só dígitos. Obrigatório no cadastro (10–11 dígitos).                  |
+| `email`          | TEXT    | `NOT NULL DEFAULT ''`. Único por `lower(email)` quando `email <> ''`. |
+| `senha_hash`     | TEXT    | `scrypt`, mesmo formato do painel.                                    |
+| `sessao_versao`  | INTEGER | Trocar a senha ou anonimizar sobe este contador e derruba as sessões. |
+| `criado_em`      | TEXT    | `datetime('now')`.                                                    |
+| `anonimizado_em` | TEXT    | `NULL` = conta ativa; preenchido = excluída a pedido (RN-44).         |
+
+### `cliente_reset_tokens` — recuperação de senha do cliente (migration 8)
+
+Mesma técnica de `reset_senha_tokens` (só o hash do token é guardado). FK →
+`clientes` `ON DELETE CASCADE`; índice único `idx_cliente_reset_token_hash` e
+índice `idx_cliente_reset_cliente_expira(cliente_id, expira_em)`.
 
 ### `reset_senha_tokens` — recuperação de senha do barbeiro (migration 6)
 
@@ -299,7 +341,7 @@ ids, preço). **Nunca** nome ou telefone do cliente (RN-43). Índice:
 ### `schema_version`
 
 Uma linha, sem PK. `aplicarMigrations()` faz `DELETE` + `INSERT` a cada
-migration aplicada; `getDb()` recusa subir se o valor não for `7`.
+migration aplicada; `getDb()` recusa subir se o valor não for `8`.
 
 ---
 
@@ -308,26 +350,23 @@ migration aplicada; `getDb()` recusa subir se o valor não for `7`.
 Estas entidades ainda não existem. A lista fixa o vocabulário e as ligações
 esperadas; o desenho fino sai quando o módulo for implementado.
 
-| Entidade             | Papel                                                                                                                                                                                                                                                 | Liga-se a                                                 |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| `clientes`           | Conta do cliente: `nome`, `telefone`, `email` (`NOT NULL`, único), `senha_hash` (`scrypt`), `sessao_versao`, `criado_em`, `anonimizado_em`. Base do histórico e das métricas. A classificação novo/recorrente é **derivada** (RN-51), não uma coluna. | `agendamentos` (novo `cliente_id`), `comandas`            |
-| `lembretes`          | Antecedência do lembrete por cliente ou por agendamento (15 min … 24 h) e controle de envio (canal, `enviado_em`).                                                                                                                                    | `clientes`, `agendamentos`                                |
-| `formas_pagamento`   | Cadastro de formas de pagamento aceitas (dinheiro, Pix, débito, crédito…).                                                                                                                                                                            | `pagamentos`                                              |
-| `caixa_sessoes`      | Abertura e fechamento do caixa do dia, um por dia para a barbearia (RN-31): `data`, `aberto_em`, `fechado_em`, `valor_abertura`, `valor_fechamento`, `diferenca`.                                                                                     | `caixa_movimentos`                                        |
-| `caixa_movimentos`   | Movimentos do caixa: `valor_centavos`, `tipo` (`sangria`, `reforco`, `troco`, `entrada_avulsa`, `saida_avulsa`, `pagamento` — RN-31), `descricao`, `pagamento_id?`.                                                                                   | `caixa_sessoes`, `pagamentos`                             |
-| `pagamentos`         | Um pagamento de uma comanda: `comanda_id`, `forma_pagamento_id`, `valor_centavos`, `registrado_em`. Uma comanda tem **1..N** pagamentos (RN-30). O executante do serviço vem da comanda / do agendamento (RN-32).                                     | `comandas`, `formas_pagamento`, `caixa_movimentos`        |
-| `comandas`           | 1:1 com `agendamentos` ou avulsa (RN-33): `cliente_id`, `agendamento_id` (nullable), `status` (`aberta`/`fechada`), `total_centavos`, `fechada_em`. Só fecha se o agendamento vinculado estiver `concluido`.                                          | `agendamentos`, `clientes`, `comanda_itens`, `pagamentos` |
-| `comanda_itens`      | Linhas da comanda: `tipo` (`servico`/`produto`), `servico_id`/`produto_id`, `quantidade`, `preco_unit_centavos`. A venda de produto valida o estoque e é bloqueada se insuficiente (RN-34).                                                           | `comandas`, `servicos`, `produtos`                        |
-| `notificacoes_admin` | Fila de avisos do painel (novo agendamento, cancelamento, remarcação, mudança de status): `tipo`, `agendamento_id`, `lida_em`.                                                                                                                        | `agendamentos`                                            |
-| `admin_2fa`          | Segredo TOTP + códigos de recuperação, obrigatório para `admin` e `superadmin` (RN-40).                                                                                                                                                               | `barbeiros`                                               |
-| `bad_list`           | Situação do cliente quanto a faltas. Pode ser materializada (`cliente_id`, `faltas_consecutivas`, `incluido_em`) ou derivada de `agendamentos` em tempo de consulta.                                                                                  | `clientes`, `agendamentos`                                |
+| Entidade             | Papel                                                                                                                                                                                                             | Liga-se a                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `lembretes`          | Antecedência do lembrete por cliente ou por agendamento (15 min … 24 h) e controle de envio (canal, `enviado_em`).                                                                                                | `clientes`, `agendamentos`                                |
+| `formas_pagamento`   | Cadastro de formas de pagamento aceitas (dinheiro, Pix, débito, crédito…).                                                                                                                                        | `pagamentos`                                              |
+| `caixa_sessoes`      | Abertura e fechamento do caixa do dia, um por dia para a barbearia (RN-31): `data`, `aberto_em`, `fechado_em`, `valor_abertura`, `valor_fechamento`, `diferenca`.                                                 | `caixa_movimentos`                                        |
+| `caixa_movimentos`   | Movimentos do caixa: `valor_centavos`, `tipo` (`sangria`, `reforco`, `troco`, `entrada_avulsa`, `saida_avulsa`, `pagamento` — RN-31), `descricao`, `pagamento_id?`.                                               | `caixa_sessoes`, `pagamentos`                             |
+| `pagamentos`         | Um pagamento de uma comanda: `comanda_id`, `forma_pagamento_id`, `valor_centavos`, `registrado_em`. Uma comanda tem **1..N** pagamentos (RN-30). O executante do serviço vem da comanda / do agendamento (RN-32). | `comandas`, `formas_pagamento`, `caixa_movimentos`        |
+| `comandas`           | 1:1 com `agendamentos` ou avulsa (RN-33): `cliente_id`, `agendamento_id` (nullable), `status` (`aberta`/`fechada`), `total_centavos`, `fechada_em`. Só fecha se o agendamento vinculado estiver `concluido`.      | `agendamentos`, `clientes`, `comanda_itens`, `pagamentos` |
+| `comanda_itens`      | Linhas da comanda: `tipo` (`servico`/`produto`), `servico_id`/`produto_id`, `quantidade`, `preco_unit_centavos`. A venda de produto valida o estoque e é bloqueada se insuficiente (RN-34).                       | `comandas`, `servicos`, `produtos`                        |
+| `notificacoes_admin` | Fila de avisos do painel (novo agendamento, cancelamento, remarcação, mudança de status): `tipo`, `agendamento_id`, `lida_em`.                                                                                    | `agendamentos`                                            |
+| `admin_2fa`          | Segredo TOTP + códigos de recuperação, obrigatório para `admin` e `superadmin` (RN-40).                                                                                                                           | `barbeiros`                                               |
+| `bad_list`           | Situação do cliente quanto a faltas. Pode ser materializada (`cliente_id`, `faltas_consecutivas`, `incluido_em`) ou derivada de `agendamentos` em tempo de consulta.                                              | `clientes`, `agendamentos`                                |
 
-**Impacto em `agendamentos`:**
+**Impacto futuro em `agendamentos`:**
 
-- Ganha `cliente_id` (FK → `clientes`). Como agendar passa a exigir conta
-  (RN-50), ele é obrigatório para agendamentos novos; `ON DELETE SET NULL`
-  para permitir anonimizar a conta preservando o histórico financeiro (RN-44).
-- `cliente_nome` / `cliente_telefone` viram snapshot (retrato no momento da
-  marcação), como `barbeiro_nome` / `servico_nome`.
 - O `CHECK` de `status` passa a aceitar `no-show`; o índice único parcial
   `idx_ag_sem_duplicidade` passa a ignorar `('cancelado', 'no-show')` (RN-09).
+
+(O `cliente_id` e a anonimização de `cliente_nome`/`cliente_telefone` já
+existem — migration 8, seção 2.)

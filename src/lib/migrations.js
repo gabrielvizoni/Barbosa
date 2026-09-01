@@ -429,6 +429,59 @@ export const migrations = [
       conn.exec(`DROP TABLE expediente`);
     },
   },
+
+  {
+    versao: 8,
+    descricao:
+      "conta de cliente (clientes, cliente_reset_tokens) e agendamentos.cliente_id",
+    up(conn) {
+      // Conta do cliente: a partir daqui, agendar pelo site exige uma conta
+      // autenticada (RN-50). `email` é o âncora de login e recuperação —
+      // único por `lower(email)`, ignorando o vazio (contas anonimizadas
+      // por pedido de exclusão ficam com todos os campos pessoais em branco).
+      conn.exec(`
+        CREATE TABLE IF NOT EXISTS clientes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          nome TEXT NOT NULL DEFAULT '',
+          telefone TEXT NOT NULL DEFAULT '',
+          email TEXT NOT NULL DEFAULT '',
+          senha_hash TEXT NOT NULL DEFAULT '',
+          sessao_versao INTEGER NOT NULL DEFAULT 1,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          anonimizado_em TEXT
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_email
+          ON clientes(lower(email))
+          WHERE email <> '';
+
+        CREATE TABLE IF NOT EXISTS cliente_reset_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          cliente_id INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+          token_hash TEXT NOT NULL,
+          criado_em TEXT NOT NULL DEFAULT (datetime('now')),
+          expira_em TEXT NOT NULL,
+          usado_em TEXT,
+          ip_solicitante TEXT NOT NULL DEFAULT ''
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_cliente_reset_token_hash
+          ON cliente_reset_tokens(token_hash);
+        CREATE INDEX IF NOT EXISTS idx_cliente_reset_cliente_expira
+          ON cliente_reset_tokens(cliente_id, expira_em);
+      `);
+
+      // Coluna aditiva, sem CHECK — ALTER TABLE ADD COLUMN direto (como a
+      // migration 5 fez com excluido_em). `ON DELETE SET NULL` deixa apagar
+      // a conta preservando o histórico financeiro do agendamento; o nome e
+      // o telefone do agendamento são retrato do momento da marcação e são
+      // zerados à parte quando a conta é anonimizada (RN-44).
+      conn.exec(
+        `ALTER TABLE agendamentos ADD COLUMN cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL`,
+      );
+      conn.exec(
+        `CREATE INDEX IF NOT EXISTS idx_ag_cliente ON agendamentos(cliente_id)`,
+      );
+    },
+  },
 ];
 
 /** Maior número de versão declarado — o que o banco precisa ter para subir. */

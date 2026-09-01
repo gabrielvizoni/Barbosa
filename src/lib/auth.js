@@ -60,7 +60,7 @@ export function autenticacaoConfiguradaComSeguranca() {
 const MENSAGEM_CONFIGURACAO_INSEGURA =
   "O painel está indisponível: falta configurar o servidor com segurança (SESSION_SECRET/ADMIN_PASSWORD). Avise quem cuida da hospedagem.";
 
-function segredo() {
+export function segredo() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
   if (process.env.NODE_ENV === "production") {
     // Não deveria chegar aqui: autenticacaoConfiguradaComSeguranca() barra
@@ -75,7 +75,7 @@ function assinar(valor) {
 }
 
 /** Compara duas strings sem vazar, pelo tempo de resposta, onde elas diferem. */
-function iguais(a, b) {
+export function iguais(a, b) {
   const bufA = Buffer.from(String(a));
   const bufB = Buffer.from(String(b));
   if (bufA.length !== bufB.length) return false;
@@ -106,7 +106,7 @@ export async function gerarHash(senha) {
   return `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${sal.toString("hex")}$${derivada.toString("hex")}`;
 }
 
-async function conferirHash(senha, guardado) {
+export async function conferirHash(senha, guardado) {
   const partes = String(guardado).split("$");
   let algoritmo;
   let n;
@@ -156,7 +156,7 @@ async function conferirHash(senha, guardado) {
 // não tem senha própria ainda — sem isso, autenticarBarbeiro() responderia
 // bem mais rápido para e-mails desconhecidos do que para incorretos,
 // revelando por timing quais e-mails têm conta no painel.
-const HASH_DUMMY = `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${"00".repeat(16)}$${"00".repeat(SCRYPT_TAMANHO_CHAVE)}`;
+export const HASH_DUMMY = `scrypt$${SCRYPT_N}$${SCRYPT_R}$${SCRYPT_P}$${"00".repeat(16)}$${"00".repeat(SCRYPT_TAMANHO_CHAVE)}`;
 
 /* -------------------------------------------------------------------------
    Senha de bootstrap (a única, compartilhada, do modo transitório)

@@ -63,34 +63,36 @@ O **middleware** roda em toda requisição de página e injeta a CSP com nonce.
 
 ### API — famílias de rotas
 
-| Prefixo                                                      | Autenticação                 | Função                                                    |
-| ------------------------------------------------------------ | ---------------------------- | --------------------------------------------------------- |
-| `/api/public`                                                | nenhuma                      | Serviços, equipe e dias disponíveis para o site.          |
-| `/api/horarios`                                              | nenhuma                      | Horários livres de um par profissional + serviço num dia. |
-| `/api/agendamentos`                                          | nenhuma + rate limit         | Recebe o agendamento do cliente.                          |
-| `/api/health`                                                | nenhuma                      | Health check (banco + escrita em `public/uploads`).       |
-| `/api/admin/login` · `logout` · `sessao`                     | nenhuma                      | Entrada e sondagem de sessão.                             |
-| `/api/admin/bootstrap` · `esqueci-senha` · `redefinir-senha` | sessão de bootstrap ou token | Configuração inicial e recuperação de senha.              |
-| `/api/admin/**` (demais)                                     | `exigirSessao`               | Agenda, cadastros, configuração, resumo, upload, perfil.  |
+| Prefixo                                                      | Autenticação                   | Função                                                             |
+| ------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------ |
+| `/api/public`                                                | nenhuma                        | Serviços, equipe e dias disponíveis para o site.                   |
+| `/api/horarios`                                              | nenhuma                        | Horários livres de um par profissional + serviço num dia.          |
+| `/api/agendamentos`                                          | sessão de cliente + rate limit | Recebe o agendamento do cliente (RN-50).                           |
+| `/api/conta/**`                                              | sessão de cliente (mutações)   | Cadastro, login, recuperação de senha, perfil e exclusão da conta. |
+| `/api/health`                                                | nenhuma                        | Health check (banco + escrita em `public/uploads`).                |
+| `/api/admin/login` · `logout` · `sessao`                     | nenhuma                        | Entrada e sondagem de sessão.                                      |
+| `/api/admin/bootstrap` · `esqueci-senha` · `redefinir-senha` | sessão de bootstrap ou token   | Configuração inicial e recuperação de senha.                       |
+| `/api/admin/**` (demais)                                     | `exigirSessao`                 | Agenda, cadastros, configuração, resumo, upload, perfil.           |
 
 ### Camada de domínio — `src/lib/`
 
-| Módulo               | Responsabilidade                                                                                    |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| `db.js`              | Abre a conexão SQLite (WAL, FKs on), expõe leituras e helpers. **Único ponto que conhece o banco.** |
-| `migrations.js`      | Migrations versionadas do schema; `versaoEsperada()`.                                               |
-| `agendamentos.js`    | Criar, remarcar, mudar status e excluir agendamento — com a máquina de estados e as transações.     |
-| `slots.js`           | Cálculo dos horários livres (`horariosLivres`).                                                     |
-| `datas-cliente.js`   | Dias disponíveis e utilidades de data no fuso da barbearia.                                         |
-| `auth.js`            | Sessão (HMAC), scrypt, bootstrap, login por barbeiro, tokens de recuperação.                        |
-| `limitador.js`       | Rate limiting em SQLite (por chave + disjuntor global).                                             |
-| `auditoria.js`       | Trilha de auditoria das mutações, sem PII do cliente.                                               |
-| `validacao.js`       | Validação central de entrada (formato, faixa, e-mail, telefone).                                    |
-| `requisicao.js`      | Leitura de corpo JSON, verificação de `Origin`.                                                     |
-| `log.js`             | Logging estruturado em stdout; wrapper `comLog` de cada handler.                                    |
-| `format.js`          | Moeda, telefone, datas, link de WhatsApp, nome padrão.                                              |
-| `email.js`           | Envio de e-mail (`EMAIL_PROVIDER`: `console` em dev, SMTP em produção).                             |
-| `config-ambiente.js` | Verificação de ambiente seguro em produção (`verificarAmbiente`).                                   |
+| Módulo               | Responsabilidade                                                                                                            |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `db.js`              | Abre a conexão SQLite (WAL, FKs on), expõe leituras e helpers. **Único ponto que conhece o banco.**                         |
+| `migrations.js`      | Migrations versionadas do schema; `versaoEsperada()`.                                                                       |
+| `agendamentos.js`    | Criar, remarcar, mudar status e excluir agendamento — com a máquina de estados e as transações.                             |
+| `slots.js`           | Cálculo dos horários livres (`horariosLivres`).                                                                             |
+| `datas-cliente.js`   | Dias disponíveis e utilidades de data no fuso da barbearia.                                                                 |
+| `auth.js`            | Sessão (HMAC), scrypt, bootstrap, login por barbeiro, tokens de recuperação.                                                |
+| `cliente-auth.js`    | Conta do cliente do site: sessão própria (`cliente_sessao`), cadastro, login, recuperação, anonimização. Espelha `auth.js`. |
+| `limitador.js`       | Rate limiting em SQLite (por chave + disjuntor global).                                                                     |
+| `auditoria.js`       | Trilha de auditoria das mutações, sem PII do cliente.                                                                       |
+| `validacao.js`       | Validação central de entrada (formato, faixa, e-mail, telefone).                                                            |
+| `requisicao.js`      | Leitura de corpo JSON, verificação de `Origin`.                                                                             |
+| `log.js`             | Logging estruturado em stdout; wrapper `comLog` de cada handler.                                                            |
+| `format.js`          | Moeda, telefone, datas, link de WhatsApp, nome padrão.                                                                      |
+| `email.js`           | Envio de e-mail (`EMAIL_PROVIDER`: `console` em dev, SMTP em produção).                                                     |
+| `config-ambiente.js` | Verificação de ambiente seguro em produção (`verificarAmbiente`).                                                           |
 
 ---
 
