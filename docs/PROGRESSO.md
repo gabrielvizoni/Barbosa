@@ -13,10 +13,11 @@ não está nos documentos, ele é decidido com o responsável antes de codar.
 
 ## Entregue
 
-| Epic                                | Commit                                                           | Situação  | Fecha                                                                                | Fica para depois                                                                                                                                |
-| ----------------------------------- | ---------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| **B — Expediente por profissional** | `feat(agenda): expediente e folgas recorrentes por profissional` | concluído | RF-34, RF-81, RN-14, RN-49                                                           | —                                                                                                                                               |
-| **A — Conta de cliente e LGPD**     | `feat(conta): conta de cliente, LGPD e agendamento autenticado`  | concluído | RF-05, RF-09, RF-11 a RF-14, RF-19, RF-20, RF-72, RN-50, RN-44, RN-45, RN-51, RNF-10 | histórico próprio do cliente em `/conta` (RF-15 → Epic J); edição de cliente pelo admin e faltas/bad-list na ficha (RF-71/73/74/75 → Epics C/D) |
+| Epic                                   | Commit                                                           | Situação  | Fecha                                                                                | Fica para depois                                                                                                                                |
+| -------------------------------------- | ---------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **B — Expediente por profissional**    | `feat(agenda): expediente e folgas recorrentes por profissional` | concluído | RF-34, RF-81, RN-14, RN-49                                                           | —                                                                                                                                               |
+| **A — Conta de cliente e LGPD**        | `feat(conta): conta de cliente, LGPD e agendamento autenticado`  | concluído | RF-05, RF-09, RF-11 a RF-14, RF-19, RF-20, RF-72, RN-50, RN-44, RN-45, RN-51, RNF-10 | histórico próprio do cliente em `/conta` (RF-15 → Epic J); edição de cliente pelo admin e faltas/bad-list na ficha (RF-71/73/74/75 → Epics C/D) |
+| **0 — Infra: tarefas + CI + ambiente** | _pendente de commit_                                             | concluído | RF-107, RNF-22 (`[PARCIAL]`)                                                         | lógica das rotinas (lembretes → Epic I; no-show → Epic C; limpeza → sem epic dono ainda); marcar `test` como _required status check_ no GitHub  |
 
 ### Epic B — resumo
 
@@ -63,21 +64,44 @@ não está nos documentos, ele é decidido com o responsável antes de codar.
   anonimiza **também** os agendamentos daquele cliente (nome → "Cliente
   removido", telefone → vazio), preservando o financeiro.
 
+### Epic 0 — resumo
+
+- `src/lib/tarefas.js`: `exigirSegredoTarefa(request)` compara o header
+  `X-Tarefa-Segredo` com `process.env.TAREFA_SEGREDO` em tempo constante
+  (reúso de `iguais`, exportada de `auth.js`); devolve `null` quando confere
+  ou uma `Response` 401 quando não — e nunca autoriza por acidente quando o
+  segredo não está configurado (não compara duas strings vazias).
+- Rotas `POST /api/tarefas/lembretes`, `.../marcar-no-show` e `.../limpeza`:
+  por ora _stubs_ atrás do segredo, respondendo `{ ok: true, processados: 0 }`.
+  A lógica de cada uma entra com o epic dono (Epic I, Epic C e uma limpeza
+  periódica ainda sem epic definido).
+- `verificarAmbiente()` passa a exigir `TAREFA_SEGREDO` em produção (mesmo
+  padrão dos demais segredos); `.env.example` documenta a variável e como
+  gerar um valor aleatório.
+- `.github/workflows/ci.yml`: a cada push em `main` e a cada pull request,
+  `npm ci` → `npm run format:check` → `npm test` no Node fixado pelo
+  `.nvmrc`.
+- `tests/tarefas.test.js` cobre o helper, os três _stubs_ e a checagem de
+  ambiente — suíte sobe de 178 para 186 testes.
+- **Decisões:** nenhuma decisão de negócio ficou em aberto — o escopo já
+  estava totalmente definido no backlog.
+- **Fica para depois:** marcar o job `test` do GitHub Actions como _required
+  status check_ em Settings → Branches é configuração manual do repositório,
+  fora do código — ainda não foi feita.
+
 ---
 
 ## Próximo
 
-Pelo grafo do backlog, com B e A concluídos, os epics elegíveis são:
+Pelo grafo do backlog, com B, A e 0 concluídos, os epics elegíveis são:
 
-- **Epic 0 — Infra: tarefas + CI + validação de ambiente** (tamanho S; `#1` da
-  ordem sugerida; destrava os Epics C e I). Tudo `[PLANEJADO]`.
+- **Epic C — No-show automático** (destrava D e M).
 - **Epic K — Papéis restritos + superadmin** (tamanho M; fecha RN-39;
   destrava L e N). "Mexe em muitos testes".
-- **Epic C — No-show automático** só fica elegível depois do Epic 0.
+- **Epic I — Lembretes** só fica elegível depois de A e H (H ainda não
+  entregue).
 
-A recomendação é o **Epic 0**: é pequeno, é o `#1` da ordem sugerida e
-desbloqueia dois outros epics (C e I). Confirmar com o responsável antes de
-começar.
+Confirmar com o responsável qual entrar antes de começar.
 
 ---
 

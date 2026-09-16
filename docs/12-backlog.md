@@ -104,16 +104,26 @@ primeiro.
 
 ---
 
-## Epic 0 — Infra de tarefas agendadas, CI e validação de ambiente
+## Epic 0 — Infra de tarefas agendadas, CI e validação de ambiente — CONCLUÍDO
 
 **Tamanho:** S · **Depende de:** nada · **Documentos:**
 [01](01-requisitos-funcionais.md) (RF-107, RNF-16, RNF-22),
 [05](05-arquitetura.md) §5, [11](11-estrategia-de-testes.md) §5
 
-Situação: `[PLANEJADO]`. Não existe nenhuma rota `/api/tarefas/*`, nenhum
-segredo de tarefa e nenhum `.github/workflows/`.
+Situação: **entregue**. RF-107 e RNF-22 agora `[PARCIAL]` (a autenticação e os
+endpoints existem; a lógica de cada rotina — lembretes, no-show, limpeza — fica
+para os epics donos). `src/lib/tarefas.js` (`exigirSegredoTarefa`); rotas
+`POST /api/tarefas/lembretes`, `.../marcar-no-show` e `.../limpeza` (_stubs_
+protegidos pelo segredo); `verificarAmbiente()` exige `TAREFA_SEGREDO` em
+produção; `.env.example` documenta a variável;
+`.github/workflows/ci.yml` (`npm ci` → `format:check` → `test` no Node do
+`.nvmrc`); `tests/tarefas.test.js`.
 
-- [ ] **T-0.1** `exigirSegredoTarefa(request)` — novo helper (em
+**Fora do escopo entregue:** marcar o job `test` como _required status check_
+em Settings → Branches do GitHub — configuração manual fora do código, não
+feita nesta entrega.
+
+- [x] **T-0.1** `exigirSegredoTarefa(request)` — novo helper (em
       `src/lib/tarefas.js` ou `src/lib/auth.js`) que compara o header
       `X-Tarefa-Segredo` com `process.env.TAREFA_SEGREDO` em tempo constante.
       Devolve `null` quando confere, ou uma `Response` **401** quando não.
@@ -124,7 +134,7 @@ segredo de tarefa e nenhum `.github/workflows/`.
     (exportar — ver "Correções ao mapa de reúso"); forma de rota
     (`export const dynamic` + `comLog`) de
     [`src/app/api/health/route.js`](../src/app/api/health/route.js).
-- [ ] **T-0.2** Rotas `POST /api/tarefas/lembretes`,
+- [x] **T-0.2** Rotas `POST /api/tarefas/lembretes`,
       `POST /api/tarefas/marcar-no-show` e `POST /api/tarefas/limpeza` — por
       ora _stubs_ atrás de T-0.1, respondendo `{ ok: true, processados: 0 }`.
       A lógica real entra em T-C.3, T-I.3 e numa varredura de `limitador`.
@@ -133,7 +143,7 @@ segredo de tarefa e nenhum `.github/workflows/`.
   - **Satisfaz:** RF-107, [10](10-contrato-da-api.md) §5 (linha "Rotinas").
   - **Reúso:** [`src/app/api/health/route.js`](../src/app/api/health/route.js)
     como molde de rota pública mínima; `comLog` de `src/lib/log.js`.
-- [ ] **T-0.3** `verificarAmbiente()` passa a exigir `TAREFA_SEGREDO` em
+- [x] **T-0.3** `verificarAmbiente()` passa a exigir `TAREFA_SEGREDO` em
       produção (mais um bloco `problemas.push(...)`); o `.env.example`
       documenta a variável e como gerá-la.
   - **Aceite:** teste de `verificarAmbiente()` com `NODE_ENV=production` e sem
@@ -142,7 +152,7 @@ segredo de tarefa e nenhum `.github/workflows/`.
   - **Reúso:**
     [`src/lib/config-ambiente.js:59`](../src/lib/config-ambiente.js#L59)
     (padrão dos blocos `if`) e `ehPlaceholder` no mesmo arquivo.
-- [ ] **T-0.4** `.github/workflows/ci.yml` — em cada _push_ e _pull request_:
+- [x] **T-0.4** `.github/workflows/ci.yml` — em cada _push_ e _pull request_:
       `npm ci`, `npm run format:check` e `npm test` no Node 22; _job_
       obrigatório para _merge_.
   - **Aceite:** o _workflow_ fica verde num PR de teste; uma quebra proposital
@@ -150,7 +160,7 @@ segredo de tarefa e nenhum `.github/workflows/`.
   - **Satisfaz:** RNF-16, [11](11-estrategia-de-testes.md) §5.
   - **Reúso:** _scripts_ do [`package.json`](../package.json)
     (`format:check`, `test`); o `.nvmrc` fixa o Node 22.
-- [ ] **T-0.5** `tests/tarefas.test.js` — cobre T-0.1 (401/200 pelo segredo) e
+- [x] **T-0.5** `tests/tarefas.test.js` — cobre T-0.1 (401/200 pelo segredo) e
       os _stubs_. Vira `[PLANEJADO]` → `[PARCIAL]` em RF-107 e RNF-22 no
       [01](01-requisitos-funcionais.md) e ajusta
       [11](11-estrategia-de-testes.md) §5 (CI passa a existir).

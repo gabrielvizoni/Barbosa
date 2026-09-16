@@ -248,7 +248,7 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 | RF-104 | Trilha de auditoria de toda mutação de agendamento, sem guardar nome ou telefone do cliente.                                                                                                           | `SIS`  | I    | `[IMPLEMENTADO]` |
 | RF-105 | Backup automático diário em produção (banco + uploads) para um armazenamento externo ao ambiente, com retenção inicial de 30 dias.                                                                     | `SADM` | E    | `[PLANEJADO]`    |
 | RF-106 | Runbook de restauração de backup, testado.                                                                                                                                                             | `SADM` | E    | `[PLANEJADO]`    |
-| RF-107 | Rotinas periódicas (lembretes, marcação de `no-show`, limpeza) acionadas por um **agendador externo** que chama endpoints internos protegidos — sem depender de um processo Node em execução contínua. | `SIS`  | E    | `[PLANEJADO]`    |
+| RF-107 | Rotinas periódicas (lembretes, marcação de `no-show`, limpeza) acionadas por um **agendador externo** que chama endpoints internos protegidos — sem depender de um processo Node em execução contínua. | `SIS`  | E    | `[PARCIAL]`      |
 
 ---
 
@@ -271,13 +271,13 @@ e uma situação. A situação segue a [legenda](README.md#legenda-de-situação
 | RNF-13 | O agendamento público se completa em cerca de seis cliques, com layout pensado primeiro para o celular.                                                                                                                                                 | `[IMPLEMENTADO]` / alvo  |
 | RNF-14 | Animações respeitam `prefers-reduced-motion`. Cobertura de acessibilidade (foco visível, contraste, navegação por teclado) a ampliar.                                                                                                                   | `[PARCIAL]`              |
 | RNF-15 | Design system em CSS custom properties num único arquivo; a documentação desta pasta é mantida em dia com o código.                                                                                                                                     | `[IMPLEMENTADO]`         |
-| RNF-16 | Suíte de testes no runner nativo do Node (`node --test`), sem framework. Hoje 136 testes, todos passando. Toda regra crítica nova entra com teste.                                                                                                      | `[IMPLEMENTADO]`         |
+| RNF-16 | Suíte de testes no runner nativo do Node (`node --test`), sem framework. Hoje 186 testes, todos passando. Toda regra crítica nova entra com teste.                                                                                                      | `[IMPLEMENTADO]`         |
 | RNF-17 | Logging estruturado em stdout; sem stack de observabilidade externa, por opção.                                                                                                                                                                         | `[IMPLEMENTADO]`         |
 | RNF-18 | Em produção sem `SESSION_SECRET` de verdade, o sistema se recusa a subir em vez de assinar sessões com um valor previsível.                                                                                                                             | `[IMPLEMENTADO]`         |
 | RNF-19 | Node 18.19 ou superior; `.nvmrc` fixa a versão 22.                                                                                                                                                                                                      | `[IMPLEMENTADO]`         |
 | RNF-20 | Interface só em português do Brasil; sem camada de internacionalização.                                                                                                                                                                                 | decisão de escopo        |
 | RNF-21 | As notificações ao cliente dependem de um provedor externo de WhatsApp (WhatsApp Business / Cloud API oficial) e de um provedor de e-mail (SMTP). A indisponibilidade deles não pode derrubar o agendamento — o envio é assíncrono e tolerante a falha. | `[PLANEJADO]`            |
-| RNF-22 | As rotinas periódicas rodam por acionamento externo (agendador do provedor de hospedagem ou serviço de cron) chamando endpoints internos protegidos por segredo — o processo Node não precisa ficar de pé para elas acontecerem.                        | `[PLANEJADO]`            |
+| RNF-22 | As rotinas periódicas rodam por acionamento externo (agendador do provedor de hospedagem ou serviço de cron) chamando endpoints internos protegidos por segredo — o processo Node não precisa ficar de pé para elas acontecerem.                        | `[PARCIAL]`              |
 
 ---
 

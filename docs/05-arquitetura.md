@@ -63,16 +63,17 @@ O **middleware** roda em toda requisição de página e injeta a CSP com nonce.
 
 ### API — famílias de rotas
 
-| Prefixo                                                      | Autenticação                   | Função                                                             |
-| ------------------------------------------------------------ | ------------------------------ | ------------------------------------------------------------------ |
-| `/api/public`                                                | nenhuma                        | Serviços, equipe e dias disponíveis para o site.                   |
-| `/api/horarios`                                              | nenhuma                        | Horários livres de um par profissional + serviço num dia.          |
-| `/api/agendamentos`                                          | sessão de cliente + rate limit | Recebe o agendamento do cliente (RN-50).                           |
-| `/api/conta/**`                                              | sessão de cliente (mutações)   | Cadastro, login, recuperação de senha, perfil e exclusão da conta. |
-| `/api/health`                                                | nenhuma                        | Health check (banco + escrita em `public/uploads`).                |
-| `/api/admin/login` · `logout` · `sessao`                     | nenhuma                        | Entrada e sondagem de sessão.                                      |
-| `/api/admin/bootstrap` · `esqueci-senha` · `redefinir-senha` | sessão de bootstrap ou token   | Configuração inicial e recuperação de senha.                       |
-| `/api/admin/**` (demais)                                     | `exigirSessao`                 | Agenda, cadastros, configuração, resumo, upload, perfil.           |
+| Prefixo                                                      | Autenticação                              | Função                                                               |
+| ------------------------------------------------------------ | ----------------------------------------- | -------------------------------------------------------------------- |
+| `/api/public`                                                | nenhuma                                   | Serviços, equipe e dias disponíveis para o site.                     |
+| `/api/horarios`                                              | nenhuma                                   | Horários livres de um par profissional + serviço num dia.            |
+| `/api/agendamentos`                                          | sessão de cliente + rate limit            | Recebe o agendamento do cliente (RN-50).                             |
+| `/api/conta/**`                                              | sessão de cliente (mutações)              | Cadastro, login, recuperação de senha, perfil e exclusão da conta.   |
+| `/api/health`                                                | nenhuma                                   | Health check (banco + escrita em `public/uploads`).                  |
+| `/api/admin/login` · `logout` · `sessao`                     | nenhuma                                   | Entrada e sondagem de sessão.                                        |
+| `/api/admin/bootstrap` · `esqueci-senha` · `redefinir-senha` | sessão de bootstrap ou token              | Configuração inicial e recuperação de senha.                         |
+| `/api/admin/**` (demais)                                     | `exigirSessao`                            | Agenda, cadastros, configuração, resumo, upload, perfil.             |
+| `/api/tarefas/**`                                            | segredo em header (`exigirSegredoTarefa`) | Rotinas periódicas acionadas por agendador externo (RNF-22, RF-107). |
 
 ### Camada de domínio — `src/lib/`
 
@@ -93,6 +94,7 @@ O **middleware** roda em toda requisição de página e injeta a CSP com nonce.
 | `format.js`          | Moeda, telefone, datas, link de WhatsApp, nome padrão.                                                                      |
 | `email.js`           | Envio de e-mail (`EMAIL_PROVIDER`: `console` em dev, SMTP em produção).                                                     |
 | `config-ambiente.js` | Verificação de ambiente seguro em produção (`verificarAmbiente`).                                                           |
+| `tarefas.js`         | Autenticação por segredo compartilhado das rotinas periódicas (`exigirSegredoTarefa`).                                      |
 
 ---
 
@@ -133,14 +135,14 @@ O **middleware** roda em toda requisição de página e injeta a CSP com nonce.
 
 ---
 
-## 5. Integrações externas `[PLANEJADO]`
+## 5. Integrações externas `[PARCIAL]`
 
-| Integração                          | Uso                                                                                                                                 | Notas                                                                                                      |
-| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **WhatsApp Business / Cloud API**   | Bot que comunica status de agendamento e lembretes ao cliente (RF-93, RF-95).                                                       | API oficial, número próprio da barbearia; envio assíncrono e tolerante a falha (RNF-21).                   |
-| **Provedor de e-mail (SMTP)**       | Recuperação de senha (já existe) e confirmação de agendamento ao cliente (RF-94).                                                   | `EMAIL_PROVIDER=smtp` em produção; `console` em dev.                                                       |
-| **Agendador externo (cron)**        | Aciona as rotinas de lembrete, marcação de `no-show` e limpeza chamando endpoints internos protegidos por segredo (RNF-22, RF-107). | Cron do provedor de hospedagem ou serviço de terceiros; o processo Node não precisa ficar de pé para elas. |
-| **Armazenamento de backup externo** | Cópia diária de `data/` e `public/uploads/`, fora do ambiente principal (RNF-04).                                                   | Retenção inicial de 30 dias.                                                                               |
+| Integração                          | Uso                                                                                                                          | Notas                                                                                                                                                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **WhatsApp Business / Cloud API**   | Bot que comunica status de agendamento e lembretes ao cliente (RF-93, RF-95).                                                | API oficial, número próprio da barbearia; envio assíncrono e tolerante a falha (RNF-21).                                                                                                                                                         |
+| **Provedor de e-mail (SMTP)**       | Recuperação de senha (já existe) e confirmação de agendamento ao cliente (RF-94).                                            | `EMAIL_PROVIDER=smtp` em produção; `console` em dev.                                                                                                                                                                                             |
+| **Agendador externo (cron)**        | Aciona `POST /api/tarefas/lembretes`, `/marcar-no-show` e `/limpeza`, protegidos por segredo compartilhado (RNF-22, RF-107). | Auth e endpoints já existem; a lógica de cada rotina ainda é um stub (`{ ok: true, processados: 0 }`) até os epics que a implementam. Cron do provedor de hospedagem ou serviço de terceiros; o processo Node não precisa ficar de pé para elas. |
+| **Armazenamento de backup externo** | Cópia diária de `data/` e `public/uploads/`, fora do ambiente principal (RNF-04).                                            | Retenção inicial de 30 dias.                                                                                                                                                                                                                     |
 
 Nenhuma dessas integrações está no caminho síncrono de uma requisição: a falha
 de qualquer provedor externo não pode derrubar o agendamento nem o painel.

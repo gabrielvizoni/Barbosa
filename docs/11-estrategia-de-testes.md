@@ -55,6 +55,7 @@ de **componente** React.
 | `tests/db.test.js`                  | Abertura da conexão, PRAGMAs, recusa de subir com versão de schema errada; `CHECK`s do schema; _trigger_ de expediente padrão e `ON DELETE CASCADE` do profissional.                                                                             |
 | `tests/resumo.test.js`              | Agregados do `GET /api/admin/resumo`: agrupamento por mês, somas de recebido e a receber.                                                                                                                                                        |
 | `tests/log.test.js`                 | Formato do log estruturado.                                                                                                                                                                                                                      |
+| `tests/tarefas.test.js`             | `exigirSegredoTarefa` e os três stubs `POST /api/tarefas/*`: 401 sem segredo/com segredo errado, nunca autoriza sem `TAREFA_SEGREDO` definido; `verificarAmbiente` acusa o segredo ausente ou placeholder.                                       |
 
 Helpers (não são suites): `tests/ajuda.js`, `tests/register-hooks.mjs`,
 `tests/module-hooks.mjs`, `tests/fake-next-headers.mjs`,
@@ -77,13 +78,14 @@ Helpers (não são suites): `tests/ajuda.js`, `tests/register-hooks.mjs`,
 
 ## 5. Integração contínua
 
-**Não existe.** Não há `.github/workflows` nem outra configuração de CI. Os
-testes rodam só na máquina de quem desenvolve.
+**`.github/workflows/ci.yml`** roda a cada push em `main` e a cada pull
+request: `npm ci` → `npm run format:check` → `npm test`, no Node fixado por
+`.nvmrc` (22).
 
-**Proposta (`[PLANEJADO]`):** um workflow do GitHub Actions que, a cada push e
-pull request, rode `npm ci`, `npm run format:check` e `npm test` no Node 22, e
-bloqueie o merge se algo falhar. Custo baixo, e fecha a lacuna de "passou aqui
-mas não lá".
+O workflow faz os testes **rodarem** em todo push/PR, mas não bloqueia merge
+por si só — isso depende de marcar o job `test` como _required status check_
+em Settings → Branches do repositório, uma configuração manual fora do
+código.
 
 ---
 
@@ -93,8 +95,7 @@ mas não lá".
   as dos módulos `[PLANEJADO]` que mexem em dinheiro e em estado: marcação
   automática de `no-show` e liberação do horário, contagem de faltas da
   bad-list (cancelamento não interrompe), fechamento de comanda só após
-  `concluido`, bloqueio de venda sem estoque, soma de múltiplos pagamentos, e a
-  autenticação por segredo dos endpoints `/api/tarefas/*`.
+  `concluido`, bloqueio de venda sem estoque, soma de múltiplos pagamentos.
 - A suíte fica **verde** antes de qualquer merge.
 - Testes de integração usam sempre **banco temporário** — nenhum teste toca
   `data/app.db`.

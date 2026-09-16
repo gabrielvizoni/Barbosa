@@ -102,6 +102,18 @@ export function verificarAmbiente() {
     );
   }
 
+  // As rotinas periódicas (POST /api/tarefas/*) são chamadas por um
+  // agendador externo, autenticadas por este segredo em vez de sessão
+  // (RNF-22) — sem ele, ninguém consegue acioná-las em produção.
+  if (
+    !process.env.TAREFA_SEGREDO ||
+    ehPlaceholder(process.env.TAREFA_SEGREDO)
+  ) {
+    problemas.push(
+      "TAREFA_SEGREDO não está definido (ou está com um valor de exemplo do .env.example) — necessário para autenticar as rotinas periódicas em /api/tarefas/*.",
+    );
+  }
+
   const dirBanco = path.dirname(process.env.DATABASE_PATH || "./data/app.db");
   if (!diretorioGravavel(dirBanco)) {
     problemas.push(`Diretório do banco (${dirBanco}) não é gravável.`);
